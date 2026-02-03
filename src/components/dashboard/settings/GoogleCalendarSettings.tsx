@@ -39,19 +39,26 @@ const GoogleCalendarSettings = () => {
   // Handle OAuth callback
   useEffect(() => {
     const code = searchParams.get('code');
+    const error = searchParams.get('error');
     
-    if (code && !isConnected) {
-      handleCallback(code).then((success) => {
-        if (success) {
-          // Clean up URL params
-          searchParams.delete('code');
-          searchParams.delete('state');
-          searchParams.delete('scope');
-          setSearchParams(searchParams);
-        }
+    if (error) {
+      console.error('OAuth error:', error, searchParams.get('error_description'));
+      searchParams.delete('error');
+      searchParams.delete('error_description');
+      setSearchParams(searchParams);
+      return;
+    }
+    
+    if (code && !isConnected && !connecting) {
+      handleCallback(code).then(() => {
+        // Clean up URL params regardless of success
+        searchParams.delete('code');
+        searchParams.delete('state');
+        searchParams.delete('scope');
+        setSearchParams(searchParams);
       });
     }
-  }, [searchParams, isConnected, handleCallback, setSearchParams]);
+  }, [searchParams, isConnected, connecting, handleCallback, setSearchParams]);
 
   // Load events when connected
   useEffect(() => {
