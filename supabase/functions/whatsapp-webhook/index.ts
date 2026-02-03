@@ -335,15 +335,29 @@ serve(async (req) => {
 
     console.log(`📍 Current step: ${currentStepIndex + 1}/${steps.length}`);
 
+    // Check if user has Google Calendar connected
+    const { data: calendarToken } = await supabase
+      .from("google_calendar_tokens")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const hasCalendarConnected = !!calendarToken;
+    console.log(`📅 Calendar connected: ${hasCalendarConnected}`);
+
     const aiResponse = await processWithAI(
       LOVABLE_API_KEY,
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
       rules,
       currentStep,
       nextStep,
       messageBody,
       history,
       steps,
-      existingCase.client_name || clientName
+      existingCase.client_name || clientName,
+      hasCalendarConnected,
+      userId
     );
 
     console.log(`🤖 AI Response action: ${aiResponse.action}, new_status: ${aiResponse.new_status || 'none'}`);
@@ -512,14 +526,20 @@ Responda APENAS com o número da FAQ correspondente ou "0" se nenhuma correspond
 
 async function processWithAI(
   apiKey: string,
+  supabaseUrl: string,
+  supabaseServiceKey: string,
   rules: any,
   currentStep: any,
   nextStep: any,
   clientMessage: string,
   history: any[],
   allSteps: any[],
-  clientName: string
+  clientName: string,
+  hasCalendarConnected: boolean,
+  userId: string
 ): Promise<{ response_text: string; action: "PROCEED" | "STAY"; new_status?: string }> {
+  
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
   // Build context about the script
   const scriptContext = allSteps.map((s, i) => 
@@ -542,7 +562,17 @@ async function processWithAI(
   // Build conversation memory summary from history
   const conversationMemory = history.length > 0
     ? `\n\n💬 MEMÓRIA DA CONVERSA (informações já coletadas):
-${history.map((h, i) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${h.content}`).join('\n')}`
+${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${h.content}`).join('\n')}`
+    : "";
+
+  // Calendar context if available
+  const calendarContext = hasCalendarConnected 
+    ? `\n\n📅 AGENDAMENTO DISPONÍVEL:
+- Você TEM ACESSO ao calendário do escritório para agendar consultas.
+- Quando o cliente quiser agendar, use a função check_calendar_availability para verificar horários livres.
+- Depois use create_calendar_event para criar o agendamento.
+- Ofereça 2-3 opções de horários disponíveis para o cliente escolher.
+- IMPORTANTE: Sempre que o cliente mencionar agendamento, reunião, consulta ou horário, USE as ferramentas de calendário!`
     : "";
 
   const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
@@ -560,6 +590,7 @@ ${scriptContext}
 ${currentStepInfo}
 ${nextStepInfo}
 ${conversationMemory}
+${calendarContext}
 
 👤 INFORMAÇÕES DO CLIENTE:
 - Nome: ${clientName}
@@ -572,7 +603,8 @@ ${conversationMemory}
 3. Se for a última etapa e o cliente concordou, mude new_status para "Qualificado"
 4. Se o cliente demonstrar desinteresse, mude new_status para "Não Qualificado"
 5. SEMPRE use o nome do cliente quando fizer sentido na conversa
-6. NUNCA peça informações que o cliente já forneceu na conversa`;
+6. NUNCA peça informações que o cliente já forneceu na conversa
+7. Se o cliente pedir para agendar, USE as ferramentas de calendário (check_calendar_availability e create_calendar_event)`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
@@ -583,7 +615,93 @@ ${conversationMemory}
     { role: "user" as const, content: clientMessage },
   ];
 
-  // Use tool calling for structured output
+  // Define tools - include calendar tools if connected
+  const tools: any[] = [
+    {
+      type: "function",
+      function: {
+        name: "send_response",
+        description: "Envia a resposta para o cliente e decide se avança no roteiro",
+        parameters: {
+          type: "object",
+          properties: {
+            response_text: {
+              type: "string",
+              description: "A mensagem a ser enviada para o cliente"
+            },
+            action: {
+              type: "string",
+              enum: ["PROCEED", "STAY"],
+              description: "PROCEED para avançar à próxima etapa, STAY para permanecer na atual"
+            },
+            new_status: {
+              type: "string",
+              enum: ["Qualificado", "Não Qualificado", "Convertido", ""],
+              description: "Novo status do lead se houver mudança, ou vazio"
+            }
+          },
+          required: ["response_text", "action"],
+          additionalProperties: false
+        }
+      }
+    }
+  ];
+
+  // Add calendar tools if connected
+  if (hasCalendarConnected) {
+    tools.push(
+      {
+        type: "function",
+        function: {
+          name: "check_calendar_availability",
+          description: "Verifica os horários disponíveis no calendário para agendamento de consultas. Use quando o cliente quiser marcar uma reunião ou consulta.",
+          parameters: {
+            type: "object",
+            properties: {
+              days_ahead: {
+                type: "number",
+                description: "Quantos dias à frente verificar disponibilidade (padrão: 7)"
+              }
+            },
+            required: [],
+            additionalProperties: false
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_calendar_event",
+          description: "Cria um agendamento no calendário. Use após o cliente escolher um horário específico.",
+          parameters: {
+            type: "object",
+            properties: {
+              date: {
+                type: "string",
+                description: "Data do agendamento no formato YYYY-MM-DD"
+              },
+              time: {
+                type: "string",
+                description: "Horário no formato HH:MM (ex: 14:00)"
+              },
+              summary: {
+                type: "string",
+                description: "Título da reunião (ex: Consulta inicial - Nome do Cliente)"
+              },
+              duration_minutes: {
+                type: "number",
+                description: "Duração em minutos (padrão: 60)"
+              }
+            },
+            required: ["date", "time", "summary"],
+            additionalProperties: false
+          }
+        }
+      }
+    );
+  }
+
+  // First AI call
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -595,37 +713,8 @@ ${conversationMemory}
       messages,
       temperature: 0.7,
       max_tokens: 500,
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "send_response",
-            description: "Envia a resposta para o cliente e decide se avança no roteiro",
-            parameters: {
-              type: "object",
-              properties: {
-                response_text: {
-                  type: "string",
-                  description: "A mensagem a ser enviada para o cliente"
-                },
-                action: {
-                  type: "string",
-                  enum: ["PROCEED", "STAY"],
-                  description: "PROCEED para avançar à próxima etapa, STAY para permanecer na atual"
-                },
-                new_status: {
-                  type: "string",
-                  enum: ["Qualificado", "Não Qualificado", "Convertido", ""],
-                  description: "Novo status do lead se houver mudança, ou vazio"
-                }
-              },
-              required: ["response_text", "action"],
-              additionalProperties: false
-            }
-          }
-        }
-      ],
-      tool_choice: { type: "function", function: { name: "send_response" } }
+      tools,
+      tool_choice: "auto"
     }),
   });
 
@@ -637,19 +726,160 @@ ${conversationMemory}
 
   const data = await response.json();
   
-  // Handle tool call response
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (toolCall?.function?.arguments) {
-    try {
-      const parsed = JSON.parse(toolCall.function.arguments);
-      console.log("🤖 Tool call response:", JSON.stringify(parsed));
-      return {
-        response_text: parsed.response_text || "Desculpe, pode repetir?",
-        action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
-        new_status: parsed.new_status || undefined,
-      };
-    } catch (e) {
-      console.error("Failed to parse tool call arguments:", e);
+  // Handle tool calls
+  const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
+  console.log(`🔧 Tool calls received: ${toolCalls.length}`);
+
+  // Process calendar tool calls if any
+  for (const toolCall of toolCalls) {
+    const funcName = toolCall.function?.name;
+    const funcArgs = toolCall.function?.arguments;
+    
+    if (!funcName || !funcArgs) continue;
+    
+    console.log(`🔧 Processing tool: ${funcName}`);
+    
+    if (funcName === "check_calendar_availability") {
+      try {
+        const args = JSON.parse(funcArgs);
+        const daysAhead = args.days_ahead || 7;
+        
+        // Get available slots
+        const slots = await getCalendarAvailability(supabase, userId, daysAhead);
+        console.log(`📅 Found ${slots.length} available slots`);
+        
+        // Make second AI call with slots info
+        const slotsText = slots.slice(0, 6).map(s => {
+          const date = new Date(s.start);
+          return `- ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        }).join('\n');
+        
+        const followUpMessages = [
+          ...messages,
+          { role: "assistant" as const, content: "", tool_calls: [toolCall] },
+          { 
+            role: "tool" as const, 
+            tool_call_id: toolCall.id,
+            content: `Horários disponíveis encontrados:\n${slotsText}\n\nOfereça essas opções ao cliente de forma amigável.`
+          }
+        ];
+        
+        const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: followUpMessages,
+            temperature: 0.7,
+            max_tokens: 500,
+            tools: [tools[0]], // Only send_response tool
+            tool_choice: { type: "function", function: { name: "send_response" } }
+          }),
+        });
+        
+        if (followUpResponse.ok) {
+          const followUpData = await followUpResponse.json();
+          const finalToolCall = followUpData.choices?.[0]?.message?.tool_calls?.[0];
+          if (finalToolCall?.function?.arguments) {
+            const parsed = JSON.parse(finalToolCall.function.arguments);
+            return {
+              response_text: parsed.response_text || "Temos vários horários disponíveis! Qual prefere?",
+              action: "STAY" as const,
+              new_status: undefined,
+            };
+          }
+        }
+      } catch (e) {
+        console.error("Calendar availability error:", e);
+      }
+    }
+    
+    if (funcName === "create_calendar_event") {
+      try {
+        const args = JSON.parse(funcArgs);
+        console.log(`📅 Creating event: ${JSON.stringify(args)}`);
+        
+        const eventResult = await createCalendarEvent(
+          supabase, 
+          userId, 
+          args.date, 
+          args.time, 
+          args.summary,
+          args.duration_minutes || 60
+        );
+        
+        if (eventResult.success) {
+          console.log(`✅ Event created successfully`);
+          
+          // Make second AI call to confirm
+          const followUpMessages = [
+            ...messages,
+            { role: "assistant" as const, content: "", tool_calls: [toolCall] },
+            { 
+              role: "tool" as const, 
+              tool_call_id: toolCall.id,
+              content: `Agendamento criado com sucesso!\nData: ${args.date}\nHorário: ${args.time}\nTítulo: ${args.summary}\n\nConfirme o agendamento para o cliente de forma amigável.`
+            }
+          ];
+          
+          const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-3-flash-preview",
+              messages: followUpMessages,
+              temperature: 0.7,
+              max_tokens: 500,
+              tools: [tools[0]],
+              tool_choice: { type: "function", function: { name: "send_response" } }
+            }),
+          });
+          
+          if (followUpResponse.ok) {
+            const followUpData = await followUpResponse.json();
+            const finalToolCall = followUpData.choices?.[0]?.message?.tool_calls?.[0];
+            if (finalToolCall?.function?.arguments) {
+              const parsed = JSON.parse(finalToolCall.function.arguments);
+              return {
+                response_text: parsed.response_text || `Perfeito! Sua consulta foi agendada para ${args.date} às ${args.time}. Até lá!`,
+                action: "STAY" as const,
+                new_status: "Qualificado",
+              };
+            }
+          }
+          
+          return {
+            response_text: `Perfeito, ${clientName}! Sua consulta foi agendada para ${args.date} às ${args.time}. Você receberá uma confirmação. Até lá! 📅`,
+            action: "STAY" as const,
+            new_status: "Qualificado",
+          };
+        } else {
+          console.error(`❌ Event creation failed: ${eventResult.error}`);
+        }
+      } catch (e) {
+        console.error("Calendar event creation error:", e);
+      }
+    }
+    
+    // Handle send_response tool call
+    if (funcName === "send_response") {
+      try {
+        const parsed = JSON.parse(funcArgs);
+        console.log("🤖 Tool call response:", JSON.stringify(parsed));
+        return {
+          response_text: parsed.response_text || "Desculpe, pode repetir?",
+          action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
+          new_status: parsed.new_status || undefined,
+        };
+      } catch (e) {
+        console.error("Failed to parse tool call arguments:", e);
+      }
     }
   }
 
@@ -673,7 +903,7 @@ ${conversationMemory}
         action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
         new_status: parsed.new_status || undefined,
       };
-    } catch (e) {
+    } catch (_e) {
       console.log("⚠️ Failed to parse AI JSON");
     }
   }
@@ -684,6 +914,198 @@ ${conversationMemory}
     response_text: "Obrigado pela informação! Para dar continuidade ao atendimento, pode me contar mais sobre sua situação?",
     action: "STAY",
   };
+}
+
+// Helper function to get calendar availability
+async function getCalendarAvailability(
+  supabase: any, 
+  userId: string, 
+  daysAhead: number
+): Promise<{ start: string; end: string }[]> {
+  try {
+    const { data: tokenData } = await supabase
+      .from("google_calendar_tokens")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!tokenData) return [];
+
+    const accessToken = await refreshTokenIfNeeded(supabase, userId, tokenData);
+    if (!accessToken) return [];
+
+    const start = new Date();
+    const end = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+
+    // Get existing events
+    const eventsResponse = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const eventsData = await eventsResponse.json();
+    const busySlots = (eventsData.items || []).map((event: any) => ({
+      start: event.start?.dateTime || event.start?.date,
+      end: event.end?.dateTime || event.end?.date,
+    }));
+
+    // Generate available slots (9h-18h, 1 hour slots)
+    const availableSlots: { start: string; end: string }[] = [];
+    const currentDate = new Date(start);
+    currentDate.setHours(0, 0, 0, 0);
+
+    while (currentDate <= end) {
+      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+        for (let hour = 9; hour < 18; hour++) {
+          const slotStart = new Date(currentDate);
+          slotStart.setHours(hour, 0, 0, 0);
+          const slotEnd = new Date(slotStart);
+          slotEnd.setHours(hour + 1, 0, 0, 0);
+
+          if (slotStart > new Date()) {
+            const isBusy = busySlots.some((busy: any) => {
+              const busyStart = new Date(busy.start);
+              const busyEnd = new Date(busy.end);
+              return slotStart < busyEnd && slotEnd > busyStart;
+            });
+
+            if (!isBusy) {
+              availableSlots.push({
+                start: slotStart.toISOString(),
+                end: slotEnd.toISOString(),
+              });
+            }
+          }
+        }
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return availableSlots;
+  } catch (error) {
+    console.error("Error getting calendar availability:", error);
+    return [];
+  }
+}
+
+// Helper function to create calendar event
+async function createCalendarEvent(
+  supabase: any,
+  userId: string,
+  date: string,
+  time: string,
+  summary: string,
+  durationMinutes: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: tokenData } = await supabase
+      .from("google_calendar_tokens")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!tokenData) return { success: false, error: "Calendar not connected" };
+
+    const accessToken = await refreshTokenIfNeeded(supabase, userId, tokenData);
+    if (!accessToken) return { success: false, error: "Failed to get access token" };
+
+    // Parse date and time
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute] = time.split(':').map(Number);
+    
+    const startDateTime = new Date(year, month - 1, day, hour, minute);
+    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
+
+    const calendarEvent = {
+      summary,
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone: "America/Sao_Paulo",
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone: "America/Sao_Paulo",
+      },
+    };
+
+    const createResponse = await fetch(
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(calendarEvent),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const errorData = await createResponse.json();
+      console.error("Calendar event creation failed:", errorData);
+      return { success: false, error: errorData.error?.message || "Failed to create event" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating calendar event:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// Helper function to refresh token if needed
+async function refreshTokenIfNeeded(
+  supabase: any,
+  userId: string,
+  tokenData: any
+): Promise<string | null> {
+  const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID");
+  const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET");
+
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    console.error("Google OAuth credentials not configured");
+    return null;
+  }
+
+  const expiresAt = new Date(tokenData.expires_at);
+  const now = new Date();
+
+  // If token is still valid (with 5 minute buffer)
+  if (expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
+    return tokenData.access_token;
+  }
+
+  // Refresh the token
+  console.log("Refreshing access token...");
+  const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: tokenData.refresh_token,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  const refreshData = await refreshResponse.json();
+
+  if (!refreshResponse.ok || refreshData.error) {
+    console.error("Failed to refresh token:", refreshData);
+    return null;
+  }
+
+  // Update tokens in database
+  const newExpiresAt = new Date(Date.now() + refreshData.expires_in * 1000);
+  await supabase
+    .from("google_calendar_tokens")
+    .update({
+      access_token: refreshData.access_token,
+      expires_at: newExpiresAt.toISOString(),
+    })
+    .eq("user_id", userId);
+
+  return refreshData.access_token;
 }
 
 async function sendWhatsAppMessage(
