@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import AgentCard from './AgentCard';
 import CreateAgentModal from './CreateAgentModal';
 import EditAgentModal from './EditAgentModal';
-import { Plus, Search, Bot, Loader2, Sparkles } from 'lucide-react';
+import AgentsTutorialModal from './AgentsTutorialModal';
+import { Plus, Search, Bot, Loader2, Sparkles, HelpCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,7 @@ const AgentsView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [tutorialModalOpen, setTutorialModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
 
@@ -72,59 +74,69 @@ const AgentsView = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-emerald-400" />
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" />
             Agentes IA
           </h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Gerencie seus agentes de automação para WhatsApp
           </p>
         </div>
-        <Button
-          onClick={() => setCreateModalOpen(true)}
-          className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/20"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Agente
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setTutorialModalOpen(true)}
+            className="border-border text-muted-foreground hover:text-foreground"
+          >
+            <HelpCircle className="w-4 h-4 mr-2" />
+            Tutorial
+          </Button>
+          <Button
+            onClick={() => setCreateModalOpen(true)}
+            className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Agente
+          </Button>
+        </div>
       </div>
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 border border-slate-700/50 rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-400 text-sm">Total de Agentes</p>
-              <p className="text-3xl font-bold text-white mt-1">{totalAgents}</p>
+              <p className="text-muted-foreground text-sm">Total de Agentes</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{totalAgents}</p>
             </div>
-            <div className="w-12 h-12 bg-slate-700/50 rounded-xl flex items-center justify-center">
-              <Bot className="w-6 h-6 text-slate-400" />
+            <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center">
+              <Bot className="w-6 h-6 text-muted-foreground" />
             </div>
           </div>
         </div>
         
-        <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-xl p-5">
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-emerald-400/80 text-sm">Agentes Ativos</p>
-              <p className="text-3xl font-bold text-emerald-400 mt-1">{activeAgents}</p>
+              <p className="text-primary/80 text-sm">Agentes Ativos</p>
+              <p className="text-3xl font-bold text-primary mt-1">{activeAgents}</p>
             </div>
-            <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-emerald-400" />
+            <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-primary" />
             </div>
           </div>
         </div>
         
-        <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 border border-slate-700/50 rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-400 text-sm">Agente Padrão</p>
-              <p className="text-lg font-medium text-white mt-1 truncate">
+              <p className="text-muted-foreground text-sm">Agente Padrão</p>
+              <p className="text-lg font-medium text-foreground mt-1 truncate">
                 {defaultAgent?.name || 'Não definido'}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-              <Bot className="w-6 h-6 text-blue-400" />
+              <Bot className="w-6 h-6 text-blue-500" />
             </div>
           </div>
         </div>
@@ -133,21 +145,21 @@ const AgentsView = () => {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar agentes..."
-            className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500/50"
+            className="pl-10 bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50"
           />
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full sm:w-48 bg-slate-800/50 border-slate-700 text-white">
+          <SelectTrigger className="w-full sm:w-48 bg-card border-border text-foreground">
             <SelectValue placeholder="Categoria" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">
+          <SelectContent className="bg-card border-border">
             {categories.map((cat) => (
-              <SelectItem key={cat} value={cat} className="text-white hover:bg-slate-700 focus:bg-slate-700">
+              <SelectItem key={cat} value={cat} className="text-foreground hover:bg-accent focus:bg-accent">
                 {cat}
               </SelectItem>
             ))}
@@ -159,8 +171,8 @@ const AgentsView = () => {
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
-            <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mx-auto mb-4" />
-            <p className="text-slate-400">Carregando agentes...</p>
+            <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Carregando agentes...</p>
           </div>
         </div>
       ) : filteredAgents.length > 0 ? (
@@ -178,11 +190,11 @@ const AgentsView = () => {
         </div>
       ) : (
         <div className="text-center py-16">
-          <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Bot className="w-10 h-10 text-slate-600" />
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Bot className="w-10 h-10 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium text-slate-300">Nenhum agente encontrado</h3>
-          <p className="text-slate-500 mt-2 max-w-sm mx-auto">
+          <h3 className="text-lg font-medium text-foreground">Nenhum agente encontrado</h3>
+          <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
             {searchTerm || categoryFilter !== 'Todos' 
               ? 'Tente ajustar os filtros de busca'
               : 'Crie seu primeiro agente para começar a automatizar atendimentos'
@@ -191,7 +203,7 @@ const AgentsView = () => {
           {!searchTerm && categoryFilter === 'Todos' && (
             <Button
               onClick={() => setCreateModalOpen(true)}
-              className="mt-6 bg-gradient-to-r from-emerald-500 to-teal-500"
+              className="mt-6 bg-primary hover:bg-primary/90"
             >
               <Plus className="w-4 h-4 mr-2" />
               Criar Primeiro Agente
@@ -213,22 +225,27 @@ const AgentsView = () => {
         onOpenChange={(open) => !open && setEditingAgent(null)}
       />
 
+      <AgentsTutorialModal
+        open={tutorialModalOpen}
+        onOpenChange={setTutorialModalOpen}
+      />
+
       <AlertDialog open={!!deletingAgentId} onOpenChange={(open) => !open && setDeletingAgentId(null)}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Excluir Agente</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
+            <AlertDialogTitle className="text-foreground">Excluir Agente</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               Tem certeza que deseja excluir este agente? Esta ação não pode ser desfeita.
               Todas as regras, roteiros e FAQs associados serão perdidos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 text-white border-slate-600 hover:bg-slate-600">
+            <AlertDialogCancel className="bg-secondary text-secondary-foreground border-border hover:bg-muted">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-red-500 hover:bg-red-600 text-white"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Excluir
             </AlertDialogAction>
