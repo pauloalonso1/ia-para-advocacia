@@ -143,66 +143,72 @@ const ConversationsList = ({ cases, selectedCaseId, onSelectCase, onDeleteCase, 
                   onClick={() => onSelectCase(caseItem)}
                 >
                   <div className="flex items-start gap-3">
-                    <Avatar className="w-12 h-12 border-2 border-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-medium">
+                    <Avatar className="w-11 h-11 border-2 border-border shrink-0">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-medium text-sm">
                         {getInitials(caseItem.client_name, caseItem.client_phone)}
                       </AvatarFallback>
                     </Avatar>
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-foreground truncate flex items-center gap-1.5">
+                      {/* Row 1: Name + Bot icon */}
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="font-medium text-foreground truncate text-sm">
                           {caseItem.client_name || 'Sem nome'}
-                          {caseItem.active_agent_id && (
-                            <Bot className="w-3.5 h-3.5 text-primary" />
-                          )}
                         </span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(caseItem.updated_at), { 
-                              addSuffix: true, 
-                              locale: ptBR 
-                            })}
-                          </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border">
-                              <DropdownMenuItem
-                                onClick={(e) => handleDeleteClick(e, caseItem)}
-                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Excluir conversa
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                        {caseItem.active_agent_id && (
+                          <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
+                        )}
                       </div>
                       
-                      <div className="flex items-center gap-1 text-muted-foreground text-sm mb-2">
-                        <Phone className="w-3 h-3" />
+                      {/* Row 2: Phone */}
+                      <div className="flex items-center gap-1 text-muted-foreground text-xs mb-1.5">
+                        <Phone className="w-3 h-3 shrink-0" />
                         <span className="truncate">{formatPhone(caseItem.client_phone)}</span>
                       </div>
                       
-                      <Badge 
-                        variant="outline" 
-                        className={cn(
-                          "text-xs font-medium",
-                          statusColors[caseItem.status || 'Novo Contato'] || statusColors['Novo Contato']
-                        )}
-                      >
-                        {caseItem.status || 'Novo Contato'}
-                      </Badge>
+                      {/* Row 3: Badge + Time */}
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] font-medium px-1.5 py-0",
+                            statusColors[caseItem.status || 'Novo Contato'] || statusColors['Novo Contato']
+                          )}
+                        >
+                          {caseItem.status || 'Novo Contato'}
+                        </Badge>
+                        
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {formatDistanceToNow(new Date(caseItem.updated_at), { 
+                            addSuffix: false, 
+                            locale: ptBR 
+                          })}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Menu button */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-card border-border">
+                        <DropdownMenuItem
+                          onClick={(e) => handleDeleteClick(e, caseItem)}
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir conversa
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
