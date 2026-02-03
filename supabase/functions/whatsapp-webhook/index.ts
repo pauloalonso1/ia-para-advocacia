@@ -524,32 +524,24 @@ ${scriptContext}
 ${currentStepInfo}
 ${nextStepInfo}
 
-🎯 INSTRUÇÕES DE RESPOSTA:
-1. Analise a mensagem do cliente considerando o contexto do roteiro
-2. Se o cliente respondeu adequadamente à pergunta da etapa atual:
-   - Agradeça/confirme a informação de forma natural
-   - Responda com action: "PROCEED" para avançar à próxima etapa
-3. Se o cliente fez uma pergunta, deu resposta vaga ou mudou de assunto:
-   - Responda a dúvida de forma breve
-   - Retome gentilmente a pergunta da etapa atual
-   - Responda com action: "STAY" para permanecer na etapa
-4. Se for a última etapa e o cliente concordou em agendar/prosseguir, mude o status para "Qualificado"
-5. Se o cliente demonstrar desinteresse claro, mude o status para "Não Qualificado"
+🎯 INSTRUÇÕES:
+1. Se o cliente respondeu adequadamente à pergunta da etapa atual, use action "PROCEED"
+2. Se o cliente fez uma pergunta ou deu resposta vaga, use action "STAY"
+3. Se for a última etapa e o cliente concordou, mude new_status para "Qualificado"
+4. Se o cliente demonstrar desinteresse, mude new_status para "Não Qualificado"
 
-Nome do cliente: ${clientName}
-
-IMPORTANTE: Responda SEMPRE em JSON válido no formato:
-{"response_text": "sua mensagem aqui", "action": "PROCEED" ou "STAY", "new_status": "novo status ou null"}`;
+Nome do cliente: ${clientName}`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    ...history.slice(-15).map((h) => ({
+    ...history.slice(-10).map((h) => ({
       role: h.role === "client" ? ("user" as const) : ("assistant" as const),
       content: h.content,
     })),
     { role: "user" as const, content: clientMessage },
   ];
 
+  // Use tool calling for structured output
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -561,6 +553,37 @@ IMPORTANTE: Responda SEMPRE em JSON válido no formato:
       messages,
       temperature: 0.7,
       max_tokens: 500,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "send_response",
+            description: "Envia a resposta para o cliente e decide se avança no roteiro",
+            parameters: {
+              type: "object",
+              properties: {
+                response_text: {
+                  type: "string",
+                  description: "A mensagem a ser enviada para o cliente"
+                },
+                action: {
+                  type: "string",
+                  enum: ["PROCEED", "STAY"],
+                  description: "PROCEED para avançar à próxima etapa, STAY para permanecer na atual"
+                },
+                new_status: {
+                  type: "string",
+                  enum: ["Qualificado", "Não Qualificado", "Convertido", ""],
+                  description: "Novo status do lead se houver mudança, ou vazio"
+                }
+              },
+              required: ["response_text", "action"],
+              additionalProperties: false
+            }
+          }
+        }
+      ],
+      tool_choice: { type: "function", function: { name: "send_response" } }
     }),
   });
 
@@ -571,34 +594,54 @@ IMPORTANTE: Responda SEMPRE em JSON válido no formato:
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim();
+  
+  // Handle tool call response
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+  if (toolCall?.function?.arguments) {
+    try {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      console.log("🤖 Tool call response:", JSON.stringify(parsed));
+      return {
+        response_text: parsed.response_text || "Desculpe, pode repetir?",
+        action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
+        new_status: parsed.new_status || undefined,
+      };
+    } catch (e) {
+      console.error("Failed to parse tool call arguments:", e);
+    }
+  }
 
+  // Fallback: try to parse content as JSON
+  const content = data.choices?.[0]?.message?.content?.trim();
   console.log("🤖 Raw AI response:", content);
 
-  try {
-    // Try to parse as JSON - handle potential markdown code blocks
-    let jsonContent = content;
-    if (content.includes("```")) {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        jsonContent = jsonMatch[1].trim();
+  if (content) {
+    try {
+      let jsonContent = content;
+      if (content.includes("```")) {
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonContent = jsonMatch[1].trim();
+        }
       }
+      
+      const parsed = JSON.parse(jsonContent);
+      return {
+        response_text: parsed.response_text || "Desculpe, pode repetir?",
+        action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
+        new_status: parsed.new_status || undefined,
+      };
+    } catch (e) {
+      console.log("⚠️ Failed to parse AI JSON");
     }
-    
-    const parsed = JSON.parse(jsonContent);
-    return {
-      response_text: parsed.response_text || "Desculpe, não entendi. Pode repetir?",
-      action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
-      new_status: parsed.new_status || undefined,
-    };
-  } catch (e) {
-    console.log("⚠️ Failed to parse AI JSON, using raw content");
-    // If JSON parsing fails, use the content as-is
-    return {
-      response_text: content || "Desculpe, tive um problema. Pode repetir?",
-      action: "STAY",
-    };
   }
+
+  // Final fallback - generic response
+  console.log("⚠️ Using fallback response");
+  return {
+    response_text: "Obrigado pela informação! Para dar continuidade ao atendimento, pode me contar mais sobre sua situação?",
+    action: "STAY",
+  };
 }
 
 async function sendWhatsAppMessage(
