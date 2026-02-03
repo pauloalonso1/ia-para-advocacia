@@ -4,6 +4,7 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import AgentsView from '@/components/dashboard/AgentsView';
 import ConversationsView from '@/components/dashboard/ConversationsView';
 import { Bot, Users, MessageSquare, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('agents');
@@ -123,10 +124,12 @@ const Dashboard = () => {
     }
   };
 
+  const isFullHeightView = activeTab === 'conversations';
+
   return (
-    <div className="min-h-screen bg-slate-900 flex">
+    <div className="min-h-screen h-screen bg-slate-900 flex">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 overflow-auto">
+      <main className={cn("flex-1 overflow-auto", isFullHeightView && "overflow-hidden")}>
         {renderContent()}
       </main>
     </div>
