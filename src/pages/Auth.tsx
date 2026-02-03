@@ -1,34 +1,41 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Scale, Loader2 } from 'lucide-react';
+import { SignInPage, Testimonial } from '@/components/ui/sign-in';
+import { SignUpPage } from '@/components/ui/sign-up';
+
+const testimonials: Testimonial[] = [
+  {
+    avatarSrc: "https://randomuser.me/api/portraits/women/57.jpg",
+    name: "Dra. Ana Costa",
+    handle: "@anacosta.adv",
+    text: "O LegalAgent AI transformou meu escritório. Atendimento 24/7 com qualidade!"
+  },
+  {
+    avatarSrc: "https://randomuser.me/api/portraits/men/64.jpg",
+    name: "Dr. Carlos Lima",
+    handle: "@carloslima.law",
+    text: "Automação jurídica de primeira. Meus clientes ficam impressionados com a agilidade."
+  },
+  {
+    avatarSrc: "https://randomuser.me/api/portraits/men/32.jpg",
+    name: "Dr. Roberto Alves",
+    handle: "@robertoalves",
+    text: "Consegui triplicar minha captação de clientes com os agentes de IA."
+  },
+];
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [view, setView] = useState<'login' | 'signup'>('login');
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
-  // Login form
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // Signup form
-  const [signupName, setSignupName] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (email: string, password: string) => {
     setIsLoading(true);
 
-    const { error } = await signIn(loginEmail, loginPassword);
+    const { error } = await signIn(email, password);
     
     if (error) {
       toast({
@@ -47,30 +54,10 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (signupPassword !== signupConfirmPassword) {
-      toast({
-        title: 'Erro',
-        description: 'As senhas não coincidem.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (signupPassword.length < 6) {
-      toast({
-        title: 'Erro',
-        description: 'A senha deve ter pelo menos 6 caracteres.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
+  const handleSignup = async (name: string, email: string, password: string) => {
     setIsLoading(true);
 
-    const { error } = await signUp(signupEmail, signupPassword, signupName);
+    const { error } = await signUp(email, password, name);
     
     if (error) {
       toast({
@@ -83,137 +70,53 @@ const Auth = () => {
         title: 'Cadastro realizado!',
         description: 'Verifique seu e-mail para confirmar a conta.'
       });
+      setView('login');
     }
     
     setIsLoading(false);
   };
 
+  const handleGoogleSignIn = () => {
+    toast({
+      title: 'Em breve',
+      description: 'Login com Google será disponibilizado em breve.'
+    });
+  };
+
+  const handleResetPassword = () => {
+    toast({
+      title: 'Em breve',
+      description: 'Recuperação de senha será disponibilizada em breve.'
+    });
+  };
+
+  if (view === 'signup') {
+    return (
+      <SignUpPage
+        heroImageSrc="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&q=80"
+        isLoading={isLoading}
+        onSignUp={handleSignup}
+        onBackToLogin={() => setView('login')}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border bg-card/50 backdrop-blur-sm">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center">
-            <Scale className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-foreground">LegalAgent AI</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Automação jurídica com inteligência artificial
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-muted">
-              <TabsTrigger value="login" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                Entrar
-              </TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                Cadastrar
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="login" className="mt-6">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-foreground">E-mail</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password" className="text-foreground">Senha</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Entrar
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup" className="mt-6">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name" className="text-foreground">Nome Completo</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="Dr. João Silva"
-                    value={signupName}
-                    onChange={(e) => setSignupName(e.target.value)}
-                    required
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-foreground">E-mail</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    required
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-foreground">Senha</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    required
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password" className="text-foreground">Confirmar Senha</Label>
-                  <Input
-                    id="signup-confirm-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupConfirmPassword}
-                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                    required
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Criar Conta
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+    <SignInPage
+      title={
+        <span className="font-light tracking-tighter">
+          <span className="text-primary">Legal</span>Agent AI
+        </span>
+      }
+      description="Automação jurídica com inteligência artificial para escritórios de advocacia"
+      heroImageSrc="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&q=80"
+      testimonials={testimonials}
+      isLoading={isLoading}
+      onSignIn={handleLogin}
+      onGoogleSignIn={handleGoogleSignIn}
+      onResetPassword={handleResetPassword}
+      onCreateAccount={() => setView('signup')}
+    />
   );
 };
 
