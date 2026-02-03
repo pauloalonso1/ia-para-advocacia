@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Scale } from 'lucide-react';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -36,18 +36,18 @@ interface SignInPageProps {
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-primary/70 focus-within:bg-primary/10">
+  <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
     {children}
   </div>
 );
 
 const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial, delay: string }) => (
-  <div className={`animate-testimonial ${delay} flex items-start gap-3 rounded-3xl bg-card/40 backdrop-blur-xl border border-border/30 p-5 w-64`}>
-    <img src={testimonial.avatarSrc} className="h-10 w-10 object-cover rounded-2xl" alt="avatar" />
-    <div className="text-sm leading-snug">
-      <p className="flex items-center gap-1 font-medium">{testimonial.name}</p>
-      <p className="text-muted-foreground">{testimonial.handle}</p>
-      <p className="mt-1 text-foreground/80">{testimonial.text}</p>
+  <div className={`animate-testimonial ${delay} flex items-start gap-3 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 p-4 w-56`}>
+    <img src={testimonial.avatarSrc} className="h-9 w-9 object-cover rounded-xl shrink-0" alt="avatar" />
+    <div className="text-xs leading-snug min-w-0">
+      <p className="font-medium text-white truncate">{testimonial.name}</p>
+      <p className="text-white/60 truncate">{testimonial.handle}</p>
+      <p className="mt-1 text-white/80 line-clamp-2">{testimonial.text}</p>
     </div>
   </div>
 );
@@ -75,98 +75,150 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row w-full bg-background">
+    <div className="min-h-screen flex w-full bg-background">
       {/* Left column: sign-in form */}
-      <section className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="flex flex-col gap-6">
-            <h1 className="animate-element animate-delay-100 text-4xl md:text-5xl font-semibold leading-tight">{title}</h1>
-            <p className="animate-element animate-delay-200 text-muted-foreground">{description}</p>
+      <section className="w-full lg:w-[480px] xl:w-[520px] flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12">
+        <div className="w-full max-w-sm mx-auto lg:mx-0">
+          {/* Logo */}
+          <div className="animate-element animate-delay-100 flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
+              <Scale className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-semibold">
+              <span className="text-primary">Legal</span>Agent
+            </span>
+          </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div className="animate-element animate-delay-300">
-                <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-                <GlassInputWrapper>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="animate-element animate-delay-100 text-2xl sm:text-3xl font-semibold leading-tight mb-2">{title}</h1>
+            <p className="animate-element animate-delay-200 text-muted-foreground text-sm">{description}</p>
+          </div>
+
+          {/* Form */}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="animate-element animate-delay-300 space-y-1.5">
+              <label className="text-sm font-medium text-foreground">E-mail</label>
+              <GlassInputWrapper>
+                <input 
+                  name="email" 
+                  type="email" 
+                  placeholder="seu@email.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full bg-transparent text-sm h-11 px-4 rounded-xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
+                />
+              </GlassInputWrapper>
+            </div>
+
+            <div className="animate-element animate-delay-400 space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Senha</label>
+              <GlassInputWrapper>
+                <div className="relative">
                   <input 
-                    name="email" 
-                    type="email" 
-                    placeholder="Digite seu e-mail" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    name="password" 
+                    type={showPassword ? 'text' : 'password'} 
+                    placeholder="••••••••" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
+                    className="w-full bg-transparent text-sm h-11 px-4 pr-11 rounded-xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
                   />
-                </GlassInputWrapper>
-              </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)} 
+                    className="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </GlassInputWrapper>
+            </div>
 
-              <div className="animate-element animate-delay-400">
-                <label className="text-sm font-medium text-muted-foreground">Senha</label>
-                <GlassInputWrapper>
-                  <div className="relative">
-                    <input 
-                      name="password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      placeholder="Digite sua senha" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center">
-                      {showPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
-                    </button>
-                  </div>
-                </GlassInputWrapper>
-              </div>
-
-              <div className="animate-element animate-delay-500 flex items-center justify-between text-sm">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" name="rememberMe" className="w-4 h-4 rounded border-border bg-background accent-primary" />
-                  <span className="text-foreground/90">Manter conectado</span>
-                </label>
-                <a href="#" onClick={(e) => { e.preventDefault(); onResetPassword?.(); }} className="hover:underline text-primary transition-colors">Esqueci a senha</a>
-              </div>
-
+            <div className="animate-element animate-delay-500 flex items-center justify-between text-sm pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  name="rememberMe" 
+                  className="w-4 h-4 rounded border-border bg-card accent-primary cursor-pointer" 
+                />
+                <span className="text-muted-foreground">Lembrar de mim</span>
+              </label>
               <button 
-                type="submit" 
-                disabled={isLoading}
-                className="animate-element animate-delay-600 w-full rounded-2xl bg-primary py-4 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                type="button"
+                onClick={onResetPassword} 
+                className="text-primary hover:text-primary/80 hover:underline transition-colors"
               >
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Entrar
+                Esqueceu a senha?
               </button>
-            </form>
-
-            <div className="animate-element animate-delay-700 relative flex items-center justify-center">
-              <span className="w-full border-t border-border"></span>
-              <span className="px-4 text-sm text-muted-foreground bg-background absolute">Ou continue com</span>
             </div>
 
             <button 
-              onClick={onGoogleSignIn} 
+              type="submit" 
               disabled={isLoading}
-              className="animate-element animate-delay-800 w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="animate-element animate-delay-600 w-full h-11 rounded-xl bg-primary font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
             >
-              <GoogleIcon />
-              Continuar com Google
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Entrar
             </button>
+          </form>
 
-            <p className="animate-element animate-delay-900 text-center text-sm text-muted-foreground">
-              Novo por aqui? <a href="#" onClick={(e) => { e.preventDefault(); onCreateAccount?.(); }} className="text-primary hover:underline transition-colors">Criar Conta</a>
-            </p>
+          {/* Divider */}
+          <div className="animate-element animate-delay-700 relative flex items-center justify-center my-6">
+            <span className="w-full border-t border-border"></span>
+            <span className="px-3 text-xs text-muted-foreground bg-background absolute whitespace-nowrap">ou continue com</span>
           </div>
+
+          {/* Google button */}
+          <button 
+            onClick={onGoogleSignIn} 
+            disabled={isLoading}
+            className="animate-element animate-delay-800 w-full h-11 flex items-center justify-center gap-2.5 border border-border rounded-xl text-sm font-medium hover:bg-card transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <GoogleIcon />
+            Google
+          </button>
+
+          {/* Sign up link */}
+          <p className="animate-element animate-delay-900 text-center text-sm text-muted-foreground mt-6">
+            Não tem uma conta?{' '}
+            <button 
+              type="button"
+              onClick={onCreateAccount} 
+              className="text-primary hover:text-primary/80 hover:underline transition-colors font-medium"
+            >
+              Criar conta
+            </button>
+          </p>
         </div>
       </section>
 
       {/* Right column: hero image + testimonials */}
       {heroImageSrc && (
-        <section className="hidden md:block flex-1 relative p-4">
-          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }}></div>
+        <section className="hidden lg:block flex-1 relative m-4 ml-0">
+          <div 
+            className="animate-slide-right animate-delay-300 absolute inset-0 rounded-3xl bg-cover bg-center"
+            style={{ backgroundImage: `url(${heroImageSrc})` }}
+          >
+            {/* Overlay gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-3xl" />
+          </div>
+          
+          {/* Testimonials */}
           {testimonials.length > 0 && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center">
+            <div className="absolute bottom-6 left-6 right-6 flex gap-3 overflow-hidden">
               <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />
-              {testimonials[1] && <div className="hidden xl:flex"><TestimonialCard testimonial={testimonials[1]} delay="animate-delay-1200" /></div>}
-              {testimonials[2] && <div className="hidden 2xl:flex"><TestimonialCard testimonial={testimonials[2]} delay="animate-delay-1400" /></div>}
+              {testimonials[1] && (
+                <div className="hidden xl:block">
+                  <TestimonialCard testimonial={testimonials[1]} delay="animate-delay-1200" />
+                </div>
+              )}
+              {testimonials[2] && (
+                <div className="hidden 2xl:block">
+                  <TestimonialCard testimonial={testimonials[2]} delay="animate-delay-1400" />
+                </div>
+              )}
             </div>
           )}
         </section>
