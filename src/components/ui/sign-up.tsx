@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, Scale } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 
@@ -15,7 +15,7 @@ interface SignUpPageProps {
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-primary/70 focus-within:bg-primary/10">
+  <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm transition-all duration-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
     {children}
   </div>
 );
@@ -56,118 +56,153 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row w-full bg-background">
+    <div className="min-h-screen flex w-full bg-background">
       {/* Left column: sign-up form */}
-      <section className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="flex flex-col gap-6">
-            <button 
-              onClick={onBackToLogin}
-              className="animate-element animate-delay-100 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors w-fit"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar ao login
-            </button>
+      <section className="w-full lg:w-[480px] xl:w-[520px] flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12">
+        <div className="w-full max-w-sm mx-auto lg:mx-0">
+          {/* Back button */}
+          <button 
+            onClick={onBackToLogin}
+            className="animate-element animate-delay-100 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8 text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao login
+          </button>
 
-            <h1 className="animate-element animate-delay-100 text-4xl md:text-5xl font-semibold leading-tight">{title}</h1>
-            <p className="animate-element animate-delay-200 text-muted-foreground">{description}</p>
-
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="animate-element animate-delay-300">
-                <label className="text-sm font-medium text-muted-foreground">Nome Completo</label>
-                <GlassInputWrapper>
-                  <input 
-                    name="name" 
-                    type="text" 
-                    placeholder="Dr. João Silva" 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
-                  />
-                </GlassInputWrapper>
-              </div>
-
-              <div className="animate-element animate-delay-400">
-                <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-                <GlassInputWrapper>
-                  <input 
-                    name="email" 
-                    type="email" 
-                    placeholder="seu@email.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
-                  />
-                </GlassInputWrapper>
-              </div>
-
-              <div className="animate-element animate-delay-500">
-                <label className="text-sm font-medium text-muted-foreground">Senha</label>
-                <GlassInputWrapper>
-                  <div className="relative">
-                    <input 
-                      name="password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      placeholder="••••••••" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center">
-                      {showPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
-                    </button>
-                  </div>
-                </GlassInputWrapper>
-              </div>
-
-              <div className="animate-element animate-delay-600">
-                <label className="text-sm font-medium text-muted-foreground">Confirmar Senha</label>
-                <GlassInputWrapper>
-                  <div className="relative">
-                    <input 
-                      name="confirmPassword" 
-                      type={showConfirmPassword ? 'text' : 'password'} 
-                      placeholder="••••••••" 
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
-                    />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-3 flex items-center">
-                      {showConfirmPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
-                    </button>
-                  </div>
-                </GlassInputWrapper>
-              </div>
-
-              {error && (
-                <p className="text-destructive text-sm animate-fade-in">{error}</p>
-              )}
-
-              <button 
-                type="submit" 
-                disabled={isLoading}
-                className="animate-element animate-delay-700 w-full rounded-2xl bg-primary py-4 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Criar Conta
-              </button>
-            </form>
-
-            <p className="animate-element animate-delay-800 text-center text-sm text-muted-foreground">
-              Já tem uma conta? <a href="#" onClick={(e) => { e.preventDefault(); onBackToLogin?.(); }} className="text-primary hover:underline transition-colors">Entrar</a>
-            </p>
+          {/* Logo */}
+          <div className="animate-element animate-delay-100 flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
+              <Scale className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-semibold">
+              <span className="text-primary">Legal</span>Agent
+            </span>
           </div>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="animate-element animate-delay-100 text-2xl sm:text-3xl font-semibold leading-tight mb-2">{title}</h1>
+            <p className="animate-element animate-delay-200 text-muted-foreground text-sm">{description}</p>
+          </div>
+
+          {/* Form */}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="animate-element animate-delay-300 space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Nome Completo</label>
+              <GlassInputWrapper>
+                <input 
+                  name="name" 
+                  type="text" 
+                  placeholder="Dr. João Silva" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="w-full bg-transparent text-sm h-11 px-4 rounded-xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
+                />
+              </GlassInputWrapper>
+            </div>
+
+            <div className="animate-element animate-delay-400 space-y-1.5">
+              <label className="text-sm font-medium text-foreground">E-mail</label>
+              <GlassInputWrapper>
+                <input 
+                  name="email" 
+                  type="email" 
+                  placeholder="seu@email.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full bg-transparent text-sm h-11 px-4 rounded-xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
+                />
+              </GlassInputWrapper>
+            </div>
+
+            <div className="animate-element animate-delay-500 space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Senha</label>
+              <GlassInputWrapper>
+                <div className="relative">
+                  <input 
+                    name="password" 
+                    type={showPassword ? 'text' : 'password'} 
+                    placeholder="••••••••" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full bg-transparent text-sm h-11 px-4 pr-11 rounded-xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)} 
+                    className="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </GlassInputWrapper>
+            </div>
+
+            <div className="animate-element animate-delay-600 space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Confirmar Senha</label>
+              <GlassInputWrapper>
+                <div className="relative">
+                  <input 
+                    name="confirmPassword" 
+                    type={showConfirmPassword ? 'text' : 'password'} 
+                    placeholder="••••••••" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="w-full bg-transparent text-sm h-11 px-4 pr-11 rounded-xl focus:outline-none text-foreground placeholder:text-muted-foreground" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                    className="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </GlassInputWrapper>
+            </div>
+
+            {error && (
+              <p className="text-destructive text-sm animate-fade-in">{error}</p>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="animate-element animate-delay-700 w-full h-11 rounded-xl bg-primary font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
+            >
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Criar Conta
+            </button>
+          </form>
+
+          {/* Sign in link */}
+          <p className="animate-element animate-delay-800 text-center text-sm text-muted-foreground mt-6">
+            Já tem uma conta?{' '}
+            <button 
+              type="button"
+              onClick={onBackToLogin} 
+              className="text-primary hover:text-primary/80 hover:underline transition-colors font-medium"
+            >
+              Entrar
+            </button>
+          </p>
         </div>
       </section>
 
       {/* Right column: hero image */}
       {heroImageSrc && (
-        <section className="hidden md:block flex-1 relative p-4">
-          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }}></div>
+        <section className="hidden lg:block flex-1 relative m-4 ml-0">
+          <div 
+            className="animate-slide-right animate-delay-300 absolute inset-0 rounded-3xl bg-cover bg-center"
+            style={{ backgroundImage: `url(${heroImageSrc})` }}
+          >
+            {/* Overlay gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent rounded-3xl" />
+          </div>
         </section>
       )}
     </div>
