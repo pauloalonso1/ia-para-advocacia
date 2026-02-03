@@ -318,22 +318,6 @@ serve(async (req) => {
 
     console.log(`🤖 AI Response action: ${aiResponse.action}, new_status: ${aiResponse.new_status || 'none'}`);
 
-    // Send response
-    await sendWhatsAppMessage(
-      EVOLUTION_API_URL,
-      EVOLUTION_API_KEY,
-      instanceName,
-      clientPhone,
-      aiResponse.response_text
-    );
-
-    // Save response
-    await supabase.from("conversation_history").insert({
-      case_id: existingCase.id,
-      role: "assistant",
-      content: aiResponse.response_text,
-    });
-
     // Handle status change if detected
     if (aiResponse.new_status && aiResponse.new_status !== previousStatus) {
       await supabase
@@ -356,7 +340,7 @@ serve(async (req) => {
       );
     }
 
-    // If should proceed to next step
+    // If should proceed to next step, send only the next step message (not AI response to avoid duplication)
     if (aiResponse.action === "PROCEED" && nextStep) {
       console.log(`➡️ Proceeding to step ${nextStep.step_order}`);
       
@@ -364,9 +348,6 @@ serve(async (req) => {
         .from("cases")
         .update({ current_step_id: nextStep.id })
         .eq("id", existingCase.id);
-
-      // Small delay for better conversation flow
-      await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Send next step message (replace {nome} placeholder)
       const nextMessage = nextStep.message_to_send.replace(
@@ -386,6 +367,21 @@ serve(async (req) => {
         case_id: existingCase.id,
         role: "assistant",
         content: nextMessage,
+      });
+    } else {
+      // Only send AI response when staying on current step
+      await sendWhatsAppMessage(
+        EVOLUTION_API_URL,
+        EVOLUTION_API_KEY,
+        instanceName,
+        clientPhone,
+        aiResponse.response_text
+      );
+
+      await supabase.from("conversation_history").insert({
+        case_id: existingCase.id,
+        role: "assistant",
+        content: aiResponse.response_text,
       });
     }
 
