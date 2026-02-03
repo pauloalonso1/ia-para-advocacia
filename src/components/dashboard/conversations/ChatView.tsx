@@ -9,16 +9,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X } from 'lucide-react';
+import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ChatViewProps {
   selectedCase: Case | null;
   messages: Message[];
   loading: boolean;
+  onPauseAgent?: (caseId: string) => void;
 }
 
 const commonEmojis = [
@@ -29,12 +31,13 @@ const commonEmojis = [
   '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💯', '✨',
 ];
 
-const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
+const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [messageInput, setMessageInput] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ file: File; preview: string; type: 'image' | 'document' } | null>(null);
+  const [sending, setSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
@@ -52,10 +55,72 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
     textareaRef.current?.focus();
   };
 
+  const handleSendMessage = async () => {
+    if (!selectedCase || !messageInput.trim() || sending) return;
+
+    setSending(true);
+    try {
+      // Get session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Sessão expirada', { description: 'Faça login novamente' });
+        return;
+      }
+
+      // Pause the agent if active
+      if (selectedCase.active_agent_id && onPauseAgent) {
+        onPauseAgent(selectedCase.id);
+      }
+
+      // Send message via Evolution API edge function
+      const response = await supabase.functions.invoke('evolution-api', {
+        body: {
+          action: 'send-text',
+          phone: selectedCase.client_phone,
+          message: messageInput.trim(),
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao enviar mensagem');
+      }
+
+      // Save message to conversation history
+      const { error: historyError } = await supabase
+        .from('conversation_history')
+        .insert({
+          case_id: selectedCase.id,
+          role: 'assistant',
+          content: messageInput.trim(),
+        });
+
+      if (historyError) {
+        console.error('Error saving to history:', historyError);
+      }
+
+      // Update case updated_at
+      await supabase
+        .from('cases')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', selectedCase.id);
+
+      setMessageInput('');
+      clearSelectedFile();
+      toast.success('Mensagem enviada!');
+    } catch (error: any) {
+      console.error('Send message error:', error);
+      toast.error('Erro ao enviar mensagem', {
+        description: error.message || 'Tente novamente',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      // Future: implement send message
+      handleSendMessage();
     }
   };
 
@@ -426,12 +491,18 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
           </div>
 
           {/* Send or Mic Button */}
-          {messageInput.trim() ? (
+          {messageInput.trim() || selectedFile ? (
             <Button
               size="icon"
               className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 shrink-0"
+              onClick={handleSendMessage}
+              disabled={sending}
             >
-              <Send className="w-5 h-5" />
+              {sending ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </Button>
           ) : (
             <Button
