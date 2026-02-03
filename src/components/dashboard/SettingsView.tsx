@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEvolutionAPI } from '@/hooks/useEvolutionAPI';
+import { useEvolutionSettings } from '@/hooks/useEvolutionSettings';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Settings,
   MessageSquare,
@@ -25,21 +27,41 @@ import {
   Mail,
   Bell,
   BellRing,
-  Phone
+  Phone,
+  Link,
+  Key,
+  Globe,
+  Cog,
+  Copy,
+  Check,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const SettingsView = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const {
-    loading,
+    loading: evolutionLoading,
     qrCode,
     connectionStatus,
-    error,
+    error: evolutionError,
     createInstance,
     checkStatus,
-    deleteInstance
+    deleteInstance,
+    setConnectionStatus
   } = useEvolutionAPI();
+
+  const {
+    settings: evolutionSettings,
+    loading: settingsLoading,
+    saving: savingSettings,
+    saveSettings,
+    updateConnectionStatus,
+    deleteSettings
+  } = useEvolutionSettings();
 
   const {
     settings: notificationSettings,
@@ -48,9 +70,21 @@ const SettingsView = () => {
     deleteSettings: deleteNotificationSettings
   } = useNotificationSettings();
 
+  // Evolution API form state
+  const [apiUrl, setApiUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [instanceName, setInstanceName] = useState('');
-  const [savedInstance, setSavedInstance] = useState<string | null>(null);
-  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [integrationType, setIntegrationType] = useState('WHATSAPP-BAILEYS');
+  const [qrcodeEnabled, setQrcodeEnabled] = useState(true);
+  const [rejectCall, setRejectCall] = useState(false);
+  const [msgCall, setMsgCall] = useState('');
+  const [groupsIgnore, setGroupsIgnore] = useState(true);
+  const [alwaysOnline, setAlwaysOnline] = useState(false);
+  const [readMessages, setReadMessages] = useState(false);
+  const [readStatus, setReadStatus] = useState(false);
+  const [syncFullHistory, setSyncFullHistory] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
 
   // Notification form state
   const [notificationPhone, setNotificationPhone] = useState('');
@@ -60,6 +94,31 @@ const SettingsView = () => {
   const [notifyContractSent, setNotifyContractSent] = useState(true);
   const [notifyContractSigned, setNotifyContractSigned] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Webhook URL
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+
+  // Load Evolution API settings
+  useEffect(() => {
+    if (evolutionSettings) {
+      setApiUrl(evolutionSettings.api_url || '');
+      setApiKey(evolutionSettings.api_key || '');
+      setInstanceName(evolutionSettings.instance_name || '');
+      setIntegrationType(evolutionSettings.integration_type || 'WHATSAPP-BAILEYS');
+      setQrcodeEnabled(evolutionSettings.qrcode_enabled);
+      setRejectCall(evolutionSettings.reject_call);
+      setMsgCall(evolutionSettings.msg_call || '');
+      setGroupsIgnore(evolutionSettings.groups_ignore);
+      setAlwaysOnline(evolutionSettings.always_online);
+      setReadMessages(evolutionSettings.read_messages);
+      setReadStatus(evolutionSettings.read_status);
+      setSyncFullHistory(evolutionSettings.sync_full_history);
+      
+      if (evolutionSettings.is_connected) {
+        setConnectionStatus('connected');
+      }
+    }
+  }, [evolutionSettings, setConnectionStatus]);
 
   // Load notification settings
   useEffect(() => {
@@ -74,57 +133,121 @@ const SettingsView = () => {
     }
   }, [notificationSettings]);
 
-  // Load saved instance from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('evolution_instance');
-    if (saved) {
-      setSavedInstance(saved);
-      setInstanceName(saved);
-    }
-  }, []);
-
   // Poll connection status when connecting
   useEffect(() => {
-    if (connectionStatus === 'connecting' && savedInstance) {
+    if (connectionStatus === 'connecting' && instanceName) {
       const interval = setInterval(async () => {
-        const status = await checkStatus(savedInstance);
+        const status = await checkStatus(instanceName);
         if (status === 'connected') {
           clearInterval(interval);
+          await updateConnectionStatus(true);
         }
       }, 5000);
 
       return () => clearInterval(interval);
     }
-  }, [connectionStatus, savedInstance, checkStatus]);
+  }, [connectionStatus, instanceName, checkStatus, updateConnectionStatus]);
 
   const handleSaveAndConnect = async () => {
-    if (!instanceName.trim()) return;
+    if (!apiUrl.trim() || !apiKey.trim() || !instanceName.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha a URL da API, API Key e Nome da Instância',
+        variant: 'destructive'
+      });
+      return;
+    }
 
-    const result = await createInstance(instanceName);
-    if (result) {
-      localStorage.setItem('evolution_instance', instanceName);
-      setSavedInstance(instanceName);
+    // First save settings to database
+    const saved = await saveSettings({
+      api_url: apiUrl.trim(),
+      api_key: apiKey.trim(),
+      instance_name: instanceName.trim(),
+      webhook_url: webhookUrl,
+      integration_type: integrationType,
+      qrcode_enabled: qrcodeEnabled,
+      reject_call: rejectCall,
+      msg_call: msgCall,
+      groups_ignore: groupsIgnore,
+      always_online: alwaysOnline,
+      read_messages: readMessages,
+      read_status: readStatus,
+      sync_full_history: syncFullHistory,
+    });
+
+    if (saved) {
+      // Then create instance via Evolution API
+      await createInstance(instanceName);
     }
   };
 
+  const handleSaveSettings = async () => {
+    if (!apiUrl.trim() || !apiKey.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha a URL da API e API Key',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    await saveSettings({
+      api_url: apiUrl.trim(),
+      api_key: apiKey.trim(),
+      instance_name: instanceName.trim() || undefined,
+      webhook_url: webhookUrl,
+      integration_type: integrationType,
+      qrcode_enabled: qrcodeEnabled,
+      reject_call: rejectCall,
+      msg_call: msgCall,
+      groups_ignore: groupsIgnore,
+      always_online: alwaysOnline,
+      read_messages: readMessages,
+      read_status: readStatus,
+      sync_full_history: syncFullHistory,
+    });
+  };
+
   const handleCheckStatus = async () => {
-    if (!savedInstance) return;
-    setCheckingStatus(true);
-    await checkStatus(savedInstance);
-    setCheckingStatus(false);
+    if (!instanceName) return;
+    const status = await checkStatus(instanceName);
+    if (status === 'connected') {
+      await updateConnectionStatus(true);
+    } else if (status === 'disconnected') {
+      await updateConnectionStatus(false);
+    }
   };
 
   const handleDisconnect = async () => {
-    if (!savedInstance) return;
-    await deleteInstance(savedInstance);
-    localStorage.removeItem('evolution_instance');
-    setSavedInstance(null);
+    if (!instanceName) return;
+    await deleteInstance(instanceName);
+    await updateConnectionStatus(false);
+  };
+
+  const handleDeleteSettings = async () => {
+    if (instanceName) {
+      await deleteInstance(instanceName);
+    }
+    await deleteSettings();
+    setApiUrl('');
+    setApiKey('');
     setInstanceName('');
+    setConnectionStatus('disconnected');
   };
 
   const handleRefreshQR = async () => {
-    if (!savedInstance) return;
-    await createInstance(savedInstance);
+    if (!instanceName) return;
+    await createInstance(instanceName);
+  };
+
+  const handleCopyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    setCopiedWebhook(true);
+    toast({
+      title: 'Copiado!',
+      description: 'URL do Webhook copiada para a área de transferência'
+    });
+    setTimeout(() => setCopiedWebhook(false), 2000);
   };
 
   const handleSaveNotifications = async () => {
@@ -151,6 +274,14 @@ const SettingsView = () => {
     setNotifyContractSigned(true);
     setNotificationsEnabled(true);
   };
+
+  if (settingsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
@@ -191,20 +322,20 @@ const SettingsView = () => {
             </CardContent>
           </Card>
 
-          {/* WhatsApp Integration Card */}
+          {/* Evolution API Configuration Card */}
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-white flex items-center gap-2">
                     <MessageSquare className="w-5 h-5 text-green-400" />
-                    Integração WhatsApp
+                    Evolution API
                   </CardTitle>
                   <CardDescription className="text-slate-400 mt-1">
-                    Conecte seu WhatsApp Business via Evolution API
+                    Configure sua conexão com a Evolution API
                   </CardDescription>
                 </div>
-                {savedInstance && (
+                {evolutionSettings && (
                   <Badge
                     className={cn(
                       "ml-auto",
@@ -224,53 +355,283 @@ const SettingsView = () => {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="instance" className="text-slate-300">
-                  Nome da Instância
-                </Label>
-                <Input
-                  id="instance"
-                  value={instanceName}
-                  onChange={(e) => setInstanceName(e.target.value)}
-                  placeholder="minha-instancia"
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
-                  disabled={connectionStatus === 'connected'}
-                />
-                <p className="text-xs text-slate-500">
-                  Um identificador único para sua conexão WhatsApp
-                </p>
-              </div>
+            <CardContent>
+              <Tabs defaultValue="connection" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-slate-700/50">
+                  <TabsTrigger value="connection" className="data-[state=active]:bg-emerald-500">
+                    <Link className="w-4 h-4 mr-2" />
+                    Conexão
+                  </TabsTrigger>
+                  <TabsTrigger value="advanced" className="data-[state=active]:bg-emerald-500">
+                    <Cog className="w-4 h-4 mr-2" />
+                    Avançado
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="connection" className="space-y-4 mt-4">
+                  {/* API URL */}
+                  <div className="space-y-2">
+                    <Label htmlFor="api-url" className="text-slate-300 flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      URL da API *
+                    </Label>
+                    <Input
+                      id="api-url"
+                      value={apiUrl}
+                      onChange={(e) => setApiUrl(e.target.value)}
+                      placeholder="https://api.seuservidor.com"
+                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                    />
+                    <p className="text-xs text-slate-500">
+                      URL do seu servidor Evolution API
+                    </p>
+                  </div>
 
-              {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <p className="text-sm text-red-400">{error}</p>
-                </div>
-              )}
+                  {/* API Key */}
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key" className="text-slate-300 flex items-center gap-2">
+                      <Key className="w-4 h-4" />
+                      API Key *
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="api-key"
+                        type={showApiKey ? 'text' : 'password'}
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Sua chave de autenticação"
+                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-slate-400 hover:text-white"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Chave de autenticação da Evolution API
+                    </p>
+                  </div>
 
-              <div className="flex flex-wrap gap-2">
-                {!savedInstance || connectionStatus === 'disconnected' ? (
-                  <Button
-                    onClick={handleSaveAndConnect}
-                    disabled={loading || !instanceName.trim()}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
+                  {/* Instance Name */}
+                  <div className="space-y-2">
+                    <Label htmlFor="instance" className="text-slate-300 flex items-center gap-2">
+                      <Smartphone className="w-4 h-4" />
+                      Nome da Instância *
+                    </Label>
+                    <Input
+                      id="instance"
+                      value={instanceName}
+                      onChange={(e) => setInstanceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="minha-instancia"
+                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                      disabled={connectionStatus === 'connected'}
+                    />
+                    <p className="text-xs text-slate-500">
+                      Identificador único (apenas letras minúsculas, números e hífens)
+                    </p>
+                  </div>
+
+                  {/* Webhook URL */}
+                  <div className="space-y-2">
+                    <Label className="text-slate-300 flex items-center gap-2">
+                      <Link className="w-4 h-4" />
+                      URL do Webhook
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={webhookUrl}
+                        readOnly
+                        className="bg-slate-700/50 border-slate-600 text-slate-300 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                        onClick={handleCopyWebhook}
+                      >
+                        {copiedWebhook ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Configure este webhook na sua instância Evolution API
+                    </p>
+                  </div>
+
+                  {evolutionError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <p className="text-sm text-red-400">{evolutionError}</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="advanced" className="space-y-4 mt-4">
+                  {/* Integration Type */}
+                  <div className="space-y-2">
+                    <Label className="text-slate-300">Tipo de Integração</Label>
+                    <div className="p-3 bg-slate-700/50 rounded-lg">
+                      <span className="text-white">{integrationType}</span>
+                    </div>
+                  </div>
+
+                  {/* Advanced Options */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">QR Code Habilitado</Label>
+                        <p className="text-xs text-slate-500">Gerar QR Code ao conectar</p>
+                      </div>
+                      <Switch
+                        checked={qrcodeEnabled}
+                        onCheckedChange={setQrcodeEnabled}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">Rejeitar Chamadas</Label>
+                        <p className="text-xs text-slate-500">Rejeitar chamadas automaticamente</p>
+                      </div>
+                      <Switch
+                        checked={rejectCall}
+                        onCheckedChange={setRejectCall}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    {rejectCall && (
+                      <div className="space-y-2 pl-4 border-l-2 border-slate-600">
+                        <Label className="text-slate-400 text-sm">Mensagem ao rejeitar</Label>
+                        <Input
+                          value={msgCall}
+                          onChange={(e) => setMsgCall(e.target.value)}
+                          placeholder="Não posso atender no momento..."
+                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                        />
+                      </div>
                     )}
-                    Salvar e Conectar
-                  </Button>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">Ignorar Grupos</Label>
+                        <p className="text-xs text-slate-500">Não processar mensagens de grupos</p>
+                      </div>
+                      <Switch
+                        checked={groupsIgnore}
+                        onCheckedChange={setGroupsIgnore}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">Sempre Online</Label>
+                        <p className="text-xs text-slate-500">Manter status online</p>
+                      </div>
+                      <Switch
+                        checked={alwaysOnline}
+                        onCheckedChange={setAlwaysOnline}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">Marcar Mensagens como Lidas</Label>
+                        <p className="text-xs text-slate-500">Marcar automaticamente ao receber</p>
+                      </div>
+                      <Switch
+                        checked={readMessages}
+                        onCheckedChange={setReadMessages}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">Ler Status</Label>
+                        <p className="text-xs text-slate-500">Visualizar status automaticamente</p>
+                      </div>
+                      <Switch
+                        checked={readStatus}
+                        onCheckedChange={setReadStatus}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-slate-300">Sincronizar Histórico Completo</Label>
+                        <p className="text-xs text-slate-500">Sincronizar todas as conversas anteriores</p>
+                      </div>
+                      <Switch
+                        checked={syncFullHistory}
+                        onCheckedChange={setSyncFullHistory}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700 mt-4">
+                {!evolutionSettings || connectionStatus === 'disconnected' ? (
+                  <>
+                    <Button
+                      onClick={handleSaveSettings}
+                      disabled={savingSettings || !apiUrl.trim() || !apiKey.trim()}
+                      variant="outline"
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      {savingSettings ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Salvar Configurações
+                    </Button>
+                    <Button
+                      onClick={handleSaveAndConnect}
+                      disabled={evolutionLoading || savingSettings || !apiUrl.trim() || !apiKey.trim() || !instanceName.trim()}
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                    >
+                      {evolutionLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Wifi className="w-4 h-4 mr-2" />
+                      )}
+                      Salvar e Conectar
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button
-                      onClick={handleCheckStatus}
+                      onClick={handleSaveSettings}
+                      disabled={savingSettings}
                       variant="outline"
-                      disabled={checkingStatus}
                       className="border-slate-600 text-slate-300 hover:bg-slate-700"
                     >
-                      {checkingStatus ? (
+                      {savingSettings ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Salvar
+                    </Button>
+                    <Button
+                      onClick={handleCheckStatus}
+                      variant="outline"
+                      disabled={evolutionLoading}
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      {evolutionLoading ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <RefreshCw className="w-4 h-4 mr-2" />
@@ -281,7 +642,7 @@ const SettingsView = () => {
                       <Button
                         onClick={handleRefreshQR}
                         variant="outline"
-                        disabled={loading}
+                        disabled={evolutionLoading}
                         className="border-slate-600 text-slate-300 hover:bg-slate-700"
                       >
                         <QrCode className="w-4 h-4 mr-2" />
@@ -291,13 +652,24 @@ const SettingsView = () => {
                     <Button
                       onClick={handleDisconnect}
                       variant="outline"
-                      disabled={loading}
+                      disabled={evolutionLoading}
                       className="border-red-500/30 text-red-400 hover:bg-red-500/10"
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <WifiOff className="w-4 h-4 mr-2" />
                       Desconectar
                     </Button>
                   </>
+                )}
+                {evolutionSettings && (
+                  <Button
+                    onClick={handleDeleteSettings}
+                    variant="outline"
+                    disabled={savingSettings}
+                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir
+                  </Button>
                 )}
               </div>
             </CardContent>
@@ -467,7 +839,7 @@ const SettingsView = () => {
                     <div>
                       <h3 className="text-xl font-semibold text-white">WhatsApp Conectado!</h3>
                       <p className="text-slate-400 mt-1">
-                        Sua instância "{savedInstance}" está ativa
+                        Sua instância "{instanceName}" está ativa
                       </p>
                     </div>
                     <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
@@ -511,15 +883,17 @@ const SettingsView = () => {
                     <div>
                       <h3 className="text-xl font-semibold text-slate-300">Nenhuma conexão ativa</h3>
                       <p className="text-slate-500 mt-1">
-                        Configure a integração WhatsApp ao lado
+                        Configure a Evolution API ao lado para conectar
                       </p>
                     </div>
                     <div className="p-4 bg-slate-700/30 rounded-xl max-w-sm mx-auto">
                       <h4 className="font-medium text-slate-300 mb-2">Como conectar:</h4>
                       <ol className="text-sm text-slate-400 text-left space-y-1">
-                        <li>1. Digite um nome para a instância</li>
-                        <li>2. Clique em "Salvar e Conectar"</li>
-                        <li>3. Escaneie o QR Code com seu WhatsApp</li>
+                        <li>1. Preencha a URL da API e API Key</li>
+                        <li>2. Digite um nome para a instância</li>
+                        <li>3. Clique em "Salvar e Conectar"</li>
+                        <li>4. Escaneie o QR Code com seu WhatsApp</li>
+                        <li>5. Configure o Webhook na Evolution API</li>
                       </ol>
                     </div>
                   </div>
