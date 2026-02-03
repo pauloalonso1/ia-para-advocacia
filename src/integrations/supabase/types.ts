@@ -241,6 +241,69 @@ export type Database = {
           },
         ]
       }
+      evolution_api_settings: {
+        Row: {
+          always_online: boolean | null
+          api_key: string
+          api_url: string
+          created_at: string
+          groups_ignore: boolean | null
+          id: string
+          instance_name: string | null
+          integration_type: string | null
+          is_connected: boolean | null
+          msg_call: string | null
+          qrcode_enabled: boolean | null
+          read_messages: boolean | null
+          read_status: boolean | null
+          reject_call: boolean | null
+          sync_full_history: boolean | null
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          always_online?: boolean | null
+          api_key: string
+          api_url: string
+          created_at?: string
+          groups_ignore?: boolean | null
+          id?: string
+          instance_name?: string | null
+          integration_type?: string | null
+          is_connected?: boolean | null
+          msg_call?: string | null
+          qrcode_enabled?: boolean | null
+          read_messages?: boolean | null
+          read_status?: boolean | null
+          reject_call?: boolean | null
+          sync_full_history?: boolean | null
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          always_online?: boolean | null
+          api_key?: string
+          api_url?: string
+          created_at?: string
+          groups_ignore?: boolean | null
+          id?: string
+          instance_name?: string | null
+          integration_type?: string | null
+          is_connected?: boolean | null
+          msg_call?: string | null
+          qrcode_enabled?: boolean | null
+          read_messages?: boolean | null
+          read_status?: boolean | null
+          reject_call?: boolean | null
+          sync_full_history?: boolean | null
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           created_at: string
