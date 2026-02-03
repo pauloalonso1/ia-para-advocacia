@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EvolutionRequest {
-  action: "create" | "qrcode" | "status" | "delete";
+  action: "create" | "qrcode" | "status" | "delete" | "restart";
   instanceName?: string;
 }
 
@@ -93,7 +93,45 @@ serve(async (req) => {
 
     switch (action) {
       case "create":
-        // Create a new instance with all settings
+        // First check if instance already exists and its status
+        console.log("Checking if instance exists:", finalInstanceName);
+        const checkResponse = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${finalInstanceName}`, {
+          method: "GET",
+          headers: baseHeaders,
+        });
+        const checkResult = await checkResponse.json();
+        console.log("Connection state check:", JSON.stringify(checkResult));
+
+        // If instance exists and is connected, return success
+        if (checkResponse.ok && (checkResult.state === 'open' || checkResult.state === 'connected')) {
+          return new Response(
+            JSON.stringify({ 
+              state: 'connected',
+              instance: { state: 'open' },
+              message: 'Instance already connected'
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // If instance exists but not connected, get QR code via connect endpoint
+        if (checkResponse.ok || checkResult.instance) {
+          console.log("Instance exists, fetching QR code via connect...");
+          const connectResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
+            method: "GET",
+            headers: baseHeaders,
+          });
+          result = await connectResponse.json();
+          console.log("Connect response:", JSON.stringify(result));
+          
+          if (connectResponse.ok) {
+            return new Response(JSON.stringify(result), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+
+        // Create new instance with all settings
         const createBody: any = {
           instanceName: finalInstanceName,
           qrcode: settings.qrcode_enabled ?? true,
@@ -152,17 +190,42 @@ serve(async (req) => {
         console.log("Create response body:", JSON.stringify(result));
         
         if (!response.ok) {
-          // If instance already exists, try to get QR code
-          if (result.error?.includes("already") || result.message?.includes("already") || 
+          // If instance already exists (403), try to get QR code
+          if (response.status === 403 || 
+              result.error?.includes("already") || result.message?.includes("already") || 
+              result.response?.message?.some((m: string) => m.includes("already")) ||
               result.error?.includes("exists") || result.message?.includes("exists")) {
-            // Instance exists, get QR code
-            console.log("Instance already exists, getting QR code...");
+            
+            console.log("Instance already exists, trying to connect...");
+            
+            // Try restart first to reset the instance state
+            const restartResponse = await fetch(`${EVOLUTION_API_URL}/instance/restart/${finalInstanceName}`, {
+              method: "PUT",
+              headers: baseHeaders,
+            });
+            console.log("Restart response status:", restartResponse.status);
+            
+            // Small delay to let the instance restart
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Now get the QR code via connect
             const qrResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
               method: "GET",
               headers: baseHeaders,
             });
             result = await qrResponse.json();
-            console.log("QR code response:", JSON.stringify(result));
+            console.log("Connect after restart response:", JSON.stringify(result));
+            
+            if (!qrResponse.ok) {
+              return new Response(
+                JSON.stringify({ 
+                  error: "Failed to get QR code for existing instance", 
+                  details: result,
+                  hint: "A instância existe mas não foi possível obter o QR code. Tente excluir e criar novamente."
+                }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
           } else {
             return new Response(
               JSON.stringify({ error: "Failed to create instance", details: result }),
@@ -173,36 +236,46 @@ serve(async (req) => {
         break;
 
       case "qrcode":
-        // Get QR code for existing instance
+        // Get QR code for existing instance via connect endpoint
+        console.log("Getting QR code for instance:", finalInstanceName);
         response = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
           method: "GET",
           headers: baseHeaders,
         });
         result = await response.json();
+        console.log("QR code response:", JSON.stringify(result));
         
         // If instance not found, return specific error
-        if (!response.ok && (result.statusCode === 404 || result.error === "not_found")) {
+        if (!response.ok) {
+          if (response.status === 404 || result.statusCode === 404 || result.error === "not_found") {
+            return new Response(
+              JSON.stringify({ 
+                error: "Instance not found", 
+                code: "INSTANCE_NOT_FOUND",
+                details: "A instância não existe. Clique em 'Salvar e Conectar' para criar uma nova."
+              }),
+              { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
           return new Response(
-            JSON.stringify({ 
-              error: "Instance not found", 
-              code: "INSTANCE_NOT_FOUND",
-              details: "A instância não existe. Clique em 'Salvar e Conectar' para criar uma nova."
-            }),
-            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            JSON.stringify({ error: "Failed to get QR code", details: result }),
+            { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         break;
 
       case "status":
         // Check instance connection status
+        console.log("Checking status for instance:", finalInstanceName);
         response = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${finalInstanceName}`, {
           method: "GET",
           headers: baseHeaders,
         });
         result = await response.json();
+        console.log("Status response:", JSON.stringify(result));
         
         // If instance not found, return disconnected status instead of error
-        if (!response.ok && (result.statusCode === 404 || result.error === "not_found")) {
+        if (!response.ok && (result.statusCode === 404 || result.error === "not_found" || response.status === 404)) {
           return new Response(
             JSON.stringify({ 
               state: "disconnected",
@@ -213,13 +286,37 @@ serve(async (req) => {
         }
         break;
 
+      case "restart":
+        // Restart instance to get a new QR code
+        console.log("Restarting instance:", finalInstanceName);
+        response = await fetch(`${EVOLUTION_API_URL}/instance/restart/${finalInstanceName}`, {
+          method: "PUT",
+          headers: baseHeaders,
+        });
+        result = await response.json();
+        console.log("Restart response:", JSON.stringify(result));
+        
+        if (response.ok) {
+          // After restart, get the new QR code
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const qrResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
+            method: "GET",
+            headers: baseHeaders,
+          });
+          result = await qrResponse.json();
+          console.log("QR after restart:", JSON.stringify(result));
+        }
+        break;
+
       case "delete":
         // Delete instance
+        console.log("Deleting instance:", finalInstanceName);
         response = await fetch(`${EVOLUTION_API_URL}/instance/delete/${finalInstanceName}`, {
           method: "DELETE",
           headers: baseHeaders,
         });
         result = await response.json();
+        console.log("Delete response:", JSON.stringify(result));
         break;
 
       default:
