@@ -2,13 +2,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
   Bot, 
-  Users, 
   MessageSquare, 
   Settings, 
   LogOut,
   Scale,
   LayoutDashboard,
-  Contact
+  Contact,
+  LayoutGrid
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,7 @@ const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'agents', label: 'Agentes IA', icon: Bot },
   { id: 'contacts', label: 'Contatos', icon: Contact },
-  { id: 'cases', label: 'Casos/Leads', icon: Users },
+  { id: 'crm', label: 'CRM Kanban', icon: LayoutGrid },
   { id: 'conversations', label: 'Conversas', icon: MessageSquare },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];

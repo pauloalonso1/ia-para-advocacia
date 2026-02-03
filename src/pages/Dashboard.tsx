@@ -4,8 +4,10 @@ import AgentsView from '@/components/dashboard/AgentsView';
 import ContactsView from '@/components/dashboard/ContactsView';
 import ConversationsView from '@/components/dashboard/ConversationsView';
 import SettingsView from '@/components/dashboard/SettingsView';
+import CRMKanbanView from '@/components/dashboard/CRMKanbanView';
 import { Bot, MessageSquare, TrendingUp, ArrowUpRight, ArrowDownRight, Contact } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('agents');
@@ -105,12 +107,13 @@ const Dashboard = () => {
         return <AgentsView />;
       case 'contacts':
         return <ContactsView />;
-      case 'cases':
+      case 'crm':
         return (
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-foreground">Casos/Leads</h1>
-            <p className="text-muted-foreground mt-2">Em breve: gerencie seus leads e casos aqui.</p>
-          </div>
+          <CRMKanbanView 
+            onOpenConversation={() => {
+              setActiveTab('conversations');
+            }} 
+          />
         );
       case 'conversations':
         return <ConversationsView />;
