@@ -19,10 +19,10 @@ interface SidebarProps {
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'conversations', label: 'Conversas', icon: MessageSquare },
   { id: 'agents', label: 'Agentes IA', icon: Bot },
   { id: 'contacts', label: 'Contatos', icon: Contact },
   { id: 'crm', label: 'CRM Kanban', icon: LayoutGrid },
-  { id: 'conversations', label: 'Conversas', icon: MessageSquare },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
