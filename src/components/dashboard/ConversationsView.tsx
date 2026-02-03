@@ -79,6 +79,7 @@ const ConversationsView = () => {
         selectedCase={selectedCase}
         messages={messages}
         loading={messagesLoading}
+        onPauseAgent={(caseId) => handleAssignAgent(caseId, null)}
       />
 
       {/* Right: CRM Panel */}

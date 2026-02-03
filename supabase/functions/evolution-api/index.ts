@@ -7,8 +7,10 @@ const corsHeaders = {
 };
 
 interface EvolutionRequest {
-  action: "create" | "qrcode" | "status" | "delete" | "restart";
+  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text";
   instanceName?: string;
+  phone?: string;
+  message?: string;
 }
 
 serve(async (req) => {
@@ -317,6 +319,37 @@ serve(async (req) => {
         });
         result = await response.json();
         console.log("Delete response:", JSON.stringify(result));
+        break;
+
+      case "send-text":
+        // Send text message via WhatsApp
+        const { phone, message } = body;
+        
+        if (!phone || !message) {
+          return new Response(
+            JSON.stringify({ error: "phone and message are required for send-text action" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log("Sending message to:", phone);
+        response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${finalInstanceName}`, {
+          method: "POST",
+          headers: baseHeaders,
+          body: JSON.stringify({
+            number: phone,
+            text: message,
+          }),
+        });
+        result = await response.json();
+        console.log("Send message response:", JSON.stringify(result));
+        
+        if (!response.ok) {
+          return new Response(
+            JSON.stringify({ error: "Failed to send message", details: result }),
+            { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         break;
 
       default:
