@@ -66,7 +66,8 @@ serve(async (req) => {
       );
     }
 
-    const EVOLUTION_API_URL = settings.api_url;
+    // Remove trailing slash from API URL to avoid double slashes
+    const EVOLUTION_API_URL = settings.api_url.replace(/\/+$/, '');
     const EVOLUTION_API_KEY = settings.api_key;
 
     const body: EvolutionRequest = await req.json();
@@ -137,22 +138,31 @@ serve(async (req) => {
           };
         }
 
-        response = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
+        const createUrl = `${EVOLUTION_API_URL}/instance/create`;
+        console.log("Creating instance at URL:", createUrl);
+        console.log("Create body:", JSON.stringify(createBody));
+        
+        response = await fetch(createUrl, {
           method: "POST",
           headers: baseHeaders,
           body: JSON.stringify(createBody),
         });
         result = await response.json();
+        console.log("Create response status:", response.status);
+        console.log("Create response body:", JSON.stringify(result));
         
         if (!response.ok) {
           // If instance already exists, try to get QR code
-          if (result.error?.includes("already") || result.message?.includes("already")) {
+          if (result.error?.includes("already") || result.message?.includes("already") || 
+              result.error?.includes("exists") || result.message?.includes("exists")) {
             // Instance exists, get QR code
+            console.log("Instance already exists, getting QR code...");
             const qrResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
               method: "GET",
               headers: baseHeaders,
             });
             result = await qrResponse.json();
+            console.log("QR code response:", JSON.stringify(result));
           } else {
             return new Response(
               JSON.stringify({ error: "Failed to create instance", details: result }),
