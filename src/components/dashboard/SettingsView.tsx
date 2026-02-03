@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import GoogleCalendarSettings from './settings/GoogleCalendarSettings';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -674,6 +675,9 @@ const SettingsView = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Google Calendar Card */}
+          <GoogleCalendarSettings />
 
           {/* Notifications Card */}
           <Card className="bg-card border-border">
