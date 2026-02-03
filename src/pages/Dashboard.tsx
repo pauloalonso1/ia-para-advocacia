@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from '@/components/dashboard/Sidebar';
 import AgentsView from '@/components/dashboard/AgentsView';
 import ConversationsView from '@/components/dashboard/ConversationsView';
+import SettingsView from '@/components/dashboard/SettingsView';
 import { Bot, Users, MessageSquare, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('agents');
-  const { user } = useAuth();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -113,12 +112,7 @@ const Dashboard = () => {
       case 'conversations':
         return <ConversationsView />;
       case 'settings':
-        return (
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-white">Configurações</h1>
-            <p className="text-slate-400 mt-2">Seu e-mail: {user?.email}</p>
-          </div>
-        );
+        return <SettingsView />;
       default:
         return null;
     }
