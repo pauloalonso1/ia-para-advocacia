@@ -278,7 +278,7 @@ const SettingsView = () => {
   if (settingsLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -287,11 +287,11 @@ const SettingsView = () => {
     <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Settings className="w-6 h-6 text-emerald-400" />
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Settings className="w-6 h-6 text-primary" />
           Configurações
         </h1>
-        <p className="text-slate-400 mt-1">
+        <p className="text-muted-foreground mt-1">
           Configure sua conta e integrações
         </p>
       </div>
@@ -301,37 +301,37 @@ const SettingsView = () => {
         {/* Left Column - Settings Form */}
         <div className="space-y-6">
           {/* Profile Card */}
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-400" />
+              <CardTitle className="text-foreground flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-500" />
                 Perfil
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-muted-foreground">
                 Informações da sua conta
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-slate-300">Email</Label>
-                <div className="flex items-center gap-2 p-3 bg-slate-700/50 rounded-lg">
-                  <Mail className="w-4 h-4 text-slate-400" />
-                  <span className="text-white">{user?.email}</span>
+                <Label className="text-foreground">Email</Label>
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-foreground">{user?.email}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Evolution API Configuration Card */}
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-card border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-green-400" />
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-green-500" />
                     Evolution API
                   </CardTitle>
-                  <CardDescription className="text-slate-400 mt-1">
+                  <CardDescription className="text-muted-foreground mt-1">
                     Configure sua conexão com a Evolution API
                   </CardDescription>
                 </div>
@@ -340,10 +340,10 @@ const SettingsView = () => {
                     className={cn(
                       "ml-auto",
                       connectionStatus === 'connected'
-                        ? "bg-green-500/20 text-green-400 border-green-500/30"
+                        ? "bg-green-500/20 text-green-500 border-green-500/30"
                         : connectionStatus === 'connecting'
-                        ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                        : "bg-red-500/20 text-red-400 border-red-500/30"
+                        ? "bg-primary/20 text-primary border-primary/30"
+                        : "bg-destructive/20 text-destructive border-destructive/30"
                     )}
                   >
                     {connectionStatus === 'connected' && <CheckCircle2 className="w-3 h-3 mr-1" />}
@@ -357,12 +357,12 @@ const SettingsView = () => {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="connection" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-slate-700/50">
-                  <TabsTrigger value="connection" className="data-[state=active]:bg-emerald-500">
+                <TabsList className="grid w-full grid-cols-2 bg-muted">
+                  <TabsTrigger value="connection" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                     <Link className="w-4 h-4 mr-2" />
                     Conexão
                   </TabsTrigger>
-                  <TabsTrigger value="advanced" className="data-[state=active]:bg-emerald-500">
+                  <TabsTrigger value="advanced" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                     <Cog className="w-4 h-4 mr-2" />
                     Avançado
                   </TabsTrigger>
@@ -371,7 +371,7 @@ const SettingsView = () => {
                 <TabsContent value="connection" className="space-y-4 mt-4">
                   {/* API URL */}
                   <div className="space-y-2">
-                    <Label htmlFor="api-url" className="text-slate-300 flex items-center gap-2">
+                    <Label htmlFor="api-url" className="text-foreground flex items-center gap-2">
                       <Globe className="w-4 h-4" />
                       URL da API *
                     </Label>
@@ -380,16 +380,16 @@ const SettingsView = () => {
                       value={apiUrl}
                       onChange={(e) => setApiUrl(e.target.value)}
                       placeholder="https://api.seuservidor.com"
-                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       URL do seu servidor Evolution API
                     </p>
                   </div>
 
                   {/* API Key */}
                   <div className="space-y-2">
-                    <Label htmlFor="api-key" className="text-slate-300 flex items-center gap-2">
+                    <Label htmlFor="api-key" className="text-foreground flex items-center gap-2">
                       <Key className="w-4 h-4" />
                       API Key *
                     </Label>
@@ -400,26 +400,26 @@ const SettingsView = () => {
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                         placeholder="Sua chave de autenticação"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 pr-10"
+                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-slate-400 hover:text-white"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-muted-foreground hover:text-foreground"
                         onClick={() => setShowApiKey(!showApiKey)}
                       >
                         {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </Button>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Chave de autenticação da Evolution API
                     </p>
                   </div>
 
                   {/* Instance Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="instance" className="text-slate-300 flex items-center gap-2">
+                    <Label htmlFor="instance" className="text-foreground flex items-center gap-2">
                       <Smartphone className="w-4 h-4" />
                       Nome da Instância *
                     </Label>
@@ -428,17 +428,17 @@ const SettingsView = () => {
                       value={instanceName}
                       onChange={(e) => setInstanceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                       placeholder="minha-instancia"
-                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                       disabled={connectionStatus === 'connected'}
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Identificador único (apenas letras minúsculas, números e hífens)
                     </p>
                   </div>
 
                   {/* Webhook URL */}
                   <div className="space-y-2">
-                    <Label className="text-slate-300 flex items-center gap-2">
+                    <Label className="text-foreground flex items-center gap-2">
                       <Link className="w-4 h-4" />
                       URL do Webhook
                     </Label>
@@ -446,26 +446,26 @@ const SettingsView = () => {
                       <Input
                         value={webhookUrl}
                         readOnly
-                        className="bg-slate-700/50 border-slate-600 text-slate-300 flex-1"
+                        className="bg-muted border-border text-muted-foreground flex-1"
                       />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                        className="border-border text-muted-foreground hover:bg-accent"
                         onClick={handleCopyWebhook}
                       >
-                        {copiedWebhook ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                        {copiedWebhook ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                       </Button>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Configure este webhook na sua instância Evolution API
                     </p>
                   </div>
 
                   {evolutionError && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                      <p className="text-sm text-red-400">{evolutionError}</p>
+                    <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                      <p className="text-sm text-destructive">{evolutionError}</p>
                     </div>
                   )}
                 </TabsContent>
@@ -473,9 +473,9 @@ const SettingsView = () => {
                 <TabsContent value="advanced" className="space-y-4 mt-4">
                   {/* Integration Type */}
                   <div className="space-y-2">
-                    <Label className="text-slate-300">Tipo de Integração</Label>
-                    <div className="p-3 bg-slate-700/50 rounded-lg">
-                      <span className="text-white">{integrationType}</span>
+                    <Label className="text-foreground">Tipo de Integração</Label>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <span className="text-foreground">{integrationType}</span>
                     </div>
                   </div>
 
@@ -483,97 +483,97 @@ const SettingsView = () => {
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">QR Code Habilitado</Label>
-                        <p className="text-xs text-slate-500">Gerar QR Code ao conectar</p>
+                        <Label className="text-foreground">QR Code Habilitado</Label>
+                        <p className="text-xs text-muted-foreground">Gerar QR Code ao conectar</p>
                       </div>
                       <Switch
                         checked={qrcodeEnabled}
                         onCheckedChange={setQrcodeEnabled}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">Rejeitar Chamadas</Label>
-                        <p className="text-xs text-slate-500">Rejeitar chamadas automaticamente</p>
+                        <Label className="text-foreground">Rejeitar Chamadas</Label>
+                        <p className="text-xs text-muted-foreground">Rejeitar chamadas automaticamente</p>
                       </div>
                       <Switch
                         checked={rejectCall}
                         onCheckedChange={setRejectCall}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
 
                     {rejectCall && (
-                      <div className="space-y-2 pl-4 border-l-2 border-slate-600">
-                        <Label className="text-slate-400 text-sm">Mensagem ao rejeitar</Label>
+                      <div className="space-y-2 pl-4 border-l-2 border-border">
+                        <Label className="text-muted-foreground text-sm">Mensagem ao rejeitar</Label>
                         <Input
                           value={msgCall}
                           onChange={(e) => setMsgCall(e.target.value)}
                           placeholder="Não posso atender no momento..."
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                     )}
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">Ignorar Grupos</Label>
-                        <p className="text-xs text-slate-500">Não processar mensagens de grupos</p>
+                        <Label className="text-foreground">Ignorar Grupos</Label>
+                        <p className="text-xs text-muted-foreground">Não processar mensagens de grupos</p>
                       </div>
                       <Switch
                         checked={groupsIgnore}
                         onCheckedChange={setGroupsIgnore}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">Sempre Online</Label>
-                        <p className="text-xs text-slate-500">Manter status online</p>
+                        <Label className="text-foreground">Sempre Online</Label>
+                        <p className="text-xs text-muted-foreground">Manter status online</p>
                       </div>
                       <Switch
                         checked={alwaysOnline}
                         onCheckedChange={setAlwaysOnline}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">Marcar Mensagens como Lidas</Label>
-                        <p className="text-xs text-slate-500">Marcar automaticamente ao receber</p>
+                        <Label className="text-foreground">Marcar Mensagens como Lidas</Label>
+                        <p className="text-xs text-muted-foreground">Marcar automaticamente ao receber</p>
                       </div>
                       <Switch
                         checked={readMessages}
                         onCheckedChange={setReadMessages}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">Ler Status</Label>
-                        <p className="text-xs text-slate-500">Visualizar status automaticamente</p>
+                        <Label className="text-foreground">Ler Status</Label>
+                        <p className="text-xs text-muted-foreground">Visualizar status automaticamente</p>
                       </div>
                       <Switch
                         checked={readStatus}
                         onCheckedChange={setReadStatus}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-slate-300">Sincronizar Histórico Completo</Label>
-                        <p className="text-xs text-slate-500">Sincronizar todas as conversas anteriores</p>
+                        <Label className="text-foreground">Sincronizar Histórico Completo</Label>
+                        <p className="text-xs text-muted-foreground">Sincronizar todas as conversas anteriores</p>
                       </div>
                       <Switch
                         checked={syncFullHistory}
                         onCheckedChange={setSyncFullHistory}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                   </div>
@@ -581,14 +581,14 @@ const SettingsView = () => {
               </Tabs>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700 mt-4">
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-border mt-4">
                 {!evolutionSettings || connectionStatus === 'disconnected' ? (
                   <>
                     <Button
                       onClick={handleSaveSettings}
                       disabled={savingSettings || !apiUrl.trim() || !apiKey.trim()}
                       variant="outline"
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                      className="border-border text-muted-foreground hover:bg-accent"
                     >
                       {savingSettings ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -600,7 +600,7 @@ const SettingsView = () => {
                     <Button
                       onClick={handleSaveAndConnect}
                       disabled={evolutionLoading || savingSettings || !apiUrl.trim() || !apiKey.trim() || !instanceName.trim()}
-                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                      className="bg-green-500 hover:bg-green-600 text-white"
                     >
                       {evolutionLoading ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -616,7 +616,7 @@ const SettingsView = () => {
                       onClick={handleSaveSettings}
                       disabled={savingSettings}
                       variant="outline"
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                      className="border-border text-muted-foreground hover:bg-accent"
                     >
                       {savingSettings ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -629,7 +629,7 @@ const SettingsView = () => {
                       onClick={handleCheckStatus}
                       variant="outline"
                       disabled={evolutionLoading}
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                      className="border-border text-muted-foreground hover:bg-accent"
                     >
                       {evolutionLoading ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -643,7 +643,7 @@ const SettingsView = () => {
                         onClick={handleRefreshQR}
                         variant="outline"
                         disabled={evolutionLoading}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                        className="border-border text-muted-foreground hover:bg-accent"
                       >
                         <QrCode className="w-4 h-4 mr-2" />
                         Novo QR Code
@@ -653,7 +653,7 @@ const SettingsView = () => {
                       onClick={handleDisconnect}
                       variant="outline"
                       disabled={evolutionLoading}
-                      className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                      className="border-destructive/30 text-destructive hover:bg-destructive/10"
                     >
                       <WifiOff className="w-4 h-4 mr-2" />
                       Desconectar
@@ -665,7 +665,7 @@ const SettingsView = () => {
                     onClick={handleDeleteSettings}
                     variant="outline"
                     disabled={savingSettings}
-                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Excluir
@@ -676,23 +676,23 @@ const SettingsView = () => {
           </Card>
 
           {/* Notifications Card */}
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-card border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <BellRing className="w-5 h-5 text-amber-400" />
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <BellRing className="w-5 h-5 text-primary" />
                     Notificações WhatsApp
                   </CardTitle>
-                  <CardDescription className="text-slate-400 mt-1">
+                  <CardDescription className="text-muted-foreground mt-1">
                     Receba alertas sobre seus leads no seu celular pessoal
                   </CardDescription>
                 </div>
                 {notificationSettings && (
                   <Badge className={cn(
                     notificationSettings.is_enabled 
-                      ? "bg-green-500/20 text-green-400 border-green-500/30"
-                      : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                      ? "bg-green-500/20 text-green-500 border-green-500/30"
+                      : "bg-muted text-muted-foreground border-border"
                   )}>
                     {notificationSettings.is_enabled ? (
                       <>
@@ -711,20 +711,20 @@ const SettingsView = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="notification-phone" className="text-slate-300">
+                <Label htmlFor="notification-phone" className="text-foreground">
                   Número para Notificações
                 </Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="notification-phone"
                     value={notificationPhone}
                     onChange={(e) => setNotificationPhone(e.target.value)}
                     placeholder="5511999999999"
-                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                    className="pl-10 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Número com código do país (ex: 5511999999999)
                 </p>
               </div>
@@ -736,52 +736,52 @@ const SettingsView = () => {
                     <Switch
                       checked={notificationsEnabled}
                       onCheckedChange={setNotificationsEnabled}
-                      className="data-[state=checked]:bg-emerald-500"
+                      className="data-[state=checked]:bg-primary"
                     />
-                    <Label className="text-slate-300 font-medium">Ativar Notificações</Label>
+                    <Label className="text-foreground font-medium">Ativar Notificações</Label>
                   </div>
                 </div>
 
                 {notificationsEnabled && (
-                  <div className="space-y-3 pl-4 border-l-2 border-slate-600 ml-2">
+                  <div className="space-y-3 pl-4 border-l-2 border-border ml-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-slate-400 text-sm">Novo Lead</Label>
+                      <Label className="text-muted-foreground text-sm">Novo Lead</Label>
                       <Switch
                         checked={notifyNewLead}
                         onCheckedChange={setNotifyNewLead}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-slate-400 text-sm">Lead Qualificado</Label>
+                      <Label className="text-muted-foreground text-sm">Lead Qualificado</Label>
                       <Switch
                         checked={notifyQualifiedLead}
                         onCheckedChange={setNotifyQualifiedLead}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-slate-400 text-sm">Reunião Agendada</Label>
+                      <Label className="text-muted-foreground text-sm">Reunião Agendada</Label>
                       <Switch
                         checked={notifyMeetingScheduled}
                         onCheckedChange={setNotifyMeetingScheduled}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-slate-400 text-sm">Contrato Enviado</Label>
+                      <Label className="text-muted-foreground text-sm">Contrato Enviado</Label>
                       <Switch
                         checked={notifyContractSent}
                         onCheckedChange={setNotifyContractSent}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-slate-400 text-sm">Contrato Assinado</Label>
+                      <Label className="text-muted-foreground text-sm">Contrato Assinado</Label>
                       <Switch
                         checked={notifyContractSigned}
                         onCheckedChange={setNotifyContractSigned}
-                        className="data-[state=checked]:bg-emerald-500"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                   </div>
@@ -792,7 +792,7 @@ const SettingsView = () => {
                 <Button
                   onClick={handleSaveNotifications}
                   disabled={savingNotifications || !notificationPhone.trim()}
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                  className="bg-primary hover:bg-primary/90"
                 >
                   {savingNotifications ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -806,7 +806,7 @@ const SettingsView = () => {
                     onClick={handleDisableNotifications}
                     variant="outline"
                     disabled={savingNotifications}
-                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Desativar
@@ -819,13 +819,13 @@ const SettingsView = () => {
 
         {/* Right Column - QR Code */}
         <div>
-          <Card className="bg-slate-800/50 border-slate-700 h-full">
+          <Card className="bg-card border-border h-full">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-400" />
+              <CardTitle className="text-foreground flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-primary" />
                 Conexão WhatsApp
               </CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-muted-foreground">
                 Escaneie o QR Code com seu WhatsApp
               </CardDescription>
             </CardHeader>
@@ -834,15 +834,15 @@ const SettingsView = () => {
                 {connectionStatus === 'connected' ? (
                   <div className="text-center space-y-4">
                     <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-                      <Wifi className="w-12 h-12 text-green-400" />
+                      <Wifi className="w-12 h-12 text-green-500" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-white">WhatsApp Conectado!</h3>
-                      <p className="text-slate-400 mt-1">
+                      <h3 className="text-xl font-semibold text-foreground">WhatsApp Conectado!</h3>
+                      <p className="text-muted-foreground mt-1">
                         Sua instância "{instanceName}" está ativa
                       </p>
                     </div>
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       Online e pronto para receber mensagens
                     </Badge>
@@ -857,44 +857,39 @@ const SettingsView = () => {
                           className="w-64 h-64"
                         />
                       ) : (
-                        <div className="w-64 h-64 flex items-center justify-center bg-slate-100 rounded">
-                          <p className="text-slate-600 text-xs text-center p-4 break-all">
-                            {qrCode}
-                          </p>
-                        </div>
+                        <img 
+                          src={`data:image/png;base64,${qrCode}`} 
+                          alt="QR Code WhatsApp" 
+                          className="w-64 h-64"
+                        />
                       )}
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium text-white">Escaneie o QR Code</h3>
-                      <p className="text-slate-400 text-sm mt-1">
-                        Abra o WhatsApp &gt; Dispositivos conectados &gt; Conectar dispositivo
+                      <h3 className="text-lg font-semibold text-foreground">Escaneie o QR Code</h3>
+                      <p className="text-muted-foreground text-sm mt-1">
+                        Abra o WhatsApp → Menu → Dispositivos conectados → Conectar dispositivo
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 text-amber-400 text-sm">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Aguardando conexão...
-                    </div>
+                    <Badge className="bg-primary/20 text-primary border-primary/30">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Aguardando escaneamento...
+                    </Badge>
+                  </div>
+                ) : evolutionLoading ? (
+                  <div className="text-center space-y-4">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+                    <p className="text-muted-foreground">Gerando QR Code...</p>
                   </div>
                 ) : (
                   <div className="text-center space-y-4">
-                    <div className="w-24 h-24 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto">
-                      <WifiOff className="w-12 h-12 text-slate-500" />
+                    <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto">
+                      <QrCode className="w-12 h-12 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-300">Nenhuma conexão ativa</h3>
-                      <p className="text-slate-500 mt-1">
-                        Configure a Evolution API ao lado para conectar
+                      <h3 className="text-lg font-semibold text-foreground">Conecte seu WhatsApp</h3>
+                      <p className="text-muted-foreground text-sm mt-1">
+                        Configure a Evolution API e clique em "Salvar e Conectar"
                       </p>
-                    </div>
-                    <div className="p-4 bg-slate-700/30 rounded-xl max-w-sm mx-auto">
-                      <h4 className="font-medium text-slate-300 mb-2">Como conectar:</h4>
-                      <ol className="text-sm text-slate-400 text-left space-y-1">
-                        <li>1. Preencha a URL da API e API Key</li>
-                        <li>2. Digite um nome para a instância</li>
-                        <li>3. Clique em "Salvar e Conectar"</li>
-                        <li>4. Escaneie o QR Code com seu WhatsApp</li>
-                        <li>5. Configure o Webhook na Evolution API</li>
-                      </ol>
                     </div>
                   </div>
                 )}

@@ -89,26 +89,26 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <Card className="w-full max-w-md border-slate-700 bg-slate-800/50 backdrop-blur-sm">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md border-border bg-card/50 backdrop-blur-sm">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center">
-            <Scale className="w-8 h-8 text-white" />
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center">
+            <Scale className="w-8 h-8 text-primary-foreground" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold text-white">LegalAgent AI</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardTitle className="text-2xl font-bold text-foreground">LegalAgent AI</CardTitle>
+            <CardDescription className="text-muted-foreground">
               Automação jurídica com inteligência artificial
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-700/50">
-              <TabsTrigger value="login" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+            <TabsList className="grid w-full grid-cols-2 bg-muted">
+              <TabsTrigger value="login" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 Entrar
               </TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+              <TabsTrigger value="signup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 Cadastrar
               </TabsTrigger>
             </TabsList>
@@ -116,7 +116,7 @@ const Auth = () => {
             <TabsContent value="login" className="mt-6">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-slate-200">E-mail</Label>
+                  <Label htmlFor="login-email" className="text-foreground">E-mail</Label>
                   <Input
                     id="login-email"
                     type="email"
@@ -124,11 +124,11 @@ const Auth = () => {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     required
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-password" className="text-slate-200">Senha</Label>
+                  <Label htmlFor="login-password" className="text-foreground">Senha</Label>
                   <Input
                     id="login-password"
                     type="password"
@@ -136,12 +136,12 @@ const Auth = () => {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -153,7 +153,7 @@ const Auth = () => {
             <TabsContent value="signup" className="mt-6">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name" className="text-slate-200">Nome Completo</Label>
+                  <Label htmlFor="signup-name" className="text-foreground">Nome Completo</Label>
                   <Input
                     id="signup-name"
                     type="text"
@@ -161,11 +161,11 @@ const Auth = () => {
                     value={signupName}
                     onChange={(e) => setSignupName(e.target.value)}
                     required
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-slate-200">E-mail</Label>
+                  <Label htmlFor="signup-email" className="text-foreground">E-mail</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -173,11 +173,11 @@ const Auth = () => {
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
                     required
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-slate-200">Senha</Label>
+                  <Label htmlFor="signup-password" className="text-foreground">Senha</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -185,11 +185,11 @@ const Auth = () => {
                     value={signupPassword}
                     onChange={(e) => setSignupPassword(e.target.value)}
                     required
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password" className="text-slate-200">Confirmar Senha</Label>
+                  <Label htmlFor="signup-confirm-password" className="text-foreground">Confirmar Senha</Label>
                   <Input
                     id="signup-confirm-password"
                     type="password"
@@ -197,12 +197,12 @@ const Auth = () => {
                     value={signupConfirmPassword}
                     onChange={(e) => setSignupConfirmPassword(e.target.value)}
                     required
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={isLoading}
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
