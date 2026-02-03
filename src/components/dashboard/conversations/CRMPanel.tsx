@@ -1,11 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Case } from '@/hooks/useCases';
+import { useAgents } from '@/hooks/useAgents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
+import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   User, 
   Phone, 
@@ -17,7 +25,9 @@ import {
   X,
   Bot,
   ChevronRight,
-  FileText
+  FileText,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -27,6 +37,7 @@ interface CRMPanelProps {
   selectedCase: Case | null;
   onUpdateStatus: (caseId: string, status: string) => void;
   onUpdateName: (caseId: string, name: string) => void;
+  onAssignAgent: (caseId: string, agentId: string | null) => void;
 }
 
 const crmStages = [
@@ -38,9 +49,22 @@ const crmStages = [
   { id: 'Arquivado', label: 'Arquivado', color: 'bg-muted-foreground', description: 'Caso encerrado ou arquivado' },
 ];
 
-const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName }: CRMPanelProps) => {
+const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }: CRMPanelProps) => {
+  const { agents } = useAgents();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
+  const [isAIEnabled, setIsAIEnabled] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+
+  // Sync AI state with selected case
+  useEffect(() => {
+    if (selectedCase) {
+      setIsAIEnabled(!!selectedCase.active_agent_id);
+      setSelectedAgentId(selectedCase.active_agent_id || '');
+    }
+  }, [selectedCase]);
+
+  const activeAgents = agents.filter(a => a.is_active);
 
   if (!selectedCase) {
     return (
@@ -81,6 +105,24 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName }: CRMPanelProps)
     setEditedName('');
   };
 
+  const handleToggleAI = (enabled: boolean) => {
+    setIsAIEnabled(enabled);
+    if (!enabled) {
+      onAssignAgent(selectedCase.id, null);
+      setSelectedAgentId('');
+    } else if (activeAgents.length > 0) {
+      // Auto-select first agent or default agent
+      const defaultAgent = activeAgents.find(a => a.is_default) || activeAgents[0];
+      setSelectedAgentId(defaultAgent.id);
+      onAssignAgent(selectedCase.id, defaultAgent.id);
+    }
+  };
+
+  const handleAgentChange = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    onAssignAgent(selectedCase.id, agentId);
+  };
+
   const currentStageIndex = crmStages.findIndex(s => s.id === (selectedCase.status || 'Novo Contato'));
 
   return (
@@ -95,6 +137,76 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName }: CRMPanelProps)
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
+          {/* AI Agent Toggle */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Agente IA
+            </h4>
+            
+            <div className={cn(
+              "p-4 rounded-xl border transition-all",
+              isAIEnabled 
+                ? "bg-primary/10 border-primary/30" 
+                : "bg-muted/50 border-border"
+            )}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Bot className={cn(
+                    "w-5 h-5",
+                    isAIEnabled ? "text-primary" : "text-muted-foreground"
+                  )} />
+                  <span className={cn(
+                    "font-medium",
+                    isAIEnabled ? "text-foreground" : "text-muted-foreground"
+                  )}>
+                    Atendimento Automático
+                  </span>
+                </div>
+                <Switch
+                  checked={isAIEnabled}
+                  onCheckedChange={handleToggleAI}
+                  disabled={activeAgents.length === 0}
+                />
+              </div>
+
+              {isAIEnabled && activeAgents.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Selecione o agente</Label>
+                  <Select value={selectedAgentId} onValueChange={handleAgentChange}>
+                    <SelectTrigger className="bg-muted border-border">
+                      <SelectValue placeholder="Escolher agente..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {activeAgents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id} className="text-foreground">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-3 h-3 text-primary" />
+                            {agent.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {!isAIEnabled && (
+                <p className="text-xs text-muted-foreground">
+                  Ative para que o agente IA responda automaticamente às mensagens deste lead.
+                </p>
+              )}
+
+              {activeAgents.length === 0 && (
+                <p className="text-xs text-amber-400">
+                  Nenhum agente ativo. Crie e ative um agente na aba "Agentes IA".
+                </p>
+              )}
+            </div>
+          </div>
+
+          <Separator className="bg-border" />
+
           {/* Contact Info */}
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
@@ -223,23 +335,6 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName }: CRMPanelProps)
               })}
             </div>
           </div>
-
-          <Separator className="bg-border" />
-
-          {/* Agent Info */}
-          {selectedCase.active_agent_id && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <Bot className="w-4 h-4" />
-                Agente Ativo
-              </h4>
-              <div className="p-3 bg-muted rounded-lg border border-border">
-                <p className="text-muted-foreground text-sm">
-                  ID: {selectedCase.active_agent_id.slice(0, 8)}...
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       </ScrollArea>
     </div>

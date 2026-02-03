@@ -156,12 +156,77 @@ export const useCases = () => {
     };
   }, [user]);
 
+  const deleteCase = async (caseId: string) => {
+    try {
+      // First delete related conversation history
+      const { error: historyError } = await supabase
+        .from('conversation_history')
+        .delete()
+        .eq('case_id', caseId);
+
+      if (historyError) throw historyError;
+
+      // Then delete the case
+      const { error } = await supabase
+        .from('cases')
+        .delete()
+        .eq('id', caseId);
+
+      if (error) throw error;
+      
+      setCases(prev => prev.filter(c => c.id !== caseId));
+
+      toast({
+        title: 'Conversa excluída',
+        description: 'A conversa foi removida com sucesso.',
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir conversa',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const assignAgentToCase = async (caseId: string, agentId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('cases')
+        .update({ active_agent_id: agentId, updated_at: new Date().toISOString() })
+        .eq('id', caseId);
+
+      if (error) throw error;
+      
+      setCases(prev => prev.map(c => 
+        c.id === caseId ? { ...c, active_agent_id: agentId, updated_at: new Date().toISOString() } : c
+      ));
+
+      toast({
+        title: agentId ? 'Agente ativado' : 'Agente desativado',
+        description: agentId ? 'O agente IA foi ativado para esta conversa.' : 'O atendimento agora é manual.',
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atribuir agente',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     cases,
     loading,
     fetchMessages,
     updateCaseStatus,
     updateCaseName,
+    deleteCase,
+    assignAgentToCase,
     refetch: fetchCases,
   };
 };

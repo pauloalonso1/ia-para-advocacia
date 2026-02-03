@@ -1,8 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Case, Message } from '@/hooks/useCases';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, User, MessageSquare, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,14 +20,38 @@ interface ChatViewProps {
   loading: boolean;
 }
 
+const commonEmojis = [
+  '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂',
+  '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋',
+  '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐',
+  '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👋', '🙏',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💯', '✨',
+];
+
 const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [messageInput, setMessageInput] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessageInput(prev => prev + emoji);
+    setEmojiOpen(false);
+    textareaRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // Future: implement send message
+    }
+  };
 
   if (!selectedCase) {
     return (
@@ -97,9 +128,15 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
             {getInitials(selectedCase.client_name, selectedCase.client_phone)}
           </AvatarFallback>
         </Avatar>
-        <div>
-          <h3 className="font-medium text-foreground">
+        <div className="flex-1">
+          <h3 className="font-medium text-foreground flex items-center gap-2">
             {selectedCase.client_name || 'Sem nome'}
+            {selectedCase.active_agent_id && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">
+                <Bot className="w-3 h-3" />
+                IA Ativa
+              </span>
+            )}
           </h3>
           <p className="text-xs text-muted-foreground">{formatPhone(selectedCase.client_phone)}</p>
         </div>
@@ -197,13 +234,112 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
         )}
       </ScrollArea>
 
-      {/* Input Area - Read Only */}
-      <div className="p-4 border-t border-border bg-card/30">
-        <div className="flex items-center gap-3 px-4 py-3 bg-muted rounded-xl border border-border">
-          <span className="text-muted-foreground text-sm flex-1">
-            As mensagens são recebidas automaticamente via WhatsApp
-          </span>
+      {/* Input Area - WhatsApp Style */}
+      <div className="p-3 border-t border-border bg-card/50">
+        <div className="flex items-end gap-2">
+          {/* Emoji Button */}
+          <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <Smile className="w-5 h-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent 
+              className="w-80 p-3 bg-card border-border" 
+              align="start"
+              side="top"
+            >
+              <div className="grid grid-cols-10 gap-1">
+                {commonEmojis.map((emoji, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleEmojiSelect(emoji)}
+                    className="w-7 h-7 flex items-center justify-center hover:bg-muted rounded text-lg transition-colors"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Attachment Dropdown */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <Paperclip className="w-5 h-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent 
+              className="w-48 p-2 bg-card border-border" 
+              align="start"
+              side="top"
+            >
+              <div className="space-y-1">
+                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-purple-400" />
+                  </div>
+                  Documento
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Image className="w-4 h-4 text-blue-400" />
+                  </div>
+                  Imagem
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-pink-400" />
+                  </div>
+                  Câmera
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Message Input */}
+          <div className="flex-1 relative">
+            <Textarea
+              ref={textareaRef}
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite uma mensagem..."
+              className="min-h-[44px] max-h-[120px] py-3 pr-12 bg-muted border-border resize-none text-foreground placeholder:text-muted-foreground"
+              rows={1}
+            />
+          </div>
+
+          {/* Send or Mic Button */}
+          {messageInput.trim() ? (
+            <Button
+              size="icon"
+              className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 shrink-0"
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-muted-foreground hover:text-foreground shrink-0"
+            >
+              <Mic className="w-5 h-5" />
+            </Button>
+          )}
         </div>
+        <p className="text-xs text-muted-foreground mt-2 text-center">
+          Mensagens são recebidas automaticamente via WhatsApp
+        </p>
       </div>
     </div>
   );
