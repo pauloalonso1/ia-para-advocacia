@@ -9,7 +9,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera } from 'lucide-react';
+import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,7 +33,12 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [messageInput, setMessageInput] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [attachmentOpen, setAttachmentOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ file: File; preview: string; type: 'image' | 'document' } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -51,6 +57,43 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
       e.preventDefault();
       // Future: implement send message
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'document') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 16 * 1024 * 1024; // 16MB
+    if (file.size > maxSize) {
+      toast.error('Arquivo muito grande', {
+        description: 'O tamanho máximo é 16MB'
+      });
+      return;
+    }
+
+    const preview = type === 'image' ? URL.createObjectURL(file) : '';
+    setSelectedFile({ file, preview, type });
+    setAttachmentOpen(false);
+    toast.success(`${type === 'image' ? 'Imagem' : 'Documento'} selecionado`, {
+      description: file.name
+    });
+  };
+
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const preview = URL.createObjectURL(file);
+    setSelectedFile({ file, preview, type: 'image' });
+    setAttachmentOpen(false);
+    toast.success('Foto capturada');
+  };
+
+  const clearSelectedFile = () => {
+    if (selectedFile?.preview) {
+      URL.revokeObjectURL(selectedFile.preview);
+    }
+    setSelectedFile(null);
   };
 
   if (!selectedCase) {
@@ -268,7 +311,7 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
           </Popover>
 
           {/* Attachment Dropdown */}
-          <Popover>
+          <Popover open={attachmentOpen} onOpenChange={setAttachmentOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
@@ -284,19 +327,28 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
               side="top"
             >
               <div className="space-y-1">
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                <button 
+                  onClick={() => documentInputRef.current?.click()}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
+                >
                   <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
                     <FileText className="w-4 h-4 text-purple-400" />
                   </div>
                   Documento
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                <button 
+                  onClick={() => imageInputRef.current?.click()}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
+                >
                   <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
                     <Image className="w-4 h-4 text-blue-400" />
                   </div>
                   Imagem
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
+                <button 
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
+                >
                   <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center">
                     <Camera className="w-4 h-4 text-pink-400" />
                   </div>
@@ -306,8 +358,62 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
             </PopoverContent>
           </Popover>
 
+          {/* Hidden File Inputs */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFileSelect(e, 'image')}
+          />
+          <input
+            ref={documentInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+            className="hidden"
+            onChange={(e) => handleFileSelect(e, 'document')}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleCameraCapture}
+          />
+
           {/* Message Input */}
           <div className="flex-1 relative">
+            {/* Selected File Preview */}
+            {selectedFile && (
+              <div className="mb-2 p-2 bg-muted rounded-lg flex items-center gap-2">
+                {selectedFile.type === 'image' && selectedFile.preview ? (
+                  <img 
+                    src={selectedFile.preview} 
+                    alt="Preview" 
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground truncate">{selectedFile.file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(selectedFile.file.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={clearSelectedFile}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
             <Textarea
               ref={textareaRef}
               value={messageInput}
