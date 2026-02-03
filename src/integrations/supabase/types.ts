@@ -241,6 +241,48 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean | null
+          notification_phone: string
+          notify_contract_sent: boolean | null
+          notify_contract_signed: boolean | null
+          notify_meeting_scheduled: boolean | null
+          notify_new_lead: boolean | null
+          notify_qualified_lead: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          notification_phone: string
+          notify_contract_sent?: boolean | null
+          notify_contract_signed?: boolean | null
+          notify_meeting_scheduled?: boolean | null
+          notify_new_lead?: boolean | null
+          notify_qualified_lead?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          notification_phone?: string
+          notify_contract_sent?: boolean | null
+          notify_contract_signed?: boolean | null
+          notify_meeting_scheduled?: boolean | null
+          notify_new_lead?: boolean | null
+          notify_qualified_lead?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEvolutionAPI } from '@/hooks/useEvolutionAPI';
+import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Settings,
   MessageSquare,
@@ -20,7 +22,10 @@ import {
   Trash2,
   Save,
   User,
-  Mail
+  Mail,
+  Bell,
+  BellRing,
+  Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,9 +41,38 @@ const SettingsView = () => {
     deleteInstance
   } = useEvolutionAPI();
 
+  const {
+    settings: notificationSettings,
+    saving: savingNotifications,
+    saveSettings: saveNotificationSettings,
+    deleteSettings: deleteNotificationSettings
+  } = useNotificationSettings();
+
   const [instanceName, setInstanceName] = useState('');
   const [savedInstance, setSavedInstance] = useState<string | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
+
+  // Notification form state
+  const [notificationPhone, setNotificationPhone] = useState('');
+  const [notifyNewLead, setNotifyNewLead] = useState(true);
+  const [notifyQualifiedLead, setNotifyQualifiedLead] = useState(true);
+  const [notifyMeetingScheduled, setNotifyMeetingScheduled] = useState(true);
+  const [notifyContractSent, setNotifyContractSent] = useState(true);
+  const [notifyContractSigned, setNotifyContractSigned] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Load notification settings
+  useEffect(() => {
+    if (notificationSettings) {
+      setNotificationPhone(notificationSettings.notification_phone || '');
+      setNotifyNewLead(notificationSettings.notify_new_lead);
+      setNotifyQualifiedLead(notificationSettings.notify_qualified_lead);
+      setNotifyMeetingScheduled(notificationSettings.notify_meeting_scheduled);
+      setNotifyContractSent(notificationSettings.notify_contract_sent);
+      setNotifyContractSigned(notificationSettings.notify_contract_signed);
+      setNotificationsEnabled(notificationSettings.is_enabled);
+    }
+  }, [notificationSettings]);
 
   // Load saved instance from localStorage
   useEffect(() => {
@@ -93,8 +127,33 @@ const SettingsView = () => {
     await createInstance(savedInstance);
   };
 
+  const handleSaveNotifications = async () => {
+    if (!notificationPhone.trim()) return;
+    
+    await saveNotificationSettings({
+      notification_phone: notificationPhone.replace(/\D/g, ''),
+      is_enabled: notificationsEnabled,
+      notify_new_lead: notifyNewLead,
+      notify_qualified_lead: notifyQualifiedLead,
+      notify_meeting_scheduled: notifyMeetingScheduled,
+      notify_contract_sent: notifyContractSent,
+      notify_contract_signed: notifyContractSigned,
+    });
+  };
+
+  const handleDisableNotifications = async () => {
+    await deleteNotificationSettings();
+    setNotificationPhone('');
+    setNotifyNewLead(true);
+    setNotifyQualifiedLead(true);
+    setNotifyMeetingScheduled(true);
+    setNotifyContractSent(true);
+    setNotifyContractSigned(true);
+    setNotificationsEnabled(true);
+  };
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -239,6 +298,147 @@ const SettingsView = () => {
                       Desconectar
                     </Button>
                   </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notifications Card */}
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <BellRing className="w-5 h-5 text-amber-400" />
+                    Notificações WhatsApp
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 mt-1">
+                    Receba alertas sobre seus leads no seu celular pessoal
+                  </CardDescription>
+                </div>
+                {notificationSettings && (
+                  <Badge className={cn(
+                    notificationSettings.is_enabled 
+                      ? "bg-green-500/20 text-green-400 border-green-500/30"
+                      : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                  )}>
+                    {notificationSettings.is_enabled ? (
+                      <>
+                        <Bell className="w-3 h-3 mr-1" />
+                        Ativas
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Pausadas
+                      </>
+                    )}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="notification-phone" className="text-slate-300">
+                  Número para Notificações
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    id="notification-phone"
+                    value={notificationPhone}
+                    onChange={(e) => setNotificationPhone(e.target.value)}
+                    placeholder="5511999999999"
+                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Número com código do país (ex: 5511999999999)
+                </p>
+              </div>
+
+              {/* Notification Toggles */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={notificationsEnabled}
+                      onCheckedChange={setNotificationsEnabled}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                    <Label className="text-slate-300 font-medium">Ativar Notificações</Label>
+                  </div>
+                </div>
+
+                {notificationsEnabled && (
+                  <div className="space-y-3 pl-4 border-l-2 border-slate-600 ml-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-400 text-sm">Novo Lead</Label>
+                      <Switch
+                        checked={notifyNewLead}
+                        onCheckedChange={setNotifyNewLead}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-400 text-sm">Lead Qualificado</Label>
+                      <Switch
+                        checked={notifyQualifiedLead}
+                        onCheckedChange={setNotifyQualifiedLead}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-400 text-sm">Reunião Agendada</Label>
+                      <Switch
+                        checked={notifyMeetingScheduled}
+                        onCheckedChange={setNotifyMeetingScheduled}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-400 text-sm">Contrato Enviado</Label>
+                      <Switch
+                        checked={notifyContractSent}
+                        onCheckedChange={setNotifyContractSent}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-slate-400 text-sm">Contrato Assinado</Label>
+                      <Switch
+                        checked={notifyContractSigned}
+                        onCheckedChange={setNotifyContractSigned}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={handleSaveNotifications}
+                  disabled={savingNotifications || !notificationPhone.trim()}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                >
+                  {savingNotifications ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Salvar Notificações
+                </Button>
+                {notificationSettings && (
+                  <Button
+                    onClick={handleDisableNotifications}
+                    variant="outline"
+                    disabled={savingNotifications}
+                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Desativar
+                  </Button>
                 )}
               </div>
             </CardContent>

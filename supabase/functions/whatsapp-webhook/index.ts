@@ -23,6 +23,16 @@ interface WebhookPayload {
   };
 }
 
+// Status mapping for notifications
+const STATUS_NOTIFICATION_MAP: Record<string, { key: string; emoji: string; label: string }> = {
+  "Novo Contato": { key: "notify_new_lead", emoji: "🆕", label: "Novo Lead" },
+  "Em Atendimento": { key: "notify_new_lead", emoji: "💬", label: "Em Atendimento" },
+  "Lead Qualificado": { key: "notify_qualified_lead", emoji: "⭐", label: "Lead Qualificado" },
+  "Reunião Agendada": { key: "notify_meeting_scheduled", emoji: "📅", label: "Reunião Agendada" },
+  "Contrato Enviado": { key: "notify_contract_sent", emoji: "📄", label: "Contrato Enviado" },
+  "Contrato Assinado": { key: "notify_contract_signed", emoji: "✅", label: "Contrato Assinado" },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -71,6 +81,8 @@ serve(async (req) => {
       .select("*, active_agent:agents(*), current_step:agent_script_steps(*)")
       .eq("client_phone", clientPhone)
       .maybeSingle();
+
+    const previousStatus = existingCase?.status;
 
     // If no case exists, find default agent and create case
     if (!existingCase) {
@@ -125,6 +137,18 @@ serve(async (req) => {
         if (caseError) throw caseError;
         existingCase = newCase;
 
+        // Send notification for new lead
+        await sendStatusNotification(
+          supabase,
+          EVOLUTION_API_URL,
+          EVOLUTION_API_KEY,
+          instanceName,
+          anyAgent.user_id,
+          clientName,
+          clientPhone,
+          "Novo Contato"
+        );
+
         // Send welcome message if available
         const { data: rules } = await supabase
           .from("agent_rules")
@@ -165,6 +189,7 @@ serve(async (req) => {
 
     // Get agent details
     const agentId = existingCase.active_agent_id;
+    const userId = existingCase.user_id;
 
     // Get rules, steps, and FAQs
     const [rulesResult, stepsResult, faqsResult, historyResult] = await Promise.all([
@@ -212,7 +237,7 @@ serve(async (req) => {
       }
     }
 
-    // Process with AI
+    // Process with AI - now also detects status changes
     const currentStep = existingCase.current_step;
     const currentStepIndex = steps.findIndex((s: any) => s.id === currentStep?.id);
     const nextStep = steps[currentStepIndex + 1];
@@ -242,6 +267,26 @@ serve(async (req) => {
       role: "assistant",
       content: aiResponse.response_text,
     });
+
+    // Handle status change if detected
+    if (aiResponse.new_status && aiResponse.new_status !== previousStatus) {
+      await supabase
+        .from("cases")
+        .update({ status: aiResponse.new_status })
+        .eq("id", existingCase.id);
+
+      // Send notification for status change
+      await sendStatusNotification(
+        supabase,
+        EVOLUTION_API_URL,
+        EVOLUTION_API_KEY,
+        instanceName,
+        userId,
+        existingCase.client_name || clientName,
+        clientPhone,
+        aiResponse.new_status
+      );
+    }
 
     // If should proceed to next step
     if (aiResponse.action === "PROCEED" && nextStep) {
@@ -277,6 +322,61 @@ serve(async (req) => {
     );
   }
 });
+
+async function sendStatusNotification(
+  supabase: any,
+  evolutionUrl: string,
+  evolutionKey: string,
+  instanceName: string,
+  userId: string,
+  clientName: string,
+  clientPhone: string,
+  newStatus: string
+): Promise<void> {
+  try {
+    // Get notification settings for user
+    const { data: settings } = await supabase
+      .from("notification_settings")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!settings || !settings.is_enabled) {
+      console.log("Notifications disabled for user");
+      return;
+    }
+
+    // Check if this status type should trigger notification
+    const statusConfig = STATUS_NOTIFICATION_MAP[newStatus];
+    if (!statusConfig) {
+      console.log(`No notification config for status: ${newStatus}`);
+      return;
+    }
+
+    const shouldNotify = settings[statusConfig.key];
+    if (!shouldNotify) {
+      console.log(`Notification disabled for status: ${newStatus}`);
+      return;
+    }
+
+    // Build notification message
+    const message = `${statusConfig.emoji} *${statusConfig.label}*\n\n👤 *Cliente:* ${clientName}\n📱 *Telefone:* ${clientPhone}\n📊 *Status:* ${newStatus}\n⏰ *Horário:* ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
+
+    // Send notification to user's personal phone
+    await sendWhatsAppMessage(
+      evolutionUrl,
+      evolutionKey,
+      instanceName,
+      settings.notification_phone,
+      message
+    );
+
+    console.log(`Notification sent to ${settings.notification_phone} for status: ${newStatus}`);
+  } catch (error) {
+    console.error("Error sending status notification:", error);
+    // Don't throw - notification failure shouldn't break the main flow
+  }
+}
 
 async function checkFAQ(
   apiKey: string,
@@ -334,7 +434,7 @@ async function processWithAI(
   clientMessage: string,
   history: any[],
   allSteps: any[]
-): Promise<{ response_text: string; action: "PROCEED" | "STAY" }> {
+): Promise<{ response_text: string; action: "PROCEED" | "STAY"; new_status?: string }> {
   const systemPrompt = `${rules?.system_prompt || "Você é um assistente virtual profissional."}
 
 REGRAS DO AGENTE:
@@ -348,12 +448,22 @@ Você está seguindo um roteiro de atendimento.
 ${currentStep ? `Passo atual: "${currentStep.situation || "Etapa " + currentStep.step_order}" - Você enviou: "${currentStep.message_to_send}"` : "Início do atendimento."}
 ${nextStep ? `Próximo passo: "${nextStep.situation || "Etapa " + nextStep.step_order}"` : "Este é o último passo."}
 
+DETECÇÃO DE STATUS:
+Analise a conversa e determine se o status do lead deve mudar. Os status possíveis são:
+- "Novo Contato" - Lead acabou de entrar em contato
+- "Em Atendimento" - Conversa em andamento
+- "Lead Qualificado" - Cliente demonstrou interesse real e forneceu informações de contato
+- "Reunião Agendada" - Uma reunião/consulta foi marcada
+- "Contrato Enviado" - Um contrato ou proposta foi enviado ao cliente
+- "Contrato Assinado" - Cliente confirmou aceite ou assinatura
+
 INSTRUÇÕES:
 1. Analise a resposta do cliente
 2. Se ele forneceu a informação solicitada de forma satisfatória, responda confirmando e prepare para avançar (action: PROCEED)
 3. Se ele fez uma pergunta ou deu resposta incompleta, esclareça e solicite novamente (action: STAY)
+4. Se detectar mudança de status baseado no contexto da conversa, inclua o novo status
 
-Responda em JSON: {"response_text": "sua resposta", "action": "PROCEED" ou "STAY"}`;
+Responda em JSON: {"response_text": "sua resposta", "action": "PROCEED" ou "STAY", "new_status": "novo status ou null se não mudar"}`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
@@ -387,6 +497,7 @@ Responda em JSON: {"response_text": "sua resposta", "action": "PROCEED" ou "STAY
     return {
       response_text: parsed.response_text || content,
       action: parsed.action === "PROCEED" ? "PROCEED" : "STAY",
+      new_status: parsed.new_status || undefined,
     };
   } catch {
     // If not valid JSON, return as text with STAY action
