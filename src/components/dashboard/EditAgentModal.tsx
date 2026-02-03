@@ -11,8 +11,24 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Agent, useAgentDetails } from '@/hooks/useAgents';
-import { Loader2, Plus, Trash2, GripVertical, Save } from 'lucide-react';
+import { 
+  Loader2, 
+  Plus, 
+  Trash2, 
+  Save, 
+  Bot,
+  FileText,
+  Zap,
+  MessageSquare,
+  HelpCircle,
+  AlertTriangle,
+  Sparkles,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface EditAgentModalProps {
   agent: Agent | null;
@@ -25,11 +41,11 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
     rules,
     steps,
     faqs,
-    loading,
     updateRules,
     addStep,
     updateStep,
     deleteStep,
+    reorderSteps,
     addFaq,
     updateFaq,
     deleteFaq
@@ -51,6 +67,9 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
   const [newFaqQuestion, setNewFaqQuestion] = useState('');
   const [newFaqAnswer, setNewFaqAnswer] = useState('');
   const [addingFaq, setAddingFaq] = useState(false);
+
+  // Active tab
+  const [activeTab, setActiveTab] = useState('rules');
 
   useEffect(() => {
     if (rules) {
@@ -95,209 +114,387 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
     setAddingFaq(false);
   };
 
+  const moveStep = async (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index > 0) {
+      await reorderSteps(index, index - 1);
+    } else if (direction === 'down' && index < steps.length - 1) {
+      await reorderSteps(index, index + 1);
+    }
+  };
+
   if (!agent) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-4xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="text-xl">Editar: {agent.name}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-5xl max-h-[90vh] p-0 overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
+          <DialogHeader>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold">{agent.name}</DialogTitle>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  Configure as regras, roteiro e FAQs do agente
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
 
-        <Tabs defaultValue="rules" className="w-full">
-          <TabsList className="bg-slate-700/50 w-full grid grid-cols-3">
-            <TabsTrigger value="rules" className="data-[state=active]:bg-emerald-500">
-              Regras
-            </TabsTrigger>
-            <TabsTrigger value="script" className="data-[state=active]:bg-emerald-500">
-              Roteiro
-            </TabsTrigger>
-            <TabsTrigger value="faqs" className="data-[state=active]:bg-emerald-500">
-              FAQs
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-[calc(90vh-100px)]">
+          <div className="px-6 py-3 border-b border-slate-700 bg-slate-800/30">
+            <TabsList className="bg-slate-800/50 p-1 rounded-xl">
+              <TabsTrigger 
+                value="rules" 
+                className={cn(
+                  "gap-2 rounded-lg px-4 py-2.5 transition-all",
+                  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500",
+                  "data-[state=active]:text-white data-[state=active]:shadow-lg"
+                )}
+              >
+                <FileText className="w-4 h-4" />
+                Regras
+              </TabsTrigger>
+              <TabsTrigger 
+                value="script" 
+                className={cn(
+                  "gap-2 rounded-lg px-4 py-2.5 transition-all",
+                  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500",
+                  "data-[state=active]:text-white data-[state=active]:shadow-lg"
+                )}
+              >
+                <Zap className="w-4 h-4" />
+                Roteiro
+                {steps.length > 0 && (
+                  <Badge className="ml-1 bg-slate-600 text-slate-200 text-xs">{steps.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="faqs" 
+                className={cn(
+                  "gap-2 rounded-lg px-4 py-2.5 transition-all",
+                  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500",
+                  "data-[state=active]:text-white data-[state=active]:shadow-lg"
+                )}
+              >
+                <MessageSquare className="w-4 h-4" />
+                FAQs
+                {faqs.length > 0 && (
+                  <Badge className="ml-1 bg-slate-600 text-slate-200 text-xs">{faqs.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          {/* Rules Tab */}
-          <TabsContent value="rules" className="mt-4">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Prompt do Sistema</Label>
-                  <Textarea
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
-                    placeholder="Você é um assistente jurídico especializado em..."
-                    className="bg-slate-700/50 border-slate-600 min-h-[120px]"
-                  />
+          {/* Tab Contents */}
+          <div className="flex-1 overflow-hidden">
+            {/* Rules Tab */}
+            <TabsContent value="rules" className="h-full m-0 data-[state=active]:flex flex-col">
+              <ScrollArea className="flex-1 px-6 py-4">
+                <div className="space-y-6 max-w-3xl">
+                  {/* System Prompt */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <Label className="text-base font-medium">Prompt do Sistema</Label>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      Define a personalidade e comportamento base do agente
+                    </p>
+                    <Textarea
+                      value={systemPrompt}
+                      onChange={(e) => setSystemPrompt(e.target.value)}
+                      placeholder="Você é um assistente jurídico especializado em direito imobiliário. Seu objetivo é qualificar leads e agendar consultas..."
+                      className="bg-slate-800/50 border-slate-600 min-h-[140px] focus:border-emerald-500/50"
+                    />
+                  </div>
+
+                  {/* Agent Rules */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-400" />
+                      <Label className="text-base font-medium">Regras de Comportamento</Label>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      Lista de regras que o agente deve seguir durante as conversas
+                    </p>
+                    <Textarea
+                      value={agentRules}
+                      onChange={(e) => setAgentRules(e.target.value)}
+                      placeholder="1. Seja sempre cordial e profissional&#10;2. Colete nome, telefone e e-mail do cliente&#10;3. Identifique o tipo de caso jurídico&#10;4. Agende uma consulta quando apropriado"
+                      className="bg-slate-800/50 border-slate-600 min-h-[140px] focus:border-emerald-500/50"
+                    />
+                  </div>
+
+                  {/* Forbidden Actions */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      <Label className="text-base font-medium">Ações Proibidas</Label>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      O que o agente NÃO deve fazer em hipótese alguma
+                    </p>
+                    <Textarea
+                      value={forbiddenActions}
+                      onChange={(e) => setForbiddenActions(e.target.value)}
+                      placeholder="- Nunca forneça aconselhamento jurídico específico&#10;- Não prometa resultados de casos&#10;- Não discuta valores de honorários sem autorização"
+                      className="bg-slate-800/50 border-slate-600 min-h-[120px] focus:border-emerald-500/50"
+                    />
+                  </div>
+
+                  {/* Welcome Message */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-purple-400" />
+                      <Label className="text-base font-medium">Mensagem de Boas-vindas</Label>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      Primeira mensagem enviada ao cliente quando inicia uma conversa
+                    </p>
+                    <Textarea
+                      value={welcomeMessage}
+                      onChange={(e) => setWelcomeMessage(e.target.value)}
+                      placeholder="Olá! 👋 Sou a assistente virtual do escritório. Como posso ajudá-lo hoje?"
+                      className="bg-slate-800/50 border-slate-600 min-h-[100px] focus:border-emerald-500/50"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Regras do Agente</Label>
-                  <Textarea
-                    value={agentRules}
-                    onChange={(e) => setAgentRules(e.target.value)}
-                    placeholder="1. Seja objetivo&#10;2. Mantenha tom profissional&#10;3. ..."
-                    className="bg-slate-700/50 border-slate-600 min-h-[120px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Ações Proibidas</Label>
-                  <Textarea
-                    value={forbiddenActions}
-                    onChange={(e) => setForbiddenActions(e.target.value)}
-                    placeholder="Não fornecer aconselhamento jurídico específico..."
-                    className="bg-slate-700/50 border-slate-600 min-h-[100px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Mensagem de Boas-vindas</Label>
-                  <Textarea
-                    value={welcomeMessage}
-                    onChange={(e) => setWelcomeMessage(e.target.value)}
-                    placeholder="Olá! Sou o assistente virtual do escritório..."
-                    className="bg-slate-700/50 border-slate-600 min-h-[100px]"
-                  />
-                </div>
+              </ScrollArea>
+
+              {/* Save Button */}
+              <div className="px-6 py-4 border-t border-slate-700 bg-slate-800/30">
                 <Button
                   onClick={handleSaveRules}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
                   disabled={savingRules}
                 >
                   {savingRules ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                   Salvar Regras
                 </Button>
               </div>
-            </ScrollArea>
-          </TabsContent>
+            </TabsContent>
 
-          {/* Script Tab */}
-          <TabsContent value="script" className="mt-4">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-4">
-                {/* Existing steps */}
-                {steps.map((step, index) => (
-                  <div key={step.id} className="flex items-start gap-3 p-4 bg-slate-700/30 rounded-lg">
-                    <div className="flex items-center gap-2 text-slate-400 pt-1">
-                      <GripVertical className="w-4 h-4" />
-                      <span className="font-mono text-sm">{index + 1}</span>
+            {/* Script Tab */}
+            <TabsContent value="script" className="h-full m-0 data-[state=active]:flex flex-col">
+              <ScrollArea className="flex-1 px-6 py-4">
+                <div className="space-y-4 max-w-3xl">
+                  {/* Instructions */}
+                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                    <div className="flex items-start gap-3">
+                      <HelpCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-slate-200">Como funciona o roteiro?</h4>
+                        <p className="text-sm text-slate-400 mt-1">
+                          O roteiro define a sequência de etapas que o agente deve seguir. 
+                          Cada etapa tem uma situação (contexto) e uma mensagem padrão a enviar.
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <Input
-                        value={step.situation || ''}
-                        onChange={(e) => updateStep(step.id, { situation: e.target.value })}
-                        placeholder="Situação (ex: Início, Coleta de E-mail)"
-                        className="bg-slate-700/50 border-slate-600 text-sm"
-                      />
-                      <Textarea
-                        value={step.message_to_send}
-                        onChange={(e) => updateStep(step.id, { message_to_send: e.target.value })}
-                        placeholder="Mensagem a enviar..."
-                        className="bg-slate-700/50 border-slate-600 min-h-[80px] text-sm"
-                      />
+                  </div>
+
+                  {/* Existing steps */}
+                  {steps.length > 0 ? (
+                    <div className="space-y-3">
+                      {steps.map((step, index) => (
+                        <div 
+                          key={step.id} 
+                          className="group flex items-start gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors"
+                        >
+                          {/* Order controls */}
+                          <div className="flex flex-col items-center gap-1 pt-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-slate-500 hover:text-white disabled:opacity-30"
+                              onClick={() => moveStep(index, 'up')}
+                              disabled={index === 0}
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </Button>
+                            <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                              <span className="text-emerald-400 font-semibold text-sm">{index + 1}</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-slate-500 hover:text-white disabled:opacity-30"
+                              onClick={() => moveStep(index, 'down')}
+                              disabled={index === steps.length - 1}
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </Button>
+                          </div>
+
+                          {/* Step content */}
+                          <div className="flex-1 space-y-3">
+                            <Input
+                              value={step.situation || ''}
+                              onChange={(e) => updateStep(step.id, { situation: e.target.value })}
+                              placeholder="Situação (ex: Saudação Inicial, Coleta de Nome...)"
+                              className="bg-slate-700/50 border-slate-600 text-sm font-medium"
+                            />
+                            <Textarea
+                              value={step.message_to_send}
+                              onChange={(e) => updateStep(step.id, { message_to_send: e.target.value })}
+                              placeholder="Mensagem a enviar nesta etapa..."
+                              className="bg-slate-700/50 border-slate-600 min-h-[80px] text-sm"
+                            />
+                          </div>
+
+                          {/* Delete button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteStep(step.id)}
+                            className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-400">
+                      <Zap className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p>Nenhuma etapa cadastrada ainda</p>
+                      <p className="text-sm text-slate-500 mt-1">Adicione etapas para criar o roteiro do agente</p>
+                    </div>
+                  )}
+
+                  {/* Add new step */}
+                  <div className="p-4 border-2 border-dashed border-slate-600 rounded-xl space-y-3 bg-slate-800/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="w-4 h-4 text-emerald-400" />
+                      <h4 className="font-medium text-slate-200">Adicionar Nova Etapa</h4>
+                    </div>
+                    <Input
+                      value={newStepSituation}
+                      onChange={(e) => setNewStepSituation(e.target.value)}
+                      placeholder="Situação (ex: Confirmação de Dados)"
+                      className="bg-slate-700/50 border-slate-600"
+                    />
+                    <Textarea
+                      value={newStepMessage}
+                      onChange={(e) => setNewStepMessage(e.target.value)}
+                      placeholder="Mensagem a enviar nesta etapa..."
+                      className="bg-slate-700/50 border-slate-600 min-h-[80px]"
+                    />
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteStep(step.id)}
-                      className="text-slate-400 hover:text-red-400"
+                      onClick={handleAddStep}
+                      className="w-full bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30"
+                      disabled={addingStep || !newStepMessage.trim()}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {addingStep ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Adicionar Etapa
                     </Button>
                   </div>
-                ))}
-
-                {/* Add new step */}
-                <div className="p-4 border-2 border-dashed border-slate-600 rounded-lg space-y-3">
-                  <h4 className="text-sm font-medium text-slate-300">Adicionar Nova Etapa</h4>
-                  <Input
-                    value={newStepSituation}
-                    onChange={(e) => setNewStepSituation(e.target.value)}
-                    placeholder="Situação (ex: Confirmação)"
-                    className="bg-slate-700/50 border-slate-600"
-                  />
-                  <Textarea
-                    value={newStepMessage}
-                    onChange={(e) => setNewStepMessage(e.target.value)}
-                    placeholder="Mensagem a enviar nesta etapa..."
-                    className="bg-slate-700/50 border-slate-600 min-h-[80px]"
-                  />
-                  <Button
-                    onClick={handleAddStep}
-                    className="w-full bg-slate-700 hover:bg-slate-600"
-                    disabled={addingStep || !newStepMessage.trim()}
-                  >
-                    {addingStep ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                    Adicionar Etapa
-                  </Button>
                 </div>
-              </div>
-            </ScrollArea>
-          </TabsContent>
+              </ScrollArea>
+            </TabsContent>
 
-          {/* FAQs Tab */}
-          <TabsContent value="faqs" className="mt-4">
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-4">
-                {/* Existing FAQs */}
-                {faqs.map((faq) => (
-                  <div key={faq.id} className="p-4 bg-slate-700/30 rounded-lg space-y-2">
+            {/* FAQs Tab */}
+            <TabsContent value="faqs" className="h-full m-0 data-[state=active]:flex flex-col">
+              <ScrollArea className="flex-1 px-6 py-4">
+                <div className="space-y-4 max-w-3xl">
+                  {/* Instructions */}
+                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
                     <div className="flex items-start gap-3">
-                      <div className="flex-1 space-y-2">
-                        <div>
-                          <Label className="text-xs text-slate-400">Pergunta</Label>
-                          <Input
-                            value={faq.question}
-                            onChange={(e) => updateFaq(faq.id, { question: e.target.value })}
-                            className="bg-slate-700/50 border-slate-600 mt-1"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-slate-400">Resposta</Label>
-                          <Textarea
-                            value={faq.answer}
-                            onChange={(e) => updateFaq(faq.id, { answer: e.target.value })}
-                            className="bg-slate-700/50 border-slate-600 mt-1 min-h-[60px]"
-                          />
-                        </div>
+                      <HelpCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-slate-200">Base de Conhecimento (FAQs)</h4>
+                        <p className="text-sm text-slate-400 mt-1">
+                          Adicione perguntas frequentes e suas respostas. O agente usará essa base para responder os clientes de forma mais precisa.
+                        </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteFaq(faq.id)}
-                        className="text-slate-400 hover:text-red-400"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
-                ))}
 
-                {/* Add new FAQ */}
-                <div className="p-4 border-2 border-dashed border-slate-600 rounded-lg space-y-3">
-                  <h4 className="text-sm font-medium text-slate-300">Adicionar Nova FAQ</h4>
-                  <Input
-                    value={newFaqQuestion}
-                    onChange={(e) => setNewFaqQuestion(e.target.value)}
-                    placeholder="Qual é a pergunta frequente?"
-                    className="bg-slate-700/50 border-slate-600"
-                  />
-                  <Textarea
-                    value={newFaqAnswer}
-                    onChange={(e) => setNewFaqAnswer(e.target.value)}
-                    placeholder="Qual a resposta para essa pergunta?"
-                    className="bg-slate-700/50 border-slate-600 min-h-[80px]"
-                  />
-                  <Button
-                    onClick={handleAddFaq}
-                    className="w-full bg-slate-700 hover:bg-slate-600"
-                    disabled={addingFaq || !newFaqQuestion.trim() || !newFaqAnswer.trim()}
-                  >
-                    {addingFaq ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                    Adicionar FAQ
-                  </Button>
+                  {/* Existing FAQs */}
+                  {faqs.length > 0 ? (
+                    <div className="space-y-3">
+                      {faqs.map((faq, index) => (
+                        <div 
+                          key={faq.id} 
+                          className="group p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0 mt-1">
+                              <span className="text-purple-400 font-semibold text-sm">{index + 1}</span>
+                            </div>
+                            <div className="flex-1 space-y-3">
+                              <div>
+                                <Label className="text-xs text-slate-500 uppercase tracking-wider">Pergunta</Label>
+                                <Input
+                                  value={faq.question}
+                                  onChange={(e) => updateFaq(faq.id, { question: e.target.value })}
+                                  className="bg-slate-700/50 border-slate-600 mt-1.5 font-medium"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-slate-500 uppercase tracking-wider">Resposta</Label>
+                                <Textarea
+                                  value={faq.answer}
+                                  onChange={(e) => updateFaq(faq.id, { answer: e.target.value })}
+                                  className="bg-slate-700/50 border-slate-600 mt-1.5 min-h-[80px]"
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteFaq(faq.id)}
+                              className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-400">
+                      <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p>Nenhuma FAQ cadastrada ainda</p>
+                      <p className="text-sm text-slate-500 mt-1">Adicione perguntas frequentes para melhorar as respostas do agente</p>
+                    </div>
+                  )}
+
+                  {/* Add new FAQ */}
+                  <div className="p-4 border-2 border-dashed border-slate-600 rounded-xl space-y-3 bg-slate-800/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Plus className="w-4 h-4 text-purple-400" />
+                      <h4 className="font-medium text-slate-200">Adicionar Nova FAQ</h4>
+                    </div>
+                    <Input
+                      value={newFaqQuestion}
+                      onChange={(e) => setNewFaqQuestion(e.target.value)}
+                      placeholder="Qual é a pergunta frequente?"
+                      className="bg-slate-700/50 border-slate-600"
+                    />
+                    <Textarea
+                      value={newFaqAnswer}
+                      onChange={(e) => setNewFaqAnswer(e.target.value)}
+                      placeholder="Qual a resposta para essa pergunta?"
+                      className="bg-slate-700/50 border-slate-600 min-h-[80px]"
+                    />
+                    <Button
+                      onClick={handleAddFaq}
+                      className="w-full bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30"
+                      disabled={addingFaq || !newFaqQuestion.trim() || !newFaqAnswer.trim()}
+                    >
+                      {addingFaq ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Adicionar FAQ
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </ScrollArea>
-          </TabsContent>
+              </ScrollArea>
+            </TabsContent>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

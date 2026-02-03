@@ -301,6 +301,30 @@ export const useAgentDetails = (agentId: string | null) => {
     return true;
   };
 
+  const reorderSteps = async (fromIndex: number, toIndex: number) => {
+    if (!agentId) return false;
+
+    const newSteps = [...steps];
+    const [movedStep] = newSteps.splice(fromIndex, 1);
+    newSteps.splice(toIndex, 0, movedStep);
+
+    // Update step_order for all affected steps
+    const updates = newSteps.map((step, index) => ({
+      id: step.id,
+      step_order: index + 1
+    }));
+
+    for (const update of updates) {
+      await supabase
+        .from('agent_script_steps')
+        .update({ step_order: update.step_order })
+        .eq('id', update.id);
+    }
+
+    await fetchDetails();
+    return true;
+  };
+
   const addFaq = async (question: string, answer: string) => {
     if (!agentId) return false;
 
@@ -378,6 +402,7 @@ export const useAgentDetails = (agentId: string | null) => {
     addStep,
     updateStep,
     deleteStep,
+    reorderSteps,
     addFaq,
     updateFaq,
     deleteFaq
