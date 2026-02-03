@@ -51,14 +51,24 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
       "transition-all duration-300",
       agent.is_default && "ring-2 ring-primary/30"
     )}>
-      {/* Default indicator */}
-      {agent.is_default && (
-        <div className="absolute -top-2 -right-2 z-10">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center shadow-lg">
-            <Star className="w-4 h-4 text-primary-foreground fill-primary-foreground" />
-          </div>
-        </div>
-      )}
+      {/* Favorite button - top right */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!agent.is_default && onSetDefault) {
+            onSetDefault(agent.id);
+          }
+        }}
+        className={cn(
+          "absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+          agent.is_default 
+            ? "bg-primary text-primary-foreground" 
+            : "bg-muted/80 text-muted-foreground hover:bg-primary/20 hover:text-primary opacity-0 group-hover:opacity-100"
+        )}
+        title={agent.is_default ? "Agente padrão" : "Definir como padrão"}
+      >
+        <Star className={cn("w-4 h-4", agent.is_default && "fill-current")} />
+      </button>
 
       {/* Status indicator bar */}
       <div className={cn(
