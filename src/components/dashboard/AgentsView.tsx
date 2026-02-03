@@ -18,14 +18,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 const categories = ['Todos', 'Imobiliário', 'Família', 'Trabalhista', 'Criminal', 'Empresarial', 'Tributário', 'Consumidor', 'Outro'];
 
 const AgentsView = () => {
-  const { agents, loading, createAgent, updateAgent, deleteAgent, fetchAgents } = useAgents();
-  const { toast } = useToast();
+  const { agents, loading, createAgent, updateAgent, deleteAgent, setDefaultAgent } = useAgents();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -45,17 +42,7 @@ const AgentsView = () => {
   };
 
   const handleSetDefault = async (id: string) => {
-    // First, unset all defaults
-    for (const agent of agents.filter(a => a.is_default)) {
-      await supabase.from('agents').update({ is_default: false }).eq('id', agent.id);
-    }
-    // Then set the new default
-    await supabase.from('agents').update({ is_default: true }).eq('id', id);
-    await fetchAgents();
-    toast({
-      title: 'Agente padrão definido',
-      description: 'Este agente será usado para novas conversas.'
-    });
+    await setDefaultAgent(id);
   };
 
   const handleConfirmDelete = async () => {

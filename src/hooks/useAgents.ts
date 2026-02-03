@@ -124,7 +124,27 @@ export const useAgents = () => {
 
   const deleteAgent = async (id: string) => {
     try {
-      // First, remove agent reference from any cases using this agent
+      // First, get all step IDs for this agent
+      const { data: stepsData } = await supabase
+        .from('agent_script_steps')
+        .select('id')
+        .eq('agent_id', id);
+
+      const stepIds = stepsData?.map(s => s.id) || [];
+
+      // Remove current_step_id reference from any cases pointing to these steps
+      if (stepIds.length > 0) {
+        const { error: stepsRefError } = await supabase
+          .from('cases')
+          .update({ current_step_id: null })
+          .in('current_step_id', stepIds);
+
+        if (stepsRefError) {
+          console.error('Error clearing current_step_id:', stepsRefError);
+        }
+      }
+
+      // Remove agent reference from any cases using this agent
       const { error: casesError } = await supabase
         .from('cases')
         .update({ active_agent_id: null })
@@ -171,8 +191,43 @@ export const useAgents = () => {
       });
       return true;
     } catch (error: any) {
+      console.error('Delete agent error:', error);
       toast({
         title: 'Erro ao excluir agente',
+        description: error.message,
+        variant: 'destructive'
+      });
+      return false;
+    }
+  };
+
+  const setDefaultAgent = async (id: string) => {
+    try {
+      // First, remove default from all agents
+      const { error: clearError } = await supabase
+        .from('agents')
+        .update({ is_default: false })
+        .eq('user_id', user?.id);
+
+      if (clearError) throw clearError;
+
+      // Set the new default
+      const { error } = await supabase
+        .from('agents')
+        .update({ is_default: true })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchAgents();
+      toast({
+        title: 'Agente padrão definido!',
+        description: 'Este agente será usado automaticamente para novos atendimentos.'
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao definir agente padrão',
         description: error.message,
         variant: 'destructive'
       });
@@ -190,7 +245,8 @@ export const useAgents = () => {
     fetchAgents,
     createAgent,
     updateAgent,
-    deleteAgent
+    deleteAgent,
+    setDefaultAgent
   };
 };
 
