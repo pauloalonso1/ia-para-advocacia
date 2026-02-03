@@ -293,7 +293,7 @@ serve(async (req) => {
         .select("*")
         .eq("case_id", existingCase.id)
         .order("created_at", { ascending: true })
-        .limit(20),
+        .limit(30),
     ]);
 
     const rules = rulesResult.data;
@@ -539,6 +539,12 @@ async function processWithAI(
 - Mensagem a enviar: "${nextStep.message_to_send}"`
     : "\n\n⚠️ Esta é a ÚLTIMA etapa do roteiro.";
 
+  // Build conversation memory summary from history
+  const conversationMemory = history.length > 0
+    ? `\n\n💬 MEMÓRIA DA CONVERSA (informações já coletadas):
+${history.map((h, i) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${h.content}`).join('\n')}`
+    : "";
+
   const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
 
 ${rules?.system_prompt || "Seja profissional, educado e objetivo nas respostas."}
@@ -553,18 +559,24 @@ ${rules?.forbidden_actions || "- Não forneça informações falsas\n- Não faç
 ${scriptContext}
 ${currentStepInfo}
 ${nextStepInfo}
+${conversationMemory}
+
+👤 INFORMAÇÕES DO CLIENTE:
+- Nome: ${clientName}
+- IMPORTANTE: Use o nome "${clientName}" para se referir ao cliente sempre que apropriado.
+- IMPORTANTE: Lembre-se de TODAS as informações que o cliente já compartilhou durante a conversa acima.
 
 🎯 INSTRUÇÕES:
 1. Se o cliente respondeu adequadamente à pergunta da etapa atual, use action "PROCEED"
 2. Se o cliente fez uma pergunta ou deu resposta vaga, use action "STAY"
 3. Se for a última etapa e o cliente concordou, mude new_status para "Qualificado"
 4. Se o cliente demonstrar desinteresse, mude new_status para "Não Qualificado"
-
-Nome do cliente: ${clientName}`;
+5. SEMPRE use o nome do cliente quando fizer sentido na conversa
+6. NUNCA peça informações que o cliente já forneceu na conversa`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    ...history.slice(-10).map((h) => ({
+    ...history.slice(-15).map((h) => ({
       role: h.role === "client" ? ("user" as const) : ("assistant" as const),
       content: h.content,
     })),
