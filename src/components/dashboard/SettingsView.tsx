@@ -285,7 +285,7 @@ const SettingsView = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
+    <div className="p-6 space-y-6 w-full max-w-6xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -298,9 +298,9 @@ const SettingsView = () => {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left Column - Settings Form */}
-        <div className="space-y-6">
+        <div className="space-y-6 xl:col-span-8">
           {/* Profile Card */}
           <Card className="bg-card border-border">
             <CardHeader>
@@ -822,8 +822,8 @@ const SettingsView = () => {
         </div>
 
         {/* Right Column - QR Code */}
-        <div>
-          <Card className="bg-card border-border h-full">
+        <div className="xl:col-span-4 xl:sticky xl:top-6">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-foreground flex items-center gap-2">
                 <Smartphone className="w-5 h-5 text-primary" />
