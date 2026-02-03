@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Loader2, ArrowLeft, Scale } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 // --- TYPE DEFINITIONS ---
 
@@ -190,6 +191,23 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({
               Entrar
             </button>
           </p>
+
+          {/* Footer links */}
+          <div className="animate-element animate-delay-900 flex items-center justify-center gap-4 mt-8 pt-6 border-t border-border">
+            <Link 
+              to="/privacy" 
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Política de Privacidade
+            </Link>
+            <span className="text-muted-foreground/50">•</span>
+            <Link 
+              to="/terms" 
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Termos de Serviço
+            </Link>
+          </div>
         </div>
       </section>
 
