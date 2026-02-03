@@ -147,6 +147,36 @@ serve(async (req) => {
 
       console.log("✅ Case created:", newCase.id);
 
+      // Create contact if it doesn't exist
+      const { data: existingContact } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("user_id", agent.user_id)
+        .eq("phone", clientPhone)
+        .maybeSingle();
+
+      if (!existingContact) {
+        const { data: newContact, error: contactError } = await supabase
+          .from("contacts")
+          .insert({
+            user_id: agent.user_id,
+            name: clientName,
+            phone: clientPhone,
+            source: "WhatsApp",
+            tags: ["Lead"],
+          })
+          .select()
+          .single();
+
+        if (contactError) {
+          console.error("❌ Error creating contact:", contactError);
+        } else {
+          console.log("✅ Contact created:", newContact.id);
+        }
+      } else {
+        console.log("📇 Contact already exists:", existingContact.id);
+      }
+
       // Send notification for new lead
       await sendStatusNotification(
         supabase,
