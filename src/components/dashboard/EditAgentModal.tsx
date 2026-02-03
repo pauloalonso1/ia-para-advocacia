@@ -126,17 +126,17 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-5xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="bg-background border-border text-foreground max-w-5xl max-h-[90vh] p-0 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
+        <div className="px-6 py-4 border-b border-border bg-card/50">
           <DialogHeader>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                <Bot className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
+                <Bot className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
                 <DialogTitle className="text-xl font-semibold">{agent.name}</DialogTitle>
-                <p className="text-sm text-slate-400 mt-0.5">
+                <p className="text-sm text-muted-foreground mt-0.5">
                   Configure as regras, roteiro e FAQs do agente
                 </p>
               </div>
@@ -146,14 +146,14 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-[calc(90vh-100px)]">
-          <div className="px-6 py-3 border-b border-slate-700 bg-slate-800/30">
-            <TabsList className="bg-slate-800/50 p-1 rounded-xl">
+          <div className="px-6 py-3 border-b border-border bg-card/30">
+            <TabsList className="bg-muted p-1 rounded-xl">
               <TabsTrigger 
                 value="rules" 
                 className={cn(
                   "gap-2 rounded-lg px-4 py-2.5 transition-all",
-                  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500",
-                  "data-[state=active]:text-white data-[state=active]:shadow-lg"
+                  "data-[state=active]:bg-primary",
+                  "data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
                 )}
               >
                 <FileText className="w-4 h-4" />
@@ -163,28 +163,28 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                 value="script" 
                 className={cn(
                   "gap-2 rounded-lg px-4 py-2.5 transition-all",
-                  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500",
-                  "data-[state=active]:text-white data-[state=active]:shadow-lg"
+                  "data-[state=active]:bg-primary",
+                  "data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
                 )}
               >
                 <Zap className="w-4 h-4" />
                 Roteiro
                 {steps.length > 0 && (
-                  <Badge className="ml-1 bg-slate-600 text-slate-200 text-xs">{steps.length}</Badge>
+                  <Badge className="ml-1 bg-muted text-muted-foreground text-xs">{steps.length}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger 
                 value="faqs" 
                 className={cn(
                   "gap-2 rounded-lg px-4 py-2.5 transition-all",
-                  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500",
-                  "data-[state=active]:text-white data-[state=active]:shadow-lg"
+                  "data-[state=active]:bg-primary",
+                  "data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg"
                 )}
               >
                 <MessageSquare className="w-4 h-4" />
                 FAQs
                 {faqs.length > 0 && (
-                  <Badge className="ml-1 bg-slate-600 text-slate-200 text-xs">{faqs.length}</Badge>
+                  <Badge className="ml-1 bg-muted text-muted-foreground text-xs">{faqs.length}</Badge>
                 )}
               </TabsTrigger>
             </TabsList>
@@ -199,17 +199,17 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                   {/* System Prompt */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <Sparkles className="w-4 h-4 text-primary" />
                       <Label className="text-base font-medium">Prompt do Sistema</Label>
                     </div>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                       Define a personalidade e comportamento base do agente
                     </p>
                     <Textarea
                       value={systemPrompt}
                       onChange={(e) => setSystemPrompt(e.target.value)}
                       placeholder="Você é um assistente jurídico especializado em direito imobiliário. Seu objetivo é qualificar leads e agendar consultas..."
-                      className="bg-slate-800/50 border-slate-600 min-h-[140px] focus:border-emerald-500/50"
+                      className="bg-muted border-border min-h-[140px] focus:border-primary/50"
                     />
                   </div>
 
@@ -219,14 +219,14 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       <FileText className="w-4 h-4 text-blue-400" />
                       <Label className="text-base font-medium">Regras de Comportamento</Label>
                     </div>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                       Lista de regras que o agente deve seguir durante as conversas
                     </p>
                     <Textarea
                       value={agentRules}
                       onChange={(e) => setAgentRules(e.target.value)}
                       placeholder="1. Seja sempre cordial e profissional&#10;2. Colete nome, telefone e e-mail do cliente&#10;3. Identifique o tipo de caso jurídico&#10;4. Agende uma consulta quando apropriado"
-                      className="bg-slate-800/50 border-slate-600 min-h-[140px] focus:border-emerald-500/50"
+                      className="bg-muted border-border min-h-[140px] focus:border-primary/50"
                     />
                   </div>
 
@@ -236,14 +236,14 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       <AlertTriangle className="w-4 h-4 text-amber-400" />
                       <Label className="text-base font-medium">Ações Proibidas</Label>
                     </div>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                       O que o agente NÃO deve fazer em hipótese alguma
                     </p>
                     <Textarea
                       value={forbiddenActions}
                       onChange={(e) => setForbiddenActions(e.target.value)}
                       placeholder="- Nunca forneça aconselhamento jurídico específico&#10;- Não prometa resultados de casos&#10;- Não discuta valores de honorários sem autorização"
-                      className="bg-slate-800/50 border-slate-600 min-h-[120px] focus:border-emerald-500/50"
+                      className="bg-muted border-border min-h-[120px] focus:border-primary/50"
                     />
                   </div>
 
@@ -253,24 +253,24 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       <MessageSquare className="w-4 h-4 text-purple-400" />
                       <Label className="text-base font-medium">Mensagem de Boas-vindas</Label>
                     </div>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                       Primeira mensagem enviada ao cliente quando inicia uma conversa
                     </p>
                     <Textarea
                       value={welcomeMessage}
                       onChange={(e) => setWelcomeMessage(e.target.value)}
                       placeholder="Olá! 👋 Sou a assistente virtual do escritório. Como posso ajudá-lo hoje?"
-                      className="bg-slate-800/50 border-slate-600 min-h-[100px] focus:border-emerald-500/50"
+                      className="bg-muted border-border min-h-[100px] focus:border-primary/50"
                     />
                   </div>
                 </div>
               </ScrollArea>
 
               {/* Save Button */}
-              <div className="px-6 py-4 border-t border-slate-700 bg-slate-800/30">
+              <div className="px-6 py-4 border-t border-border bg-card/30">
                 <Button
                   onClick={handleSaveRules}
-                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                   disabled={savingRules}
                 >
                   {savingRules ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
@@ -284,12 +284,12 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
               <ScrollArea className="flex-1 px-6 py-4">
                 <div className="space-y-4 max-w-3xl">
                   {/* Instructions */}
-                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                  <div className="p-4 bg-muted/50 rounded-xl border border-border">
                     <div className="flex items-start gap-3">
                       <HelpCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-slate-200">Como funciona o roteiro?</h4>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <h4 className="font-medium text-foreground">Como funciona o roteiro?</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
                           O roteiro define a sequência de etapas que o agente deve seguir. 
                           Cada etapa tem uma situação (contexto) e uma mensagem padrão a enviar.
                         </p>
@@ -303,26 +303,26 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       {steps.map((step, index) => (
                         <div 
                           key={step.id} 
-                          className="group flex items-start gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors"
+                          className="group flex items-start gap-3 p-4 bg-muted/50 rounded-xl border border-border hover:border-primary/30 transition-colors"
                         >
                           {/* Order controls */}
                           <div className="flex flex-col items-center gap-1 pt-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 text-slate-500 hover:text-white disabled:opacity-30"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-30"
                               onClick={() => moveStep(index, 'up')}
                               disabled={index === 0}
                             >
                               <ArrowUp className="w-3 h-3" />
                             </Button>
-                            <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                              <span className="text-emerald-400 font-semibold text-sm">{index + 1}</span>
+                            <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                              <span className="text-primary font-semibold text-sm">{index + 1}</span>
                             </div>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 text-slate-500 hover:text-white disabled:opacity-30"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-30"
                               onClick={() => moveStep(index, 'down')}
                               disabled={index === steps.length - 1}
                             >
@@ -336,13 +336,13 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                               value={step.situation || ''}
                               onChange={(e) => updateStep(step.id, { situation: e.target.value })}
                               placeholder="Situação (ex: Saudação Inicial, Coleta de Nome...)"
-                              className="bg-slate-700/50 border-slate-600 text-sm font-medium"
+                              className="bg-muted border-border text-sm font-medium"
                             />
                             <Textarea
                               value={step.message_to_send}
                               onChange={(e) => updateStep(step.id, { message_to_send: e.target.value })}
                               placeholder="Mensagem a enviar nesta etapa..."
-                              className="bg-slate-700/50 border-slate-600 min-h-[80px] text-sm"
+                              className="bg-muted border-border min-h-[80px] text-sm"
                             />
                           </div>
 
@@ -351,7 +351,7 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                             variant="ghost"
                             size="icon"
                             onClick={() => deleteStep(step.id)}
-                            className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -359,34 +359,34 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-slate-400">
+                    <div className="text-center py-8 text-muted-foreground">
                       <Zap className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p>Nenhuma etapa cadastrada ainda</p>
-                      <p className="text-sm text-slate-500 mt-1">Adicione etapas para criar o roteiro do agente</p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">Adicione etapas para criar o roteiro do agente</p>
                     </div>
                   )}
 
                   {/* Add new step */}
-                  <div className="p-4 border-2 border-dashed border-slate-600 rounded-xl space-y-3 bg-slate-800/20">
+                  <div className="p-4 border-2 border-dashed border-border rounded-xl space-y-3 bg-muted/20">
                     <div className="flex items-center gap-2 mb-2">
-                      <Plus className="w-4 h-4 text-emerald-400" />
-                      <h4 className="font-medium text-slate-200">Adicionar Nova Etapa</h4>
+                      <Plus className="w-4 h-4 text-primary" />
+                      <h4 className="font-medium text-foreground">Adicionar Nova Etapa</h4>
                     </div>
                     <Input
                       value={newStepSituation}
                       onChange={(e) => setNewStepSituation(e.target.value)}
                       placeholder="Situação (ex: Confirmação de Dados)"
-                      className="bg-slate-700/50 border-slate-600"
+                      className="bg-muted border-border"
                     />
                     <Textarea
                       value={newStepMessage}
                       onChange={(e) => setNewStepMessage(e.target.value)}
                       placeholder="Mensagem a enviar nesta etapa..."
-                      className="bg-slate-700/50 border-slate-600 min-h-[80px]"
+                      className="bg-muted border-border min-h-[80px]"
                     />
                     <Button
                       onClick={handleAddStep}
-                      className="w-full bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30"
+                      className="w-full bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30"
                       disabled={addingStep || !newStepMessage.trim()}
                     >
                       {addingStep ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
@@ -402,12 +402,12 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
               <ScrollArea className="flex-1 px-6 py-4">
                 <div className="space-y-4 max-w-3xl">
                   {/* Instructions */}
-                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                  <div className="p-4 bg-muted/50 rounded-xl border border-border">
                     <div className="flex items-start gap-3">
                       <HelpCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-slate-200">Base de Conhecimento (FAQs)</h4>
-                        <p className="text-sm text-slate-400 mt-1">
+                        <h4 className="font-medium text-foreground">Base de Conhecimento (FAQs)</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
                           Adicione perguntas frequentes e suas respostas. O agente usará essa base para responder os clientes de forma mais precisa.
                         </p>
                       </div>
@@ -420,7 +420,7 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       {faqs.map((faq, index) => (
                         <div 
                           key={faq.id} 
-                          className="group p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors"
+                          className="group p-4 bg-muted/50 rounded-xl border border-border hover:border-primary/30 transition-colors"
                         >
                           <div className="flex items-start gap-3">
                             <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0 mt-1">
@@ -428,19 +428,19 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                             </div>
                             <div className="flex-1 space-y-3">
                               <div>
-                                <Label className="text-xs text-slate-500 uppercase tracking-wider">Pergunta</Label>
+                                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Pergunta</Label>
                                 <Input
                                   value={faq.question}
                                   onChange={(e) => updateFaq(faq.id, { question: e.target.value })}
-                                  className="bg-slate-700/50 border-slate-600 mt-1.5 font-medium"
+                                  className="bg-muted border-border mt-1.5 font-medium"
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs text-slate-500 uppercase tracking-wider">Resposta</Label>
+                                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Resposta</Label>
                                 <Textarea
                                   value={faq.answer}
                                   onChange={(e) => updateFaq(faq.id, { answer: e.target.value })}
-                                  className="bg-slate-700/50 border-slate-600 mt-1.5 min-h-[80px]"
+                                  className="bg-muted border-border mt-1.5 min-h-[80px]"
                                 />
                               </div>
                             </div>
@@ -448,7 +448,7 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                               variant="ghost"
                               size="icon"
                               onClick={() => deleteFaq(faq.id)}
-                              className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -457,30 +457,30 @@ const EditAgentModal = ({ agent, open, onOpenChange }: EditAgentModalProps) => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-slate-400">
+                    <div className="text-center py-8 text-muted-foreground">
                       <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p>Nenhuma FAQ cadastrada ainda</p>
-                      <p className="text-sm text-slate-500 mt-1">Adicione perguntas frequentes para melhorar as respostas do agente</p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">Adicione perguntas frequentes para melhorar as respostas do agente</p>
                     </div>
                   )}
 
                   {/* Add new FAQ */}
-                  <div className="p-4 border-2 border-dashed border-slate-600 rounded-xl space-y-3 bg-slate-800/20">
+                  <div className="p-4 border-2 border-dashed border-border rounded-xl space-y-3 bg-muted/20">
                     <div className="flex items-center gap-2 mb-2">
                       <Plus className="w-4 h-4 text-purple-400" />
-                      <h4 className="font-medium text-slate-200">Adicionar Nova FAQ</h4>
+                      <h4 className="font-medium text-foreground">Adicionar Nova FAQ</h4>
                     </div>
                     <Input
                       value={newFaqQuestion}
                       onChange={(e) => setNewFaqQuestion(e.target.value)}
                       placeholder="Qual é a pergunta frequente?"
-                      className="bg-slate-700/50 border-slate-600"
+                      className="bg-muted border-border"
                     />
                     <Textarea
                       value={newFaqAnswer}
                       onChange={(e) => setNewFaqAnswer(e.target.value)}
                       placeholder="Qual a resposta para essa pergunta?"
-                      className="bg-slate-700/50 border-slate-600 min-h-[80px]"
+                      className="bg-muted border-border min-h-[80px]"
                     />
                     <Button
                       onClick={handleAddFaq}
