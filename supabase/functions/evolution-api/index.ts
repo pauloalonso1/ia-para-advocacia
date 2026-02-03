@@ -169,6 +169,18 @@ serve(async (req) => {
           headers: baseHeaders,
         });
         result = await response.json();
+        
+        // If instance not found, return specific error
+        if (!response.ok && (result.statusCode === 404 || result.error === "not_found")) {
+          return new Response(
+            JSON.stringify({ 
+              error: "Instance not found", 
+              code: "INSTANCE_NOT_FOUND",
+              details: "A instância não existe. Clique em 'Salvar e Conectar' para criar uma nova."
+            }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         break;
 
       case "status":
@@ -178,6 +190,17 @@ serve(async (req) => {
           headers: baseHeaders,
         });
         result = await response.json();
+        
+        // If instance not found, return disconnected status instead of error
+        if (!response.ok && (result.statusCode === 404 || result.error === "not_found")) {
+          return new Response(
+            JSON.stringify({ 
+              state: "disconnected",
+              code: "INSTANCE_NOT_FOUND"
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         break;
 
       case "delete":

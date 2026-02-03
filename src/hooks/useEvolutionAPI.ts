@@ -115,7 +115,16 @@ export const useEvolutionAPI = () => {
       });
 
       if (fnError) {
-        throw new Error(fnError.message);
+        // If 404, instance doesn't exist
+        console.log('Status check error:', fnError);
+        setConnectionStatus('disconnected');
+        return 'disconnected';
+      }
+
+      // Check if instance was not found
+      if (data.code === 'INSTANCE_NOT_FOUND') {
+        setConnectionStatus('disconnected');
+        return 'disconnected';
       }
 
       const state = data.state || data.instance?.state;
@@ -133,7 +142,8 @@ export const useEvolutionAPI = () => {
       }
     } catch (err) {
       console.error('Status check error:', err);
-      return 'error';
+      setConnectionStatus('disconnected');
+      return 'disconnected';
     }
   }, []);
 
