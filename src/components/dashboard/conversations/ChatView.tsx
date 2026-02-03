@@ -142,20 +142,20 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
 
                 {/* Messages */}
                 <div className="space-y-3">
-                  {group.messages.map((msg) => {
+                {group.messages.map((msg) => {
                     const isAssistant = msg.role === 'assistant';
                     return (
                       <div
                         key={msg.id}
                         className={cn(
                           "flex gap-2",
-                          isAssistant ? "justify-start" : "justify-end"
+                          isAssistant ? "justify-end" : "justify-start"
                         )}
                       >
-                        {isAssistant && (
+                        {!isAssistant && (
                           <Avatar className="w-8 h-8 mt-1">
-                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-indigo-600">
-                              <Bot className="w-4 h-4 text-white" />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70">
+                              <User className="w-4 h-4 text-primary-foreground" />
                             </AvatarFallback>
                           </Avatar>
                         )}
@@ -163,27 +163,27 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
                         <div className={cn(
                           "max-w-[70%] rounded-2xl px-4 py-2.5",
                           isAssistant 
-                            ? "bg-muted rounded-tl-sm" 
-                            : "bg-primary rounded-tr-sm"
+                            ? "bg-primary rounded-tr-sm" 
+                            : "bg-muted rounded-tl-sm"
                         )}>
                           <p className={cn(
                             "text-sm whitespace-pre-wrap break-words",
-                            isAssistant ? "text-foreground" : "text-primary-foreground"
+                            isAssistant ? "text-primary-foreground" : "text-foreground"
                           )}>
                             {msg.content}
                           </p>
                           <p className={cn(
                             "text-[10px] mt-1 text-right",
-                            isAssistant ? "text-muted-foreground" : "text-primary-foreground/70"
+                            isAssistant ? "text-primary-foreground/70" : "text-muted-foreground"
                           )}>
                             {format(new Date(msg.created_at), 'HH:mm')}
                           </p>
                         </div>
 
-                        {!isAssistant && (
+                        {isAssistant && (
                           <Avatar className="w-8 h-8 mt-1">
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70">
-                              <User className="w-4 h-4 text-primary-foreground" />
+                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-indigo-600">
+                              <Bot className="w-4 h-4 text-white" />
                             </AvatarFallback>
                           </Avatar>
                         )}
