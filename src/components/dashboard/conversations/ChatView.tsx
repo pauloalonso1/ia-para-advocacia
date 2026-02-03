@@ -24,13 +24,13 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
 
   if (!selectedCase) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-900/50">
+      <div className="flex-1 flex items-center justify-center bg-background/50">
         <div className="text-center">
-          <div className="w-24 h-24 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MessageSquare className="w-12 h-12 text-slate-600" />
+          <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-12 h-12 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-medium text-slate-300 mb-2">Selecione uma conversa</h3>
-          <p className="text-slate-500">Escolha uma conversa ao lado para visualizar as mensagens</p>
+          <h3 className="text-xl font-medium text-foreground mb-2">Selecione uma conversa</h3>
+          <p className="text-muted-foreground">Escolha uma conversa ao lado para visualizar as mensagens</p>
         </div>
       </div>
     );
@@ -89,19 +89,19 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900/30">
+    <div className="flex-1 flex flex-col bg-background/30">
       {/* Chat Header */}
-      <div className="h-16 px-4 border-b border-slate-700 flex items-center gap-3 bg-slate-800/50">
-        <Avatar className="w-10 h-10 border-2 border-emerald-500/30">
-          <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-sm font-medium">
+      <div className="h-16 px-4 border-b border-border flex items-center gap-3 bg-card/50">
+        <Avatar className="w-10 h-10 border-2 border-primary/30">
+          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-sm font-medium">
             {getInitials(selectedCase.client_name, selectedCase.client_phone)}
           </AvatarFallback>
         </Avatar>
         <div>
-          <h3 className="font-medium text-white">
+          <h3 className="font-medium text-foreground">
             {selectedCase.client_name || 'Sem nome'}
           </h3>
-          <p className="text-xs text-slate-400">{formatPhone(selectedCase.client_phone)}</p>
+          <p className="text-xs text-muted-foreground">{formatPhone(selectedCase.client_phone)}</p>
         </div>
       </div>
 
@@ -113,10 +113,10 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
               <div key={i} className={cn("flex gap-2", i % 2 === 0 && "justify-end")}>
                 <div className={cn(
                   "animate-pulse rounded-2xl p-4",
-                  i % 2 === 0 ? "bg-emerald-500/20 w-2/3" : "bg-slate-700/50 w-1/2"
+                  i % 2 === 0 ? "bg-primary/20 w-2/3" : "bg-muted w-1/2"
                 )}>
-                  <div className="h-4 bg-slate-600 rounded w-full mb-2" />
-                  <div className="h-4 bg-slate-600 rounded w-3/4" />
+                  <div className="h-4 bg-muted-foreground/20 rounded w-full mb-2" />
+                  <div className="h-4 bg-muted-foreground/20 rounded w-3/4" />
                 </div>
               </div>
             ))}
@@ -124,9 +124,9 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
         ) : messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
-              <Clock className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">Nenhuma mensagem ainda</p>
-              <p className="text-slate-500 text-sm">As mensagens aparecerão aqui quando o cliente iniciar a conversa</p>
+              <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhuma mensagem ainda</p>
+              <p className="text-muted-foreground/70 text-sm">As mensagens aparecerão aqui quando o cliente iniciar a conversa</p>
             </div>
           </div>
         ) : (
@@ -135,7 +135,7 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
               <div key={groupIdx}>
                 {/* Date Separator */}
                 <div className="flex items-center justify-center mb-4">
-                  <span className="px-3 py-1 bg-slate-800 rounded-full text-xs text-slate-400">
+                  <span className="px-3 py-1 bg-muted rounded-full text-xs text-muted-foreground">
                     {formatDateHeader(group.date)}
                   </span>
                 </div>
@@ -163,15 +163,18 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
                         <div className={cn(
                           "max-w-[70%] rounded-2xl px-4 py-2.5",
                           isAssistant 
-                            ? "bg-slate-700/70 rounded-tl-sm" 
-                            : "bg-emerald-600 rounded-tr-sm"
+                            ? "bg-muted rounded-tl-sm" 
+                            : "bg-primary rounded-tr-sm"
                         )}>
-                          <p className="text-white text-sm whitespace-pre-wrap break-words">
+                          <p className={cn(
+                            "text-sm whitespace-pre-wrap break-words",
+                            isAssistant ? "text-foreground" : "text-primary-foreground"
+                          )}>
                             {msg.content}
                           </p>
                           <p className={cn(
                             "text-[10px] mt-1 text-right",
-                            isAssistant ? "text-slate-400" : "text-emerald-200"
+                            isAssistant ? "text-muted-foreground" : "text-primary-foreground/70"
                           )}>
                             {format(new Date(msg.created_at), 'HH:mm')}
                           </p>
@@ -179,8 +182,8 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
 
                         {!isAssistant && (
                           <Avatar className="w-8 h-8 mt-1">
-                            <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600">
-                              <User className="w-4 h-4 text-white" />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70">
+                              <User className="w-4 h-4 text-primary-foreground" />
                             </AvatarFallback>
                           </Avatar>
                         )}
@@ -195,9 +198,9 @@ const ChatView = ({ selectedCase, messages, loading }: ChatViewProps) => {
       </ScrollArea>
 
       {/* Input Area - Read Only */}
-      <div className="p-4 border-t border-slate-700 bg-slate-800/30">
-        <div className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 rounded-xl border border-slate-700">
-          <span className="text-slate-500 text-sm flex-1">
+      <div className="p-4 border-t border-border bg-card/30">
+        <div className="flex items-center gap-3 px-4 py-3 bg-muted rounded-xl border border-border">
+          <span className="text-muted-foreground text-sm flex-1">
             As mensagens são recebidas automaticamente via WhatsApp
           </span>
         </div>
