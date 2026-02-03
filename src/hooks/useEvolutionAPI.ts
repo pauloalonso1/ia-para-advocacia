@@ -9,6 +9,28 @@ export const useEvolutionAPI = () => {
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [error, setError] = useState<string | null>(null);
 
+  const extractQrCode = (data: any): string | null => {
+    // Try multiple possible paths for QR code in the response
+    const qr = data.qrcode?.base64 || 
+               data.base64 || 
+               data.qrcode?.code ||
+               data.qr?.base64 ||
+               data.code;
+    
+    if (!qr) return null;
+    
+    // If it's base64 image data, use it directly
+    if (typeof qr === 'string') {
+      if (qr.startsWith('data:image')) {
+        return qr;
+      } else if (qr.length > 100) {
+        // It's likely base64 without prefix
+        return `data:image/png;base64,${qr}`;
+      }
+    }
+    return qr;
+  };
+
   const createInstance = useCallback(async (instanceName: string) => {
     setLoading(true);
     setError(null);
@@ -24,30 +46,33 @@ export const useEvolutionAPI = () => {
         throw new Error(fnError.message);
       }
 
-      if (data.error) {
-        throw new Error(data.details || data.error);
+      // Check if already connected
+      if (data.state === 'connected' || data.instance?.state === 'open') {
+        setConnectionStatus('connected');
+        toast({
+          title: 'WhatsApp Conectado',
+          description: 'Sua instância já está conectada!'
+        });
+        return data;
+      }
+
+      if (data.error && !data.qrcode && !data.base64 && !data.code) {
+        throw new Error(data.hint || data.details || data.error);
       }
 
       // Extract QR code from response
-      const qr = data.qrcode?.base64 || data.base64 || data.qrcode?.code;
+      const qr = extractQrCode(data);
       if (qr) {
-        // If it's base64 image data, use it directly
-        if (qr.startsWith('data:image')) {
-          setQrCode(qr);
-        } else if (qr.length > 100) {
-          // It's likely base64 without prefix
-          setQrCode(`data:image/png;base64,${qr}`);
-        } else {
-          // It's a QR code string, we'll need to display it differently
-          setQrCode(qr);
-        }
+        setQrCode(qr);
+        setConnectionStatus('connecting');
+        toast({
+          title: 'QR Code gerado',
+          description: 'Escaneie o QR Code com seu WhatsApp'
+        });
+      } else {
+        // No QR code but also no error - might be connecting
         setConnectionStatus('connecting');
       }
-
-      toast({
-        title: 'Instância criada',
-        description: 'Escaneie o QR Code com seu WhatsApp'
-      });
 
       return data;
     } catch (err) {
@@ -78,19 +103,18 @@ export const useEvolutionAPI = () => {
         throw new Error(fnError.message);
       }
 
-      if (data.error) {
+      // Check if it's an error response with specific code
+      if (data.code === 'INSTANCE_NOT_FOUND') {
+        throw new Error(data.details || 'Instância não encontrada. Clique em "Salvar e Conectar" para criar.');
+      }
+
+      if (data.error && !data.qrcode && !data.base64 && !data.code) {
         throw new Error(data.details || data.error);
       }
 
-      const qr = data.qrcode?.base64 || data.base64 || data.qrcode?.code;
+      const qr = extractQrCode(data);
       if (qr) {
-        if (qr.startsWith('data:image')) {
-          setQrCode(qr);
-        } else if (qr.length > 100) {
-          setQrCode(`data:image/png;base64,${qr}`);
-        } else {
-          setQrCode(qr);
-        }
+        setQrCode(qr);
       }
 
       return data;
