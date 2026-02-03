@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import AgentsView from '@/components/dashboard/AgentsView';
 import ContactsView from '@/components/dashboard/ContactsView';
@@ -8,8 +8,16 @@ import CRMKanbanView from '@/components/dashboard/CRMKanbanView';
 import DashboardOverview from '@/components/dashboard/DashboardOverview';
 import { cn } from '@/lib/utils';
 
-const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('agents');
+interface DashboardProps {
+  initialTab?: string;
+}
+
+const Dashboard = ({ initialTab = 'agents' }: DashboardProps) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const renderContent = () => {
     switch (activeTab) {
