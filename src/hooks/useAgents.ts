@@ -123,12 +123,54 @@ export const useAgents = () => {
   };
 
   const deleteAgent = async (id: string) => {
-    const { error } = await supabase
-      .from('agents')
-      .delete()
-      .eq('id', id);
+    try {
+      // First, remove agent reference from any cases using this agent
+      const { error: casesError } = await supabase
+        .from('cases')
+        .update({ active_agent_id: null })
+        .eq('active_agent_id', id);
 
-    if (error) {
+      if (casesError) throw casesError;
+
+      // Delete related agent_faqs
+      const { error: faqsError } = await supabase
+        .from('agent_faqs')
+        .delete()
+        .eq('agent_id', id);
+
+      if (faqsError) throw faqsError;
+
+      // Delete related agent_script_steps
+      const { error: stepsError } = await supabase
+        .from('agent_script_steps')
+        .delete()
+        .eq('agent_id', id);
+
+      if (stepsError) throw stepsError;
+
+      // Delete related agent_rules
+      const { error: rulesError } = await supabase
+        .from('agent_rules')
+        .delete()
+        .eq('agent_id', id);
+
+      if (rulesError) throw rulesError;
+
+      // Finally delete the agent
+      const { error } = await supabase
+        .from('agents')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchAgents();
+      toast({
+        title: 'Agente excluído',
+        description: 'O agente foi removido com sucesso.'
+      });
+      return true;
+    } catch (error: any) {
       toast({
         title: 'Erro ao excluir agente',
         description: error.message,
@@ -136,13 +178,6 @@ export const useAgents = () => {
       });
       return false;
     }
-
-    await fetchAgents();
-    toast({
-      title: 'Agente excluído',
-      description: 'O agente foi removido com sucesso.'
-    });
-    return true;
   };
 
   useEffect(() => {
