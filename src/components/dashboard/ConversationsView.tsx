@@ -5,7 +5,7 @@ import ChatView from './conversations/ChatView';
 import CRMPanel from './conversations/CRMPanel';
 
 const ConversationsView = () => {
-  const { cases, loading: casesLoading, updateCaseStatus, updateCaseName } = useCases();
+  const { cases, loading: casesLoading, updateCaseStatus, updateCaseName, deleteCase, assignAgentToCase } = useCases();
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   
   const { messages, loading: messagesLoading } = useMessages(selectedCase?.id || null);
@@ -14,8 +14,15 @@ const ConversationsView = () => {
   useEffect(() => {
     if (selectedCase) {
       const updatedCase = cases.find(c => c.id === selectedCase.id);
-      if (updatedCase && (updatedCase.status !== selectedCase.status || updatedCase.client_name !== selectedCase.client_name)) {
+      if (updatedCase && (
+        updatedCase.status !== selectedCase.status || 
+        updatedCase.client_name !== selectedCase.client_name ||
+        updatedCase.active_agent_id !== selectedCase.active_agent_id
+      )) {
         setSelectedCase(updatedCase);
+      } else if (!updatedCase) {
+        // Case was deleted
+        setSelectedCase(null);
       }
     }
   }, [cases, selectedCase]);
@@ -40,6 +47,22 @@ const ConversationsView = () => {
     }
   };
 
+  const handleDeleteCase = async (caseId: string) => {
+    const success = await deleteCase(caseId);
+    if (success && selectedCase?.id === caseId) {
+      setSelectedCase(null);
+    }
+    return success;
+  };
+
+  const handleAssignAgent = async (caseId: string, agentId: string | null) => {
+    await assignAgentToCase(caseId, agentId);
+    // Optimistically update the selectedCase
+    if (selectedCase && selectedCase.id === caseId) {
+      setSelectedCase(prev => prev ? { ...prev, active_agent_id: agentId } : null);
+    }
+  };
+
   return (
     <div className="h-full flex">
       {/* Left: Conversations List */}
@@ -47,6 +70,7 @@ const ConversationsView = () => {
         cases={cases}
         selectedCaseId={selectedCase?.id || null}
         onSelectCase={handleSelectCase}
+        onDeleteCase={handleDeleteCase}
         loading={casesLoading}
       />
 
@@ -62,6 +86,7 @@ const ConversationsView = () => {
         selectedCase={selectedCase}
         onUpdateStatus={handleUpdateStatus}
         onUpdateName={handleUpdateName}
+        onAssignAgent={handleAssignAgent}
       />
     </div>
   );
