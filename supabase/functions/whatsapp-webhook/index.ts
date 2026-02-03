@@ -566,13 +566,19 @@ ${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${
     : "";
 
   // Calendar context if available
+  const today = new Date();
+  const currentDateStr = today.toISOString().split('T')[0];
+  const currentYear = today.getFullYear();
+  
   const calendarContext = hasCalendarConnected 
     ? `\n\n📅 AGENDAMENTO DISPONÍVEL:
+- Data atual: ${currentDateStr} (ano: ${currentYear})
 - Você TEM ACESSO ao calendário do escritório para agendar consultas.
 - Quando o cliente quiser agendar, use a função check_calendar_availability para verificar horários livres.
 - Depois use create_calendar_event para criar o agendamento.
-- Ofereça 2-3 opções de horários disponíveis para o cliente escolher.
-- IMPORTANTE: Sempre que o cliente mencionar agendamento, reunião, consulta ou horário, USE as ferramentas de calendário!`
+- Ofereça 5-6 opções de horários disponíveis para o cliente escolher.
+- IMPORTANTE: Sempre que o cliente mencionar agendamento, reunião, consulta ou horário, USE as ferramentas de calendário!
+- IMPORTANTE: Ao criar eventos, use sempre o ano ${currentYear} nas datas!`
     : "";
 
   const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
@@ -748,10 +754,22 @@ ${calendarContext}
         const slots = await getCalendarAvailability(supabase, userId, daysAhead);
         console.log(`📅 Found ${slots.length} available slots`);
         
-        // Make second AI call with slots info
-        const slotsText = slots.slice(0, 6).map(s => {
+        // Make second AI call with slots info - show 10 slots with full date including year
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        
+        const slotsText = slots.slice(0, 10).map(s => {
           const date = new Date(s.start);
-          return `- ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+          const dateStr = date.toLocaleDateString('pt-BR', { 
+            weekday: 'long', 
+            day: '2-digit', 
+            month: '2-digit',
+            year: 'numeric'
+          });
+          const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          // Include ISO date for the AI to use when creating events
+          const isoDate = date.toISOString().split('T')[0];
+          return `- ${dateStr} às ${timeStr} (data: ${isoDate}, horário: ${timeStr.replace(':', ':')})`;
         }).join('\n');
         
         const followUpMessages = [
@@ -760,7 +778,7 @@ ${calendarContext}
           { 
             role: "tool" as const, 
             tool_call_id: toolCall.id,
-            content: `Horários disponíveis encontrados:\n${slotsText}\n\nOfereça essas opções ao cliente de forma amigável.`
+            content: `Horários disponíveis encontrados (ano atual: ${currentYear}):\n${slotsText}\n\nOfereça pelo menos 5-6 opções de horários variados ao cliente. IMPORTANTE: Quando o cliente escolher um horário, use a data no formato YYYY-MM-DD mostrada entre parênteses.`
           }
         ];
         
@@ -1010,8 +1028,15 @@ async function createCalendarEvent(
     if (!accessToken) return { success: false, error: "Failed to get access token" };
 
     // Parse date and time
-    const [year, month, day] = date.split('-').map(Number);
+    let [year, month, day] = date.split('-').map(Number);
     const [hour, minute] = time.split(':').map(Number);
+    
+    // Validate year - if it's in the past, assume current year
+    const currentYear = new Date().getFullYear();
+    if (year < currentYear) {
+      console.log(`⚠️ Year ${year} is in the past, correcting to ${currentYear}`);
+      year = currentYear;
+    }
     
     const startDateTime = new Date(year, month - 1, day, hour, minute);
     const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
