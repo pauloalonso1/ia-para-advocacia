@@ -65,14 +65,14 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="w-5 h-5 text-amber-400" />
-        <h3 className="text-lg font-semibold text-white">Templates Prontos</h3>
-        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+        <Sparkles className="w-5 h-5 text-primary" />
+        <h3 className="text-lg font-semibold text-foreground">Templates Prontos</h3>
+        <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
           Com prompts profissionais
         </Badge>
       </div>
       
-      <p className="text-sm text-slate-400 mb-4">
+      <p className="text-sm text-muted-foreground mb-4">
         Selecione um template para criar um agente pré-configurado com prompts otimizados para cada área jurídica.
       </p>
 
@@ -87,9 +87,9 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
                 key={template.id}
                 className={cn(
                   "cursor-pointer transition-all duration-200",
-                  "bg-slate-800/50 border-2",
+                  "bg-card border-2",
                   isSelected
-                    ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                    ? "border-primary ring-2 ring-primary/20"
                     : colors.border
                 )}
                 onClick={() => onSelectTemplate(template)}
@@ -104,10 +104,10 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
                         {template.icon}
                       </div>
                       <div>
-                        <CardTitle className="text-sm text-white flex items-center gap-2">
+                        <CardTitle className="text-sm text-foreground flex items-center gap-2">
                           {template.name}
                           {isSelected && (
-                            <Check className="w-4 h-4 text-emerald-400" />
+                            <Check className="w-4 h-4 text-primary" />
                           )}
                         </CardTitle>
                         <Badge className={cn(
@@ -122,14 +122,14 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-slate-400 text-xs line-clamp-2">
+                  <CardDescription className="text-muted-foreground text-xs line-clamp-2">
                     {template.description}
                   </CardDescription>
                   <div className="flex flex-wrap gap-1 mt-2">
-                    <Badge variant="outline" className="text-xs text-slate-500 border-slate-600">
+                    <Badge variant="outline" className="text-xs text-muted-foreground border-border">
                       {template.scriptSteps.length} etapas
                     </Badge>
-                    <Badge variant="outline" className="text-xs text-slate-500 border-slate-600">
+                    <Badge variant="outline" className="text-xs text-muted-foreground border-border">
                       {template.faqs.length} FAQs
                     </Badge>
                   </div>
