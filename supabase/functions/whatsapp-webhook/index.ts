@@ -138,6 +138,9 @@ serve(async (req) => {
           active_agent_id: agent.id,
           current_step_id: firstStep?.id || null,
           status: "Novo Contato",
+          unread_count: 1,
+          last_message: messageBody,
+          last_message_at: new Date().toISOString(),
         })
         .select("*, active_agent:agents(*), current_step:agent_script_steps(*)")
         .single();
@@ -254,17 +257,40 @@ serve(async (req) => {
         role: "client",
         content: messageBody,
       });
+      
+      // Update unread count and last message
+      await supabase
+        .from("cases")
+        .update({ 
+          unread_count: (existingCase.unread_count || 0) + 1,
+          last_message: messageBody,
+          last_message_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingCase.id);
+        
       return new Response(JSON.stringify({ status: "manual_mode" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Save incoming message
+    // Save incoming message and update last_message
     await supabase.from("conversation_history").insert({
       case_id: existingCase.id,
       role: "client",
       content: messageBody,
     });
+    
+    // Update last message info and increment unread count
+    await supabase
+      .from("cases")
+      .update({ 
+        unread_count: (existingCase.unread_count || 0) + 1,
+        last_message: messageBody,
+        last_message_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingCase.id);
 
     // Reset follow-up counter when client responds
     await supabase
