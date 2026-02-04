@@ -4,9 +4,10 @@ import { useAgents } from '@/hooks/useAgents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
@@ -26,8 +27,16 @@ import {
   Bot,
   ChevronRight,
   FileText,
-  Zap,
-  Sparkles
+  Info,
+  Image,
+  StickyNote,
+  ExternalLink,
+  Play,
+  Pause,
+  Power,
+  Filter,
+  Plus,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -41,26 +50,31 @@ interface CRMPanelProps {
 }
 
 const crmStages = [
-  { id: 'Novo Contato', label: 'Novo Contato', color: 'bg-blue-500', description: 'Lead acabou de entrar em contato' },
-  { id: 'Em Atendimento', label: 'Em Atendimento', color: 'bg-amber-500', description: 'Atendimento em andamento pelo agente' },
-  { id: 'Qualificado', label: 'Qualificado', color: 'bg-green-500', description: 'Lead tem potencial para converter' },
-  { id: 'Não Qualificado', label: 'Não Qualificado', color: 'bg-destructive', description: 'Lead não tem perfil para o serviço' },
-  { id: 'Convertido', label: 'Convertido', color: 'bg-purple-500', description: 'Cliente fechou contrato' },
-  { id: 'Arquivado', label: 'Arquivado', color: 'bg-muted-foreground', description: 'Caso encerrado ou arquivado' },
+  { id: 'Novo Contato', label: 'Recepção', color: 'bg-blue-500' },
+  { id: 'Em Atendimento', label: 'Em Atendimento', color: 'bg-amber-500' },
+  { id: 'Qualificado', label: 'Qualificado', color: 'bg-green-500' },
+  { id: 'Não Qualificado', label: 'Não Qualificado', color: 'bg-destructive' },
+  { id: 'Convertido', label: 'Convertido', color: 'bg-purple-500' },
+  { id: 'Arquivado', label: 'Arquivado', color: 'bg-muted-foreground' },
 ];
 
 const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }: CRMPanelProps) => {
   const { agents } = useAgents();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
-  const [isAIEnabled, setIsAIEnabled] = useState(false);
+  const [aiStatus, setAiStatus] = useState<'active' | 'paused' | 'disabled'>('disabled');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('info');
 
-  // Sync AI state with selected case
   useEffect(() => {
     if (selectedCase) {
-      setIsAIEnabled(!!selectedCase.active_agent_id);
-      setSelectedAgentId(selectedCase.active_agent_id || '');
+      if (selectedCase.active_agent_id) {
+        setAiStatus('active');
+        setSelectedAgentId(selectedCase.active_agent_id);
+      } else {
+        setAiStatus('disabled');
+        setSelectedAgentId('');
+      }
     }
   }, [selectedCase]);
 
@@ -68,10 +82,10 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
 
   if (!selectedCase) {
     return (
-      <div className="w-80 border-l border-border bg-card/50 flex items-center justify-center">
+      <div className="w-80 border-l border-border bg-card flex items-center justify-center">
         <div className="text-center p-6">
           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Selecione uma conversa para ver os detalhes do CRM</p>
+          <p className="text-muted-foreground text-sm">Selecione uma conversa para ver os detalhes</p>
         </div>
       </div>
     );
@@ -80,12 +94,19 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
   const formatPhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 13) {
-      return `(${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
+      return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
     }
     if (cleaned.length === 12) {
-      return `(${cleaned.slice(2, 4)}) ${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
+      return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
     }
     return phone;
+  };
+
+  const getInitials = (name: string | null, phone: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    }
+    return phone.slice(-2);
   };
 
   const handleStartEditName = () => {
@@ -105,13 +126,12 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
     setEditedName('');
   };
 
-  const handleToggleAI = (enabled: boolean) => {
-    setIsAIEnabled(enabled);
-    if (!enabled) {
+  const handleAiStatusChange = (status: 'active' | 'paused' | 'disabled') => {
+    setAiStatus(status);
+    if (status === 'disabled') {
       onAssignAgent(selectedCase.id, null);
       setSelectedAgentId('');
-    } else if (activeAgents.length > 0) {
-      // Auto-select first agent or default agent
+    } else if (status === 'active' && activeAgents.length > 0) {
       const defaultAgent = activeAgents.find(a => a.is_default) || activeAgents[0];
       setSelectedAgentId(defaultAgent.id);
       onAssignAgent(selectedCase.id, defaultAgent.id);
@@ -123,219 +143,340 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
     onAssignAgent(selectedCase.id, agentId);
   };
 
-  const currentStageIndex = crmStages.findIndex(s => s.id === (selectedCase.status || 'Novo Contato'));
-
   return (
-    <div className="w-80 border-l border-border bg-card/50 flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Tag className="w-5 h-5 text-primary" />
-          Detalhes do Lead
-        </h3>
+    <div className="w-80 border-l border-border bg-card flex flex-col">
+      {/* Tabs Header */}
+      <div className="border-b border-border">
+        <div className="flex items-center">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5",
+              activeTab === 'info' 
+                ? "border-primary text-primary" 
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Info className="w-4 h-4" />
+            Informações
+          </button>
+          <button
+            onClick={() => setActiveTab('media')}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5",
+              activeTab === 'media' 
+                ? "border-primary text-primary" 
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Image className="w-4 h-4" />
+            Mídias
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={cn(
+              "flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5",
+              activeTab === 'notes' 
+                ? "border-primary text-primary" 
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <StickyNote className="w-4 h-4" />
+            Notas
+          </button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
-          {/* AI Agent Toggle */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Agente IA
-            </h4>
-            
-            <div className={cn(
-              "p-4 rounded-xl border transition-all",
-              isAIEnabled 
-                ? "bg-primary/10 border-primary/30" 
-                : "bg-muted/50 border-border"
-            )}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Bot className={cn(
-                    "w-5 h-5",
-                    isAIEnabled ? "text-primary" : "text-muted-foreground"
-                  )} />
-                  <span className={cn(
-                    "font-medium",
-                    isAIEnabled ? "text-foreground" : "text-muted-foreground"
-                  )}>
-                    Atendimento Automático
-                  </span>
+        {activeTab === 'info' && (
+          <div className="p-4 space-y-5">
+            {/* Contact Card */}
+            <div className="flex items-center gap-3">
+              <Avatar className="w-14 h-14">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-lg font-semibold">
+                  {getInitials(selectedCase.client_name, selectedCase.client_phone)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                {isEditingName ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="h-7 text-sm bg-muted border-border"
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveName} className="h-7 w-7">
+                      <Check className="w-3.5 h-3.5 text-primary" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={handleCancelEdit} className="h-7 w-7">
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-semibold text-foreground truncate">
+                      {selectedCase.client_name || 'Sem nome'}
+                    </h3>
+                    <Button size="icon" variant="ghost" onClick={handleStartEditName} className="h-5 w-5">
+                      <Edit2 className="w-3 h-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>{formatPhone(selectedCase.client_phone)}</span>
                 </div>
-                <Switch
-                  checked={isAIEnabled}
-                  onCheckedChange={handleToggleAI}
-                  disabled={activeAgents.length === 0}
-                />
-              </div>
-
-              {isAIEnabled && activeAgents.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Selecione o agente</Label>
-                  <Select value={selectedAgentId} onValueChange={handleAgentChange}>
-                    <SelectTrigger className="bg-muted border-border">
-                      <SelectValue placeholder="Escolher agente..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      {activeAgents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id} className="text-foreground">
-                          <div className="flex items-center gap-2">
-                            <Zap className="w-3 h-3 text-primary" />
-                            {agent.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {!isAIEnabled && (
-                <p className="text-xs text-muted-foreground">
-                  Ative para que o agente IA responda automaticamente às mensagens deste lead.
-                </p>
-              )}
-
-              {activeAgents.length === 0 && (
-                <p className="text-xs text-amber-400">
-                  Nenhum agente ativo. Crie e ative um agente na aba "Agentes IA".
-                </p>
-              )}
-            </div>
-          </div>
-
-          <Separator className="bg-border" />
-
-          {/* Contact Info */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Informações do Contato
-            </h4>
-            
-            {/* Name */}
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs flex items-center gap-1">
-                <User className="w-3 h-3" />
-                Nome
-              </Label>
-              {isEditingName ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={editedName}
-                    onChange={(e) => setEditedName(e.target.value)}
-                    className="h-8 bg-muted border-border text-foreground text-sm"
-                    autoFocus
-                  />
-                  <Button size="icon" variant="ghost" onClick={handleSaveName} className="h-8 w-8 text-primary hover:text-primary/80">
-                    <Check className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={handleCancelEdit} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="text-foreground">
-                    {selectedCase.client_name || 'Não informado'}
-                  </span>
-                  <Button size="icon" variant="ghost" onClick={handleStartEditName} className="h-6 w-6 text-muted-foreground hover:text-foreground">
-                    <Edit2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Phone */}
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs flex items-center gap-1">
-                <Phone className="w-3 h-3" />
-                Telefone
-              </Label>
-              <div className="flex items-center gap-2">
-                <span className="text-foreground">{formatPhone(selectedCase.client_phone)}</span>
                 <a 
-                  href={`https://wa.me/${selectedCase.client_phone.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 text-xs underline"
+                  href="#" 
+                  className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
                 >
-                  Abrir WhatsApp
+                  <ExternalLink className="w-3 h-3" />
+                  Ver detalhes completos
                 </a>
               </div>
             </div>
 
-            {/* Dates */}
+            <Separator className="bg-border" />
+
+            {/* Agent Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-muted-foreground" />
+                <Select value={selectedAgentId || 'none'} onValueChange={(v) => v !== 'none' && handleAgentChange(v)}>
+                  <SelectTrigger className="flex-1 h-9 bg-background border-border text-sm">
+                    <SelectValue placeholder="Recepção - SC Advogados (Principal)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {activeAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* AI Status Buttons */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Status: <span className={cn(
+                  "font-medium",
+                  aiStatus === 'active' && "text-green-500",
+                  aiStatus === 'paused' && "text-amber-500",
+                  aiStatus === 'disabled' && "text-muted-foreground"
+                )}>
+                  {aiStatus === 'active' && 'Ativa'}
+                  {aiStatus === 'paused' && 'Pausada'}
+                  {aiStatus === 'disabled' && 'Desativada'}
+                </span></Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={aiStatus === 'active' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleAiStatusChange('active')}
+                    className={cn(
+                      "flex-1 h-8 text-xs",
+                      aiStatus === 'active' && "bg-green-600 hover:bg-green-700"
+                    )}
+                    disabled={activeAgents.length === 0}
+                  >
+                    <Play className="w-3 h-3 mr-1" />
+                    Ativar
+                  </Button>
+                  <Button
+                    variant={aiStatus === 'paused' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleAiStatusChange('paused')}
+                    className={cn(
+                      "flex-1 h-8 text-xs",
+                      aiStatus === 'paused' && "bg-amber-600 hover:bg-amber-700"
+                    )}
+                    disabled={activeAgents.length === 0}
+                  >
+                    <Pause className="w-3 h-3 mr-1" />
+                    Pausar
+                  </Button>
+                  <Button
+                    variant={aiStatus === 'disabled' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleAiStatusChange('disabled')}
+                    className={cn(
+                      "flex-1 h-8 text-xs",
+                      aiStatus === 'disabled' && "bg-destructive hover:bg-destructive/90"
+                    )}
+                  >
+                    <Power className="w-3 h-3 mr-1" />
+                    Desativar
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-border" />
+
+            {/* Responsavel & Funil */}
             <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  Responsável
+                </Label>
+                <Select defaultValue="none">
+                  <SelectTrigger className="h-8 bg-background border-border text-xs">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="none">Selecione</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Filter className="w-3 h-3" />
+                  Funil
+                </Label>
+                <Select defaultValue="trabalhista">
+                  <SelectTrigger className="h-8 bg-background border-border text-xs">
+                    <SelectValue placeholder="Trabalhista" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="trabalhista">Trabalhista</SelectItem>
+                    <SelectItem value="civel">Cível</SelectItem>
+                    <SelectItem value="previdenciario">Previdenciário</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Etapa */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Etapa</Label>
+              <Select 
+                value={selectedCase.status || 'Novo Contato'} 
+                onValueChange={(value) => onUpdateStatus(selectedCase.id, value)}
+              >
+                <SelectTrigger className="h-9 bg-background border-border text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {crmStages.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2 h-2 rounded-full", stage.color)} />
+                        {stage.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator className="bg-border" />
+
+            {/* Etiquetas */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Tag className="w-3 h-3" />
+                Etiquetas
+              </Label>
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-start text-muted-foreground">
+                <Plus className="w-3 h-3 mr-1.5" />
+                Adicionar etiqueta
+              </Button>
+            </div>
+
+            {/* Departamentos */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Building2 className="w-3 h-3" />
+                Departamentos
+              </Label>
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-start text-muted-foreground">
+                <Plus className="w-3 h-3 mr-1.5" />
+                Adicionar departamento
+              </Button>
+            </div>
+
+            <Separator className="bg-border" />
+
+            {/* Agendamentos */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                Agendamentos
+              </Label>
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-start text-muted-foreground">
+                <Plus className="w-3 h-3 mr-1.5" />
+                Novo agendamento
+              </Button>
+            </div>
+
+            <Separator className="bg-border" />
+
+            {/* Resumo do Atendimento */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  Resumo do atendimento
+                </Label>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                Pode levar cerca de 1 minuto para gerar um resumo.
+              </p>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">
+                  Resumo da negociação com {selectedCase.client_name || 'o cliente'}...
+                </p>
+              </div>
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs flex items-center gap-1">
+                <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   Criado em
                 </Label>
-                <span className="text-foreground text-sm">
-                  {format(new Date(selectedCase.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                <span className="text-xs text-foreground">
+                  {format(new Date(selectedCase.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                 </span>
               </div>
               <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs flex items-center gap-1">
+                <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Atualizado
                 </Label>
-                <span className="text-foreground text-sm">
-                  {format(new Date(selectedCase.updated_at), "dd/MM/yyyy", { locale: ptBR })}
+                <span className="text-xs text-foreground">
+                  {format(new Date(selectedCase.updated_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                 </span>
               </div>
             </div>
           </div>
+        )}
 
-          <Separator className="bg-border" />
-
-          {/* CRM Pipeline */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Etapa do Funil
-            </h4>
-            
-            <div className="space-y-2">
-              {crmStages.map((stage, index) => {
-                const isActive = stage.id === (selectedCase.status || 'Novo Contato');
-                const isPast = index < currentStageIndex;
-                
-                return (
-                  <button
-                    key={stage.id}
-                    onClick={() => onUpdateStatus(selectedCase.id, stage.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 text-left",
-                      isActive 
-                        ? "bg-accent border border-border" 
-                        : "hover:bg-accent/50 border border-transparent"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-3 h-3 rounded-full shrink-0",
-                      isActive || isPast ? stage.color : "bg-muted"
-                    )} />
-                    <div className="flex-1 min-w-0">
-                      <span className={cn(
-                        "text-sm font-medium block",
-                        isActive ? "text-foreground" : isPast ? "text-foreground/80" : "text-muted-foreground"
-                      )}>
-                        {stage.label}
-                      </span>
-                      {isActive && (
-                        <span className="text-xs text-muted-foreground">{stage.description}</span>
-                      )}
-                    </div>
-                    {isActive && (
-                      <ChevronRight className="w-4 h-4 text-primary" />
-                    )}
-                  </button>
-                );
-              })}
+        {activeTab === 'media' && (
+          <div className="p-4">
+            <div className="text-center py-8">
+              <Image className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">Nenhuma mídia compartilhada</p>
             </div>
           </div>
-        </div>
+        )}
+
+        {activeTab === 'notes' && (
+          <div className="p-4">
+            <div className="text-center py-8">
+              <StickyNote className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm mb-3">Nenhuma nota adicionada</p>
+              <Button variant="outline" size="sm">
+                <Plus className="w-4 h-4 mr-1.5" />
+                Adicionar nota
+              </Button>
+            </div>
+          </div>
+        )}
       </ScrollArea>
     </div>
   );
