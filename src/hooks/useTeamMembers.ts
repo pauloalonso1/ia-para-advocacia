@@ -192,7 +192,12 @@ export const useTeamMembers = () => {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setMembers(prev => [...prev, payload.new as TeamMember]);
+            // Avoid duplicates - only add if not already in the list
+            const newMember = payload.new as TeamMember;
+            setMembers(prev => {
+              const exists = prev.some(m => m.id === newMember.id);
+              return exists ? prev : [...prev, newMember];
+            });
           } else if (payload.eventType === 'UPDATE') {
             setMembers(prev => prev.map(m => 
               m.id === (payload.new as TeamMember).id ? payload.new as TeamMember : m
