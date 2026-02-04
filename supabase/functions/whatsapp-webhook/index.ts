@@ -574,12 +574,18 @@ ${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${
     ? `\n\n📅 AGENDAMENTO DISPONÍVEL:
 - Data atual: ${currentDateStr} (ano: ${currentYear})
 - Você TEM ACESSO ao calendário do escritório para agendar consultas.
-- Quando o cliente quiser agendar, use a função check_calendar_availability para verificar horários livres.
-- Depois use create_calendar_event para criar o agendamento.
-- Ofereça 5-6 opções de horários disponíveis para o cliente escolher.
-- IMPORTANTE: Sempre que o cliente mencionar agendamento, reunião, consulta ou horário, USE as ferramentas de calendário!
-- IMPORTANTE: Ao criar eventos, use sempre o ano ${currentYear} nas datas!
-- IMPORTANTE: ANTES de agendar, PEÇA O EMAIL do cliente para enviar o convite da reunião. Só crie o evento após ter o email!`
+
+FLUXO DE AGENDAMENTO (siga em ordem):
+1. Se o cliente quer agendar mas você NÃO MOSTROU os horários ainda: use check_calendar_availability
+2. Se você JÁ MOSTROU os horários e o cliente ESCOLHEU um (ex: "10:00", "segunda às 14h", "amanhã de manhã"): 
+   - PRIMEIRO peça o email se ainda não tem
+   - DEPOIS use create_calendar_event com a data YYYY-MM-DD e horário HH:MM
+3. NUNCA chame check_calendar_availability se já mostrou os horários e o cliente escolheu um!
+
+IMPORTANTE:
+- Ao criar eventos, use sempre o ano ${currentYear} nas datas
+- Quando o cliente responde com um horário específico, isso é uma ESCOLHA - use create_calendar_event!
+- Exemplos de escolha: "10:00", "quarta 10h", "amanhã às 9", "prefiro às 14:00"`
     : "";
 
   const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
@@ -656,12 +662,28 @@ ${calendarContext}
 
   // Add calendar tools if connected
   if (hasCalendarConnected) {
+    // Check if conversation history suggests we already showed slots
+    const conversationText = history.map(h => h.content).join(' ').toLowerCase();
+    const alreadyShowedSlots = conversationText.includes('horários disponíveis') || 
+                                conversationText.includes('horario') ||
+                                conversationText.includes('09:00') ||
+                                conversationText.includes('10:00');
+    
+    // Check if we have an email in the conversation
+    const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+    const hasEmailInHistory = history.some(h => emailRegex.test(h.content));
+    
+    // Check if current message looks like a time selection
+    const looksLikeTimeSelection = /\d{1,2}[:\s]?\d{0,2}|manhã|tarde|amanhã|segunda|terça|quarta|quinta|sexta/i.test(clientMessage);
+    
+    console.log(`📅 Context check: showedSlots=${alreadyShowedSlots}, hasEmail=${hasEmailInHistory}, timeSelection=${looksLikeTimeSelection}`);
+    
     tools.push(
       {
         type: "function",
         function: {
           name: "check_calendar_availability",
-          description: "Verifica os horários disponíveis no calendário para agendamento de consultas. Use quando o cliente quiser marcar uma reunião ou consulta.",
+          description: "Verifica os horários disponíveis. USE SOMENTE se você ainda NÃO MOSTROU os horários para o cliente. Se já mostrou e o cliente escolheu um horário, use create_calendar_event.",
           parameters: {
             type: "object",
             properties: {
@@ -679,7 +701,7 @@ ${calendarContext}
         type: "function",
         function: {
           name: "create_calendar_event",
-          description: "Cria um agendamento no calendário. Use após o cliente escolher um horário específico.",
+          description: "CRIA O AGENDAMENTO no calendário. Use quando o cliente JÁ ESCOLHEU um horário específico (ex: '10:00', 'quarta às 14h'). Você já deve ter o email do cliente do histórico da conversa.",
           parameters: {
             type: "object",
             properties: {
