@@ -578,7 +578,8 @@ ${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${
 - Depois use create_calendar_event para criar o agendamento.
 - Ofereça 5-6 opções de horários disponíveis para o cliente escolher.
 - IMPORTANTE: Sempre que o cliente mencionar agendamento, reunião, consulta ou horário, USE as ferramentas de calendário!
-- IMPORTANTE: Ao criar eventos, use sempre o ano ${currentYear} nas datas!`
+- IMPORTANTE: Ao criar eventos, use sempre o ano ${currentYear} nas datas!
+- IMPORTANTE: ANTES de agendar, PEÇA O EMAIL do cliente para enviar o convite da reunião. Só crie o evento após ter o email!`
     : "";
 
   const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
@@ -697,6 +698,10 @@ ${calendarContext}
               duration_minutes: {
                 type: "number",
                 description: "Duração em minutos (padrão: 60)"
+              },
+              client_email: {
+                type: "string",
+                description: "Email do cliente para enviar convite (pergunte ao cliente se não souber)"
               }
             },
             required: ["date", "time", "summary"],
@@ -847,8 +852,9 @@ ${calendarContext}
         
         const defaultDuration = scheduleSettings?.appointment_duration_minutes || 60;
         const duration = args.duration_minutes || defaultDuration;
+        const clientEmail = args.client_email || null;
         
-        console.log(`📅 Creating event with args: date=${args.date}, time=${args.time}, summary=${args.summary}, duration=${duration}min`);
+        console.log(`📅 Creating event with args: date=${args.date}, time=${args.time}, summary=${args.summary}, duration=${duration}min, email=${clientEmail || 'none'}`);
         
         const eventResult = await createCalendarEvent(
           supabase, 
@@ -856,7 +862,8 @@ ${calendarContext}
           args.date, 
           args.time, 
           args.summary,
-          duration
+          duration,
+          clientEmail
         );
         
         if (eventResult.success) {
@@ -1094,7 +1101,8 @@ async function createCalendarEvent(
   date: string,
   time: string,
   summary: string,
-  durationMinutes: number
+  durationMinutes: number,
+  attendeeEmail?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { data: tokenData } = await supabase
@@ -1130,9 +1138,9 @@ async function createCalendarEvent(
     const finalEndMinute = endMinute % 60;
     const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(finalEndHour).padStart(2, '0')}:${String(finalEndMinute).padStart(2, '0')}:00`;
 
-    console.log(`📅 Creating event: ${startDateStr} to ${endDateStr} (São Paulo timezone)`);
+    console.log(`📅 Creating event: ${startDateStr} to ${endDateStr} (São Paulo timezone)${attendeeEmail ? `, attendee: ${attendeeEmail}` : ''}`);
 
-    const calendarEvent = {
+    const calendarEvent: any = {
       summary,
       start: {
         dateTime: startDateStr,
@@ -1143,6 +1151,13 @@ async function createCalendarEvent(
         timeZone: "America/Sao_Paulo",
       },
     };
+
+    // Add attendee if email is provided - Google Calendar will send invite automatically
+    if (attendeeEmail) {
+      calendarEvent.attendees = [{ email: attendeeEmail }];
+      calendarEvent.sendUpdates = "all"; // Send email notification to attendees
+      console.log(`📧 Will send calendar invite to: ${attendeeEmail}`);
+    }
 
     const createResponse = await fetch(
       "https://www.googleapis.com/calendar/v3/calendars/primary/events",
