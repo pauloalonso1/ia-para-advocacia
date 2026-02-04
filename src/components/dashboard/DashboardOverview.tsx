@@ -29,10 +29,10 @@ const DashboardOverview = () => {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
-        <div className="grid grid-cols-12 gap-4">
-          <Skeleton className="col-span-5 h-64" />
-          <Skeleton className="col-span-4 h-64" />
-          <Skeleton className="col-span-3 h-64" />
+        <div className="grid grid-cols-3 gap-4">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
         </div>
       </div>
     );
@@ -78,10 +78,9 @@ const DashboardOverview = () => {
         </div>
       </div>
 
-      {/* Top Row - Metrics + Funnel Header Area */}
+      {/* Row 1: Metrics + Upcoming Meetings */}
       <div className="grid grid-cols-12 gap-4">
-        {/* Left Column - Metrics */}
-        <div className="col-span-5">
+        <div className="col-span-8">
           <MetricCards 
             total={metrics.totalLeads}
             totalChange={metrics.contactsChange}
@@ -90,28 +89,21 @@ const DashboardOverview = () => {
             peakDate="Hoje"
           />
         </div>
-        
-        {/* Right Column - Conversion Funnel (spans multiple rows) */}
-        <div className="col-span-4 row-span-2">
-          <ConversionFunnel steps={funnelSteps} />
-        </div>
-        
-        {/* Far Right - Upcoming Meetings */}
-        <div className="col-span-3">
+        <div className="col-span-4">
           <UpcomingMeetings />
         </div>
       </div>
 
-      {/* Middle Row */}
+      {/* Row 2: Charts */}
       <div className="grid grid-cols-12 gap-4">
         {/* Conversations Chart */}
         <div className="col-span-5">
           <ConversationsChart />
         </div>
         
-        {/* Funnel continues from above (already placed via row-span) */}
+        {/* Conversion Funnel */}
         <div className="col-span-4">
-          {/* This space is taken by the funnel */}
+          <ConversionFunnel steps={funnelSteps} />
         </div>
         
         {/* Tags Donut */}
@@ -120,9 +112,8 @@ const DashboardOverview = () => {
         </div>
       </div>
 
-      {/* Bottom Row */}
+      {/* Row 3: Map */}
       <div className="grid grid-cols-12 gap-4">
-        {/* Brazil Map */}
         <div className="col-span-5">
           <BrazilMap total={metrics.totalContacts} />
         </div>
