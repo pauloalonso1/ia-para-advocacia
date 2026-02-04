@@ -16,6 +16,8 @@ export interface Case {
   unread_count: number;
   last_message: string | null;
   last_message_at: string | null;
+  is_agent_paused: boolean;
+  assigned_to: string | null;
 }
 
 export interface Message {

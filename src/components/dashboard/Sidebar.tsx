@@ -8,7 +8,8 @@ import {
   Scale,
   LayoutDashboard,
   Contact,
-  LayoutGrid
+  LayoutGrid,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,7 @@ const menuItems = [
   { id: 'agents', label: 'Agentes IA', icon: Bot },
   { id: 'contacts', label: 'Contatos', icon: Contact },
   { id: 'crm', label: 'CRM Kanban', icon: LayoutGrid },
+  { id: 'team', label: 'Equipe', icon: Users },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 

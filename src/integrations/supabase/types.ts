@@ -260,6 +260,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cases_current_step_id_fkey"
             columns: ["current_step_id"]
             isOneToOne: false
@@ -585,6 +592,48 @@ export type Database = {
           work_days?: number[]
           work_end_hour?: number
           work_start_hour?: number
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean | null
+          name: string
+          oab_number: string | null
+          owner_id: string
+          phone: string | null
+          specialty: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          oab_number?: string | null
+          owner_id: string
+          phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          oab_number?: string | null
+          owner_id?: string
+          phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

@@ -248,9 +248,10 @@ serve(async (req) => {
       });
     }
 
-    // Check if agent is active for this case
-    if (!existingCase.active_agent_id) {
-      console.log("⏸️ No active agent for case, manual mode");
+    // Check if agent is active for this case or if paused
+    if (!existingCase.active_agent_id || existingCase.is_agent_paused) {
+      const reason = !existingCase.active_agent_id ? "no active agent" : "agent paused";
+      console.log(`⏸️ ${reason} for case, manual mode`);
       // Save message but don't respond automatically
       await supabase.from("conversation_history").insert({
         case_id: existingCase.id,
@@ -269,7 +270,7 @@ serve(async (req) => {
         })
         .eq("id", existingCase.id);
         
-      return new Response(JSON.stringify({ status: "manual_mode" }), {
+      return new Response(JSON.stringify({ status: "manual_mode", reason }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
