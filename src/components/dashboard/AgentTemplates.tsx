@@ -86,7 +86,7 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
               <Card
                 key={template.id}
                 className={cn(
-                  "cursor-pointer transition-all duration-200",
+                  "cursor-pointer transition-all duration-200 h-full flex flex-col",
                   "bg-card border-2",
                   isSelected
                     ? "border-primary ring-2 ring-primary/20"
@@ -98,16 +98,16 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center text-xl",
+                        "w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0",
                         colors.icon
                       )}>
                         {template.icon}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <CardTitle className="text-sm text-foreground flex items-center gap-2">
-                          {template.name}
+                          <span className="truncate">{template.name}</span>
                           {isSelected && (
-                            <Check className="w-4 h-4 text-primary" />
+                            <Check className="w-4 h-4 text-primary shrink-0" />
                           )}
                         </CardTitle>
                         <Badge className={cn(
@@ -121,8 +121,8 @@ const AgentTemplates = ({ onSelectTemplate, selectedTemplateId }: AgentTemplates
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-muted-foreground text-xs line-clamp-2">
+                <CardContent className="flex flex-col flex-grow">
+                  <CardDescription className="text-muted-foreground text-xs line-clamp-2 flex-grow">
                     {template.description}
                   </CardDescription>
                   <div className="flex flex-wrap gap-1 mt-2">
