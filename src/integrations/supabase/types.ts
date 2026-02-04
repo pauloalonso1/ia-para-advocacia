@@ -448,6 +448,45 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_settings: {
+        Row: {
+          appointment_duration_minutes: number
+          created_at: string
+          id: string
+          lunch_end_hour: number | null
+          lunch_start_hour: number | null
+          updated_at: string
+          user_id: string
+          work_days: number[]
+          work_end_hour: number
+          work_start_hour: number
+        }
+        Insert: {
+          appointment_duration_minutes?: number
+          created_at?: string
+          id?: string
+          lunch_end_hour?: number | null
+          lunch_start_hour?: number | null
+          updated_at?: string
+          user_id: string
+          work_days?: number[]
+          work_end_hour?: number
+          work_start_hour?: number
+        }
+        Update: {
+          appointment_duration_minutes?: number
+          created_at?: string
+          id?: string
+          lunch_end_hour?: number | null
+          lunch_start_hour?: number | null
+          updated_at?: string
+          user_id?: string
+          work_days?: number[]
+          work_end_hour?: number
+          work_start_hour?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

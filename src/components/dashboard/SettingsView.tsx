@@ -40,6 +40,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import GoogleCalendarSettings from './settings/GoogleCalendarSettings';
+import ScheduleSettings from './settings/ScheduleSettings';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -678,6 +679,9 @@ const SettingsView = () => {
 
           {/* Google Calendar Card */}
           <GoogleCalendarSettings />
+
+          {/* Schedule Settings Card */}
+          <ScheduleSettings />
 
           {/* Notifications Card */}
           <Card className="bg-card border-border">
