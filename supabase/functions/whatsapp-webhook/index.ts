@@ -266,6 +266,17 @@ serve(async (req) => {
       content: messageBody,
     });
 
+    // Reset follow-up counter when client responds
+    await supabase
+      .from("case_followups")
+      .update({ 
+        followup_count: 0, 
+        last_followup_at: null,
+        next_followup_at: null,
+        is_paused: false 
+      })
+      .eq("case_id", existingCase.id);
+
     // Update status to "Em Atendimento" if still "Novo Contato"
     if (existingCase.status === "Novo Contato") {
       await supabase

@@ -158,6 +158,50 @@ export type Database = {
         }
         Relationships: []
       }
+      case_followups: {
+        Row: {
+          case_id: string
+          created_at: string
+          followup_count: number
+          id: string
+          is_paused: boolean | null
+          last_followup_at: string | null
+          next_followup_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          followup_count?: number
+          id?: string
+          is_paused?: boolean | null
+          last_followup_at?: string | null
+          next_followup_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          followup_count?: number
+          id?: string
+          is_paused?: boolean | null
+          last_followup_at?: string | null
+          next_followup_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_followups_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: true
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           active_agent_id: string | null
@@ -343,6 +387,48 @@ export type Database = {
           updated_at?: string
           user_id?: string
           webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      followup_settings: {
+        Row: {
+          created_at: string
+          followup_message_1: string | null
+          followup_message_2: string | null
+          followup_message_3: string | null
+          id: string
+          inactivity_hours: number
+          is_enabled: boolean | null
+          max_followups: number
+          respect_business_hours: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          followup_message_1?: string | null
+          followup_message_2?: string | null
+          followup_message_3?: string | null
+          id?: string
+          inactivity_hours?: number
+          is_enabled?: boolean | null
+          max_followups?: number
+          respect_business_hours?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          followup_message_1?: string | null
+          followup_message_2?: string | null
+          followup_message_3?: string | null
+          id?: string
+          inactivity_hours?: number
+          is_enabled?: boolean | null
+          max_followups?: number
+          respect_business_hours?: boolean | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
