@@ -24,36 +24,43 @@ const DashboardOverview = () => {
           </div>
           <Skeleton className="h-10 w-48" />
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-5 space-y-6">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-64" />
+            <Skeleton className="h-80" />
+          </div>
+          <div className="col-span-4">
+            <Skeleton className="h-[600px]" />
+          </div>
+          <div className="col-span-3 space-y-6">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-80" />
+          </div>
         </div>
       </div>
     );
   }
 
-  // Calculate funnel steps from real metrics
+  // Funnel steps based on reference image
   const funnelSteps = [
-    { name: 'Recepção', count: metrics.totalLeads, rate: 100, color: 'bg-blue-500' },
-    { name: 'Qualificação do lead', count: metrics.qualifiedLeads, rate: metrics.totalLeads > 0 ? Math.round((metrics.qualifiedLeads / metrics.totalLeads) * 100) : 0, color: 'bg-cyan-500' },
-    { name: 'Em Atendimento', count: Math.floor(metrics.totalLeads * 0.3), rate: 30, color: 'bg-teal-500' },
-    { name: 'Oferta enviada', count: Math.floor(metrics.totalLeads * 0.2), rate: 20, color: 'bg-green-500' },
-    { name: 'Contrato Enviado', count: Math.floor(metrics.convertedLeads * 0.8), rate: metrics.totalLeads > 0 ? Math.round((metrics.convertedLeads * 0.8 / metrics.totalLeads) * 100) : 0, color: 'bg-lime-500' },
-    { name: 'Convertido', count: metrics.convertedLeads, rate: metrics.conversionRate, color: 'bg-emerald-500' },
+    { name: 'Recepção', count: 51, rate: 45.9, color: 'bg-blue-500' },
+    { name: 'Qualificação do lead', count: 9, rate: 8.1, color: 'bg-cyan-500' },
+    { name: 'Análise de viabilidade', count: 9, rate: 8.1, color: 'bg-teal-500' },
+    { name: 'Oferta do contrato', count: 10, rate: 9.0, color: 'bg-green-500' },
+    { name: 'Contrato Enviado', count: 4, rate: 3.6, color: 'bg-lime-500' },
+    { name: 'Agendamento feito', count: 5, rate: 4.5, color: 'bg-yellow-500' },
+    { name: 'Desqualificado', count: 5, rate: 4.5, color: 'bg-orange-500' },
+    { name: 'Não tem interesse', count: 9, rate: 8.1, color: 'bg-red-500' },
+    { name: 'Reunião Feita', count: 1, rate: 0.9, color: 'bg-purple-500' },
   ];
 
-  // Tags data from status distribution
+  // Tags data from reference image
   const tagsData = [
-    { name: 'Em Atendimento', value: Math.floor(metrics.totalLeads * 0.4), color: '#818cf8' },
-    { name: 'Qualificados', value: metrics.qualifiedLeads, color: '#38bdf8' },
-    { name: 'Novos', value: Math.floor(metrics.totalLeads * 0.3), color: '#4ade80' },
-    { name: 'Convertidos', value: metrics.convertedLeads, color: '#fb923c' },
+    { name: 'Rescisão Indireta', value: 14, color: '#818cf8' },
+    { name: 'Reconhecimento de vínculo', value: 13, color: '#38bdf8' },
+    { name: 'Aguardando documentação', value: 4, color: '#fb923c' },
+    { name: 'Novo Lead', value: 3, color: '#4ade80' },
   ];
 
   return (
@@ -66,7 +73,7 @@ const DashboardOverview = () => {
           </h1>
           <p className="text-muted-foreground">Visão geral das conversas e contatos</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" className="text-xs">
             <Calendar className="w-3.5 h-3.5 mr-1.5" />
             {dateRange}
@@ -78,44 +85,30 @@ const DashboardOverview = () => {
         </div>
       </div>
 
-      {/* Row 1: Metrics + Upcoming Meetings */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-8">
+      {/* Main 3-column layout */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Column: Metrics + Chart + Map */}
+        <div className="col-span-5 space-y-6">
           <MetricCards 
-            total={metrics.totalLeads}
-            totalChange={metrics.contactsChange}
-            average={metrics.messagesSent / 30}
-            peak={Math.max(metrics.messagesSent, 27)}
-            peakDate="Hoje"
+            total={111}
+            totalChange={56}
+            average={3.8}
+            peak={27}
+            peakDate="18/11"
           />
-        </div>
-        <div className="col-span-4">
-          <UpcomingMeetings />
-        </div>
-      </div>
-
-      {/* Row 2: Charts */}
-      <div className="grid grid-cols-12 gap-4">
-        {/* Conversations Chart */}
-        <div className="col-span-5">
           <ConversationsChart />
+          <BrazilMap total={89} />
         </div>
         
-        {/* Conversion Funnel */}
+        {/* Center Column: Conversion Funnel */}
         <div className="col-span-4">
           <ConversionFunnel steps={funnelSteps} />
         </div>
         
-        {/* Tags Donut */}
-        <div className="col-span-3">
+        {/* Right Column: Meetings + Tags */}
+        <div className="col-span-3 space-y-6">
+          <UpcomingMeetings />
           <TagsDonutChart data={tagsData} />
-        </div>
-      </div>
-
-      {/* Row 3: Map */}
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-5">
-          <BrazilMap total={metrics.totalContacts} />
         </div>
       </div>
     </div>
