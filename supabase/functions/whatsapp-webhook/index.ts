@@ -1119,17 +1119,27 @@ async function createCalendarEvent(
       year = currentYear;
     }
     
-    const startDateTime = new Date(year, month - 1, day, hour, minute);
-    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
+    // Format as local datetime string for São Paulo timezone
+    // Use format without timezone offset, let Google Calendar handle it with the timeZone parameter
+    const startDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute || 0).padStart(2, '0')}:00`;
+    
+    // Calculate end time
+    const endHour = hour + Math.floor(durationMinutes / 60);
+    const endMinute = (minute || 0) + (durationMinutes % 60);
+    const finalEndHour = endHour + Math.floor(endMinute / 60);
+    const finalEndMinute = endMinute % 60;
+    const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(finalEndHour).padStart(2, '0')}:${String(finalEndMinute).padStart(2, '0')}:00`;
+
+    console.log(`📅 Creating event: ${startDateStr} to ${endDateStr} (São Paulo timezone)`);
 
     const calendarEvent = {
       summary,
       start: {
-        dateTime: startDateTime.toISOString(),
+        dateTime: startDateStr,
         timeZone: "America/Sao_Paulo",
       },
       end: {
-        dateTime: endDateTime.toISOString(),
+        dateTime: endDateStr,
         timeZone: "America/Sao_Paulo",
       },
     };
