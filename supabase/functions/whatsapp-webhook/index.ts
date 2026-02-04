@@ -540,6 +540,197 @@ async function processWithAI(
 ): Promise<{ response_text: string; action: "PROCEED" | "STAY"; new_status?: string }> {
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // --- Calendar deterministic completion (fix: model sometimes loops on availability) ---
+  // If the user already picked a time and later sends the email (or vice-versa),
+  // we auto-complete the booking instead of relying on the LLM to call the right tool.
+  if (hasCalendarConnected) {
+    const TZ = "America/Sao_Paulo";
+    const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+
+    const extractEmail = (text: string): string | null => {
+      const m = text.match(emailRegex);
+      return m?.[0]?.toLowerCase() ?? null;
+    };
+
+    const normalizeTime = (hour: number, minute: number) =>
+      `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
+    const parseSelection = (text: string): { date?: string; time?: string; weekday?: string } | null => {
+      const lower = text.toLowerCase();
+      const dateMatch = lower.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+
+      // Accept: 09:00, 9:00, 9h30, 9h, 09h
+      let time: string | undefined;
+      const timeMatch = lower.match(/\b([01]?\d|2[0-3])\s*(?:(:|h)\s*([0-5]\d))\b|\b([01]?\d|2[0-3])\s*h\b/);
+      if (timeMatch) {
+        const hourStr = timeMatch[1] ?? timeMatch[4];
+        const minuteStr = timeMatch[3] ?? "00";
+        const hour = Number(hourStr);
+        const minute = Number(minuteStr);
+        if (!Number.isNaN(hour) && hour >= 0 && hour <= 23 && !Number.isNaN(minute) && minute >= 0 && minute <= 59) {
+          time = normalizeTime(hour, minute);
+        }
+      }
+
+      const weekdayCandidates: Array<{ key: string; words: string[] }> = [
+        { key: "domingo", words: ["domingo", "dom"] },
+        { key: "segunda", words: ["segunda", "seg"] },
+        { key: "terça", words: ["terça", "terca", "ter"] },
+        { key: "quarta", words: ["quarta", "qua"] },
+        { key: "quinta", words: ["quinta", "qui"] },
+        { key: "sexta", words: ["sexta", "sex"] },
+        { key: "sábado", words: ["sábado", "sabado", "sáb", "sab"] },
+      ];
+
+      let weekday: string | undefined;
+      for (const c of weekdayCandidates) {
+        if (c.words.some((w) => new RegExp(`\\b${w}\\b`, "i").test(lower))) {
+          weekday = c.key;
+          break;
+        }
+      }
+
+      const date = dateMatch?.[1];
+      if (!date && !time && !weekday) return null;
+      return { date: date ?? undefined, time, weekday };
+    };
+
+    const formatDateKeySP = (d: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+
+    const formatTimeSP = (d: Date) =>
+      new Intl.DateTimeFormat("pt-BR", {
+        timeZone: TZ,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(d);
+
+    const formatWeekdaySP = (d: Date) =>
+      new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, weekday: "long" }).format(d).toLowerCase();
+
+    const hasPresentedSlots = history.some(
+      (h) =>
+        h.role !== "client" &&
+        /hor[aá]rios\s*:/i.test(String(h.content || "")) &&
+        /\(20\d{2}-\d{2}-\d{2}\)/.test(String(h.content || ""))
+    );
+
+    const emailInMessage = extractEmail(clientMessage);
+    const emailInHistory =
+      (history.map((h) => extractEmail(String(h.content || ""))).find(Boolean) as string | undefined) ?? null;
+    const email = emailInMessage ?? emailInHistory;
+
+    const selectionFromMessage = emailRegex.test(clientMessage) ? null : parseSelection(clientMessage);
+
+    const selectionFromHistory = (() => {
+      for (let i = history.length - 1; i >= 0; i--) {
+        const h = history[i];
+        if (h.role !== "client") continue;
+        const content = String(h.content || "");
+        if (emailRegex.test(content)) continue;
+        const sel = parseSelection(content);
+        if (sel?.time) return sel;
+      }
+      return null;
+    })();
+
+    const selection = selectionFromMessage ?? selectionFromHistory;
+
+    const shouldAutoBook =
+      hasPresentedSlots &&
+      !!email &&
+      !!selection?.time &&
+      (
+        // Sequence A: user selected a time earlier and is now sending the email
+        !!emailInMessage ||
+        // Sequence B: user sent email earlier and is now selecting a time
+        !!selectionFromMessage
+      );
+
+    if (shouldAutoBook) {
+      try {
+        // Fetch slots and pick the earliest matching option for the chosen weekday/date+time
+        const slots = await getCalendarAvailability(supabase, userId, 14);
+
+        const desiredTime = selection!.time!;
+        const desiredDate = selection!.date;
+        const desiredWeekday = selection!.weekday; // ex: "quinta"
+
+        const candidates = slots
+          .map((s) => ({ raw: s, d: new Date(s.start) }))
+          .filter(({ d }) => {
+            const slotTime = formatTimeSP(d);
+            if (slotTime !== desiredTime) return false;
+            if (desiredDate) return formatDateKeySP(d) === desiredDate;
+            if (desiredWeekday) return formatWeekdaySP(d).startsWith(desiredWeekday);
+            // If no date/weekday was provided, we can't safely disambiguate. Require at least weekday/date.
+            return false;
+          })
+          .sort((a, b) => a.d.getTime() - b.d.getTime());
+
+        const chosen = candidates[0];
+
+        if (!chosen) {
+          return {
+            response_text:
+              "Não encontrei esse horário livre no calendário. Pode escolher um dos horários que enviei (de preferência indicando o dia), por favor?",
+            action: "STAY",
+          };
+        }
+
+        // Default duration from settings
+        const { data: scheduleSettings } = await supabase
+          .from("schedule_settings")
+          .select("appointment_duration_minutes")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        const duration = scheduleSettings?.appointment_duration_minutes || 60;
+
+        const dateKey = formatDateKeySP(chosen.d);
+        const timeStr = formatTimeSP(chosen.d);
+        const summary = `Consulta - ${clientName}`;
+
+        console.log(
+          `📅 Auto-booking: date=${dateKey}, time=${timeStr}, summary=${summary}, duration=${duration}, email=${email}`
+        );
+
+        const eventResult = await createCalendarEvent(supabase, userId, dateKey, timeStr, summary, duration, email);
+
+        if (!eventResult.success) {
+          return {
+            response_text: `Desculpe, não consegui concluir o agendamento agora (${eventResult.error}). Quer tentar outro horário?`,
+            action: "STAY",
+          };
+        }
+
+        return {
+          response_text: `Perfeito, ${clientName}! Agendei sua consulta para *${dateKey}* às *${timeStr}*. Vou enviar o convite no e-mail *${email}*.`,
+          action: "STAY",
+          new_status: "Qualificado",
+        };
+      } catch (e) {
+        console.error("Auto-booking error:", e);
+        // Fall back to normal AI flow
+      }
+    }
+
+    // If user sends only email but we don't have a clear time selection, ask for the chosen time.
+    if (hasPresentedSlots && !!emailInMessage && !selectionFromHistory?.time) {
+      return {
+        response_text:
+          "Obrigado! Agora me diga qual horário você escolheu (ex: *quinta às 09:00*), para eu confirmar o agendamento e te enviar o convite.",
+        action: "STAY",
+      };
+    }
+  }
   
   // Build context about the script
   const scriptContext = allSteps.map((s, i) => 
