@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Case } from '@/hooks/useCases';
 import { useAgents } from '@/hooks/useAgents';
+import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useAISummary } from '@/hooks/useAISummary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CRMPanelProps {
   selectedCase: Case | null;
@@ -62,11 +64,13 @@ const crmStages = [
 
 const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }: CRMPanelProps) => {
   const { agents } = useAgents();
+  const { activeMembers } = useTeamMembers();
   const { loading: summaryLoading, summary, generateSummary, clearSummary } = useAISummary();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [aiStatus, setAiStatus] = useState<'active' | 'paused' | 'disabled'>('disabled');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [selectedResponsibleId, setSelectedResponsibleId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('info');
 
   // Clear summary when case changes
@@ -76,13 +80,18 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
 
   useEffect(() => {
     if (selectedCase) {
+      // Determine AI status based on active_agent_id and is_agent_paused
       if (selectedCase.active_agent_id) {
-        setAiStatus('active');
+        // Check if paused - need to get from case data
+        const isPaused = (selectedCase as any).is_agent_paused;
+        setAiStatus(isPaused ? 'paused' : 'active');
         setSelectedAgentId(selectedCase.active_agent_id);
       } else {
         setAiStatus('disabled');
         setSelectedAgentId('');
       }
+      // Set responsible
+      setSelectedResponsibleId((selectedCase as any).assigned_to || '');
     }
   }, [selectedCase]);
 
@@ -134,21 +143,63 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
     setEditedName('');
   };
 
-  const handleAiStatusChange = (status: 'active' | 'paused' | 'disabled') => {
+  const handleAiStatusChange = async (status: 'active' | 'paused' | 'disabled') => {
+    if (!selectedCase) return;
     setAiStatus(status);
+    
     if (status === 'disabled') {
+      // Disable agent completely
       onAssignAgent(selectedCase.id, null);
       setSelectedAgentId('');
-    } else if (status === 'active' && activeAgents.length > 0) {
-      const defaultAgent = activeAgents.find(a => a.is_default) || activeAgents[0];
-      setSelectedAgentId(defaultAgent.id);
-      onAssignAgent(selectedCase.id, defaultAgent.id);
+      await supabase
+        .from('cases')
+        .update({ is_agent_paused: false })
+        .eq('id', selectedCase.id);
+    } else if (status === 'paused') {
+      // Pause but keep agent assigned
+      await supabase
+        .from('cases')
+        .update({ is_agent_paused: true })
+        .eq('id', selectedCase.id);
+    } else if (status === 'active') {
+      // Activate agent
+      if (!selectedAgentId && activeAgents.length > 0) {
+        const defaultAgent = activeAgents.find(a => a.is_default) || activeAgents[0];
+        setSelectedAgentId(defaultAgent.id);
+        onAssignAgent(selectedCase.id, defaultAgent.id);
+      } else if (selectedAgentId) {
+        onAssignAgent(selectedCase.id, selectedAgentId);
+      }
+      await supabase
+        .from('cases')
+        .update({ is_agent_paused: false })
+        .eq('id', selectedCase.id);
     }
   };
 
+  const handleResponsibleChange = async (memberId: string) => {
+    if (!selectedCase) return;
+    const assignedTo = memberId === 'none' ? null : memberId;
+    setSelectedResponsibleId(memberId);
+    
+    await supabase
+      .from('cases')
+      .update({ assigned_to: assignedTo })
+      .eq('id', selectedCase.id);
+  };
+
   const handleAgentChange = (agentId: string) => {
+    if (!selectedCase) return;
     setSelectedAgentId(agentId);
     onAssignAgent(selectedCase.id, agentId);
+    // Also ensure agent is active when changing
+    if (aiStatus !== 'active') {
+      setAiStatus('active');
+      supabase
+        .from('cases')
+        .update({ is_agent_paused: false })
+        .eq('id', selectedCase.id);
+    }
   };
 
   return (
@@ -329,12 +380,20 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
                   <User className="w-3 h-3" />
                   Responsável
                 </Label>
-                <Select defaultValue="none">
+                <Select 
+                  value={selectedResponsibleId || 'none'} 
+                  onValueChange={handleResponsibleChange}
+                >
                   <SelectTrigger className="h-8 bg-background border-border text-xs">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="none">Selecione</SelectItem>
+                    <SelectItem value="none">Não atribuído</SelectItem>
+                    {activeMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

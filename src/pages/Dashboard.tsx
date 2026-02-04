@@ -6,6 +6,7 @@ import ConversationsView from '@/components/dashboard/ConversationsView';
 import SettingsView from '@/components/dashboard/SettingsView';
 import CRMKanbanView from '@/components/dashboard/CRMKanbanView';
 import DashboardOverview from '@/components/dashboard/DashboardOverview';
+import TeamMembersView from '@/components/dashboard/TeamMembersView';
 import { cn } from '@/lib/utils';
 
 interface DashboardProps {
@@ -37,6 +38,8 @@ const Dashboard = ({ initialTab = 'agents' }: DashboardProps) => {
         );
       case 'conversations':
         return <ConversationsView />;
+      case 'team':
+        return <TeamMembersView />;
       case 'settings':
         return <SettingsView />;
       default:
