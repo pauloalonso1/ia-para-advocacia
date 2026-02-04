@@ -356,6 +356,7 @@ serve(async (req) => {
       history,
       steps,
       existingCase.client_name || clientName,
+      clientPhone,
       hasCalendarConnected,
       userId
     );
@@ -535,6 +536,7 @@ async function processWithAI(
   history: any[],
   allSteps: any[],
   clientName: string,
+  clientPhone: string,
   hasCalendarConnected: boolean,
   userId: string
 ): Promise<{ response_text: string; action: "PROCEED" | "STAY"; new_status?: string }> {
@@ -710,6 +712,9 @@ async function processWithAI(
             action: "STAY",
           };
         }
+
+        // Save email to contact record
+        await updateContactEmail(supabase, userId, clientPhone, email);
 
         return {
           response_text: `Perfeito, ${clientName}! Agendei sua consulta para *${dateKey}* às *${timeStr}*. Vou enviar o convite no e-mail *${email}*.`,
@@ -1480,4 +1485,28 @@ async function sendWhatsAppMessage(
   }
 
   console.log(`✅ Message sent to ${phone}`);
+}
+
+// Helper function to update contact email when client provides it
+async function updateContactEmail(
+  supabase: any,
+  userId: string,
+  clientPhone: string,
+  email: string
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("contacts")
+      .update({ email })
+      .eq("user_id", userId)
+      .eq("phone", clientPhone);
+
+    if (error) {
+      console.error("❌ Error updating contact email:", error);
+    } else {
+      console.log(`📧 Contact email updated: ${email} for phone ${clientPhone}`);
+    }
+  } catch (e) {
+    console.error("Error updating contact email:", e);
+  }
 }
