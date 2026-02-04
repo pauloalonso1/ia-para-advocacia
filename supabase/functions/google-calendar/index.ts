@@ -222,15 +222,36 @@ serve(async (req) => {
             dateTime: event.endDateTime,
             timeZone: "America/Sao_Paulo",
           },
+          // Add Google Meet conference link
+          conferenceData: {
+            createRequest: {
+              requestId: crypto.randomUUID(),
+              conferenceSolutionKey: {
+                type: "hangoutsMeet"
+              }
+            }
+          },
+          // Send notifications to attendees
+          reminders: {
+            useDefault: false,
+            overrides: [
+              { method: "email", minutes: 60 },
+              { method: "popup", minutes: 10 }
+            ]
+          }
         };
 
         if (event.attendeeEmail) {
           calendarEvent.attendees = [{ email: event.attendeeEmail }];
-          calendarEvent.sendUpdates = "all";
+          // Guest settings
+          calendarEvent.guestsCanModify = false;
+          calendarEvent.guestsCanInviteOthers = false;
+          calendarEvent.guestsCanSeeOtherGuests = true;
         }
 
+        // conferenceDataVersion=1 enables creating Google Meet links
         const createResponse = await fetch(
-          "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+          "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all",
           {
             method: "POST",
             headers: {
