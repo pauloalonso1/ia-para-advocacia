@@ -837,7 +837,18 @@ ${calendarContext}
     if (funcName === "create_calendar_event") {
       try {
         const args = JSON.parse(funcArgs);
-        console.log(`📅 Creating event with args: date=${args.date}, time=${args.time}, summary=${args.summary}, duration=${args.duration_minutes || 60}`);
+        
+        // Get user's schedule settings for default duration
+        const { data: scheduleSettings } = await supabase
+          .from("schedule_settings")
+          .select("appointment_duration_minutes")
+          .eq("user_id", userId)
+          .maybeSingle();
+        
+        const defaultDuration = scheduleSettings?.appointment_duration_minutes || 60;
+        const duration = args.duration_minutes || defaultDuration;
+        
+        console.log(`📅 Creating event with args: date=${args.date}, time=${args.time}, summary=${args.summary}, duration=${duration}min`);
         
         const eventResult = await createCalendarEvent(
           supabase, 
@@ -845,7 +856,7 @@ ${calendarContext}
           args.date, 
           args.time, 
           args.summary,
-          args.duration_minutes || 60
+          duration
         );
         
         if (eventResult.success) {
@@ -971,6 +982,23 @@ async function getCalendarAvailability(
   daysAhead: number
 ): Promise<{ start: string; end: string }[]> {
   try {
+    // Get user's schedule settings
+    const { data: scheduleSettings } = await supabase
+      .from("schedule_settings")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    // Use custom settings or defaults
+    const workStartHour = scheduleSettings?.work_start_hour ?? 9;
+    const workEndHour = scheduleSettings?.work_end_hour ?? 18;
+    const lunchStartHour = scheduleSettings?.lunch_start_hour ?? null;
+    const lunchEndHour = scheduleSettings?.lunch_end_hour ?? null;
+    const appointmentDuration = scheduleSettings?.appointment_duration_minutes ?? 60;
+    const workDays: number[] = scheduleSettings?.work_days ?? [1, 2, 3, 4, 5]; // Default Mon-Fri
+
+    console.log(`📅 Schedule settings: ${workStartHour}h-${workEndHour}h, lunch: ${lunchStartHour}-${lunchEndHour}, duration: ${appointmentDuration}min, days: ${workDays.join(',')}`);
+
     const { data: tokenData } = await supabase
       .from("google_calendar_tokens")
       .select("*")
@@ -997,38 +1025,61 @@ async function getCalendarAvailability(
       end: event.end?.dateTime || event.end?.date,
     }));
 
-    // Generate available slots (9h-18h, 1 hour slots)
+    // Generate available slots based on user settings
     const availableSlots: { start: string; end: string }[] = [];
     const currentDate = new Date(start);
     currentDate.setHours(0, 0, 0, 0);
 
+    const slotDurationMs = appointmentDuration * 60 * 1000;
+
     while (currentDate <= end) {
-      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-        for (let hour = 9; hour < 18; hour++) {
-          const slotStart = new Date(currentDate);
-          slotStart.setHours(hour, 0, 0, 0);
-          const slotEnd = new Date(slotStart);
-          slotEnd.setHours(hour + 1, 0, 0, 0);
+      const dayOfWeek = currentDate.getDay();
+      
+      // Check if this day is a work day
+      if (workDays.includes(dayOfWeek)) {
+        // Generate slots for work hours
+        let currentHour = workStartHour;
+        let currentMinute = 0;
+        
+        while (currentHour < workEndHour) {
+          // Check if this slot falls during lunch break
+          const isLunchTime = lunchStartHour !== null && lunchEndHour !== null &&
+            currentHour >= lunchStartHour && currentHour < lunchEndHour;
+          
+          if (!isLunchTime) {
+            const slotStart = new Date(currentDate);
+            slotStart.setHours(currentHour, currentMinute, 0, 0);
+            const slotEnd = new Date(slotStart.getTime() + slotDurationMs);
 
-          if (slotStart > new Date()) {
-            const isBusy = busySlots.some((busy: any) => {
-              const busyStart = new Date(busy.start);
-              const busyEnd = new Date(busy.end);
-              return slotStart < busyEnd && slotEnd > busyStart;
-            });
-
-            if (!isBusy) {
-              availableSlots.push({
-                start: slotStart.toISOString(),
-                end: slotEnd.toISOString(),
+            // Only add if slot is in the future and doesn't exceed work hours
+            if (slotStart > new Date() && slotEnd.getHours() <= workEndHour) {
+              const isBusy = busySlots.some((busy: any) => {
+                const busyStart = new Date(busy.start);
+                const busyEnd = new Date(busy.end);
+                return slotStart < busyEnd && slotEnd > busyStart;
               });
+
+              if (!isBusy) {
+                availableSlots.push({
+                  start: slotStart.toISOString(),
+                  end: slotEnd.toISOString(),
+                });
+              }
             }
+          }
+          
+          // Move to next slot
+          currentMinute += appointmentDuration;
+          if (currentMinute >= 60) {
+            currentHour += Math.floor(currentMinute / 60);
+            currentMinute = currentMinute % 60;
           }
         }
       }
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    console.log(`📅 Generated ${availableSlots.length} available slots`);
     return availableSlots;
   } catch (error) {
     console.error("Error getting calendar availability:", error);
