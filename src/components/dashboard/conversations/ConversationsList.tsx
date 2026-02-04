@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,10 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, MessageSquare, Phone, MoreVertical, Trash2, Bot, Filter, X } from 'lucide-react';
+import { Search, MessageSquare, MoreVertical, Trash2, Bot, Filter, RefreshCw, Plus, Volume2, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface ConversationsListProps {
   cases: Case[];
@@ -36,22 +35,22 @@ interface ConversationsListProps {
 }
 
 const statusColors: Record<string, string> = {
-  'Novo Contato': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'Em Atendimento': 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  'Qualificado': 'bg-green-500/20 text-green-400 border-green-500/30',
-  'Não Qualificado': 'bg-destructive/20 text-destructive border-destructive/30',
-  'Convertido': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  'Arquivado': 'bg-muted text-muted-foreground border-border',
+  'Novo Contato': 'bg-blue-500',
+  'Em Atendimento': 'bg-amber-500',
+  'Qualificado': 'bg-green-500',
+  'Não Qualificado': 'bg-destructive',
+  'Convertido': 'bg-purple-500',
+  'Arquivado': 'bg-muted-foreground',
 };
 
-const statusFilters = [
-  { id: 'all', label: 'Todos' },
-  { id: 'Novo Contato', label: 'Novos' },
-  { id: 'Em Atendimento', label: 'Em Atendimento' },
-  { id: 'Qualificado', label: 'Qualificados' },
-  { id: 'Convertido', label: 'Convertidos' },
-  { id: 'Arquivado', label: 'Arquivados' },
-];
+const statusBadgeColors: Record<string, string> = {
+  'Novo Contato': 'bg-blue-500/20 text-blue-400',
+  'Em Atendimento': 'bg-amber-500/20 text-amber-400',
+  'Qualificado': 'bg-green-500/20 text-green-400',
+  'Não Qualificado': 'bg-destructive/20 text-destructive',
+  'Convertido': 'bg-purple-500/20 text-purple-400',
+  'Arquivado': 'bg-muted text-muted-foreground',
+};
 
 const ConversationsList = ({ 
   cases, 
@@ -65,24 +64,24 @@ const ConversationsList = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('all');
+
+  // Count cases by filter
+  const casesWithAI = cases.filter(c => c.active_agent_id);
+  const casesUnread = cases.filter(c => (c.unread_count || 0) > 0);
+  const _totalUnread = cases.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
   const filteredCases = cases.filter(c => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.client_phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+      c.client_phone.includes(searchTerm) ||
+      c.last_message?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    let matchesTab = true;
+    if (activeTab === 'ai') matchesTab = !!c.active_agent_id;
+    if (activeTab === 'unread') matchesTab = (c.unread_count || 0) > 0;
+    
+    return matchesSearch && matchesTab;
   });
-
-  // Count cases by status
-  const statusCounts = cases.reduce((acc, c) => {
-    const status = c.status || 'Novo Contato';
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const totalUnread = cases.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
   const getInitials = (name: string | null, phone: string) => {
     if (name) {
@@ -94,17 +93,35 @@ const ConversationsList = ({
   const formatPhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 13) {
-      return `(${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
+      return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
     }
     if (cleaned.length === 12) {
-      return `(${cleaned.slice(2, 4)}) ${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
+      return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
     }
     return phone;
   };
 
-  const truncateMessage = (message: string | null, maxLength: number = 40) => {
+  const truncateMessage = (message: string | null, maxLength: number = 35) => {
     if (!message) return '';
     return message.length > maxLength ? message.slice(0, maxLength) + '...' : message;
+  };
+
+  const formatTime = (dateStr: string | null) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) {
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } else if (days === 1) {
+      return 'Ontem';
+    } else if (days < 7) {
+      return date.toLocaleDateString('pt-BR', { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    }
   };
 
   const handleDeleteClick = (e: React.MouseEvent, caseItem: Case) => {
@@ -124,103 +141,82 @@ const ConversationsList = ({
 
   return (
     <>
-      <div className="w-80 border-r border-border flex flex-col bg-card/50">
-        {/* Header */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              Conversas
-              {totalUnread > 0 && (
-                <Badge className="bg-primary text-primary-foreground text-xs px-1.5 py-0 min-w-[20px] h-5">
-                  {totalUnread}
-                </Badge>
-              )}
-            </h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                "h-8 w-8",
-                showFilters && "bg-primary/20 text-primary"
-              )}
-            >
-              <Filter className="w-4 h-4" />
+      <div className="w-80 border-r border-border flex flex-col bg-card">
+        {/* Top Bar with Search and Actions */}
+        <div className="p-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Pesquisar..."
+                className="pl-9 h-9 bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="h-9 px-3 text-xs gap-1.5">
+              <Filter className="w-3.5 h-3.5" />
+              Filtros
+            </Button>
+            <Button variant="outline" size="sm" className="h-9 px-3 text-xs gap-1.5">
+              <RefreshCw className="w-3.5 h-3.5" />
+              Follow-up
             </Button>
           </div>
+        </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar conversa..."
-              className="pl-10 bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50"
-            />
-          </div>
-
-          {/* Status Filters */}
-          {showFilters && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {statusFilters.map((filter) => {
-                const count = filter.id === 'all' 
-                  ? cases.length 
-                  : statusCounts[filter.id] || 0;
-                const isActive = statusFilter === filter.id;
-                
-                return (
-                  <button
-                    key={filter.id}
-                    onClick={() => setStatusFilter(filter.id)}
-                    className={cn(
-                      "px-2 py-1 text-xs rounded-full transition-colors flex items-center gap-1",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    )}
-                  >
-                    {filter.label}
-                    {count > 0 && (
-                      <span className={cn(
-                        "text-[10px] px-1 rounded-full",
-                        isActive ? "bg-primary-foreground/20" : "bg-foreground/10"
-                      )}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Active filter indicator */}
-          {statusFilter !== 'all' && !showFilters && (
-            <div className="mt-2 flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {statusFilters.find(f => f.id === statusFilter)?.label}
+        {/* Tabs */}
+        <div className="px-3 py-2 border-b border-border">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                activeTab === 'all' 
+                  ? "bg-muted text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Tudo
+            </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                activeTab === 'ai' 
+                  ? "bg-muted text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              IA ativa
+              <Badge className="bg-primary/20 text-primary text-[10px] px-1.5 py-0 h-4">
+                {casesWithAI.length}
               </Badge>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setStatusFilter('all')}
-                className="h-5 w-5"
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          )}
+            </button>
+            <button
+              onClick={() => setActiveTab('unread')}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                activeTab === 'unread' 
+                  ? "bg-muted text-foreground" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Não lidas
+              <Badge className="bg-destructive/20 text-destructive text-[10px] px-1.5 py-0 h-4">
+                {casesUnread.length}
+              </Badge>
+            </button>
+          </div>
         </div>
 
         {/* Conversations List */}
         <ScrollArea className="flex-1">
           {loading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="w-12 h-12 rounded-full bg-muted" />
+            <div className="p-3 space-y-2">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="w-10 h-10 rounded-full bg-muted" />
                   <div className="flex-1">
                     <div className="h-4 bg-muted rounded w-3/4 mb-2" />
                     <div className="h-3 bg-muted rounded w-1/2" />
@@ -232,51 +228,43 @@ const ConversationsList = ({
             <div className="p-8 text-center">
               <MessageSquare className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
               <p className="text-muted-foreground text-sm">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Nenhuma conversa encontrada' 
-                  : 'Nenhuma conversa ainda'}
+                {searchTerm ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
               </p>
             </div>
           ) : (
-            <div className="p-2">
+            <div className="py-1">
               {filteredCases.map((caseItem) => {
                 const isTyping = typingCases.has(caseItem.id);
                 const hasUnread = (caseItem.unread_count || 0) > 0;
+                const isSelected = selectedCaseId === caseItem.id;
+                const hasAudio = caseItem.last_message?.includes('[Áudio]');
                 
                 return (
                   <div
                     key={caseItem.id}
                     className={cn(
-                      "group relative w-full p-3 rounded-xl text-left transition-all duration-200 mb-1 cursor-pointer",
-                      "hover:bg-accent",
-                      selectedCaseId === caseItem.id 
-                        ? "bg-primary/10 border border-primary/30" 
-                        : "bg-transparent border border-transparent",
-                      hasUnread && selectedCaseId !== caseItem.id && "bg-primary/5"
+                      "group relative w-full px-3 py-2.5 text-left transition-all cursor-pointer border-l-4",
+                      isSelected 
+                        ? "bg-primary/10 border-l-primary" 
+                        : "border-l-transparent hover:bg-accent/50",
+                      hasUnread && !isSelected && "bg-primary/5"
                     )}
                     onClick={() => onSelectCase(caseItem)}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Avatar with unread indicator */}
-                      <div className="relative">
-                        <Avatar className={cn(
-                          "w-11 h-11 border-2 shrink-0",
-                          hasUnread ? "border-primary" : "border-border"
+                      {/* Avatar */}
+                      <Avatar className="w-10 h-10 shrink-0">
+                        <AvatarFallback className={cn(
+                          "text-white font-medium text-sm",
+                          statusColors[caseItem.status || 'Novo Contato'] || 'bg-primary'
                         )}>
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-medium text-sm">
-                            {getInitials(caseItem.client_name, caseItem.client_phone)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {hasUnread && (
-                          <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                            {caseItem.unread_count > 9 ? '9+' : caseItem.unread_count}
-                          </span>
-                        )}
-                      </div>
+                          {getInitials(caseItem.client_name, caseItem.client_phone)}
+                        </AvatarFallback>
+                      </Avatar>
                       
                       <div className="flex-1 min-w-0">
-                        {/* Row 1: Name + Bot icon + Time */}
-                        <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                        {/* Row 1: Name + Phone + Time */}
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className={cn(
                               "truncate text-sm",
@@ -284,21 +272,28 @@ const ConversationsList = ({
                             )}>
                               {caseItem.client_name || 'Sem nome'}
                             </span>
-                            {caseItem.active_agent_id && (
-                              <Bot className="w-3.5 h-3.5 text-primary shrink-0" />
-                            )}
+                            <span className="text-[11px] text-muted-foreground shrink-0">
+                              {formatPhone(caseItem.client_phone).split(' ').slice(0, 2).join(' ')}
+                            </span>
                           </div>
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
-                            {formatDistanceToNow(new Date(caseItem.last_message_at || caseItem.updated_at), { 
-                              addSuffix: false, 
-                              locale: ptBR 
-                            })}
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Badge className="bg-primary/20 text-primary text-[10px] px-1 py-0 h-4">
+                              SDR
+                            </Badge>
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatTime(caseItem.last_message_at || caseItem.updated_at)}
+                            </span>
+                          </div>
                         </div>
                         
-                        {/* Row 2: Last message or typing indicator */}
-                        <div className="mb-1.5">
-                          {isTyping ? (
+                        {/* Row 2: Last message with icons */}
+                        <div className="flex items-center gap-1 mb-1">
+                          {hasAudio ? (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Volume2 className="w-3.5 h-3.5" />
+                              <span className="text-xs">Áudio</span>
+                            </div>
+                          ) : isTyping ? (
                             <div className="flex items-center gap-1">
                               <span className="text-primary text-xs font-medium">digitando</span>
                               <span className="flex gap-0.5">
@@ -308,29 +303,41 @@ const ConversationsList = ({
                               </span>
                             </div>
                           ) : caseItem.last_message ? (
-                            <p className={cn(
-                              "text-xs truncate",
-                              hasUnread ? "text-foreground/90" : "text-muted-foreground"
-                            )}>
-                              {truncateMessage(caseItem.last_message)}
-                            </p>
-                          ) : (
-                            <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                              <Phone className="w-3 h-3 shrink-0" />
-                              <span className="truncate">{formatPhone(caseItem.client_phone)}</span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <CheckCheck className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className={cn(
+                                "text-xs truncate",
+                                hasUnread ? "text-foreground" : "text-muted-foreground"
+                              )}>
+                                {truncateMessage(caseItem.last_message)}
+                              </span>
                             </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Nova conversa</span>
+                          )}
+                          
+                          {/* Unread badge */}
+                          {hasUnread && (
+                            <Badge className="ml-auto bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 h-4 shrink-0">
+                              {caseItem.unread_count}
+                            </Badge>
+                          )}
+                          
+                          {/* AI indicator */}
+                          {caseItem.active_agent_id && (
+                            <Bot className="w-3.5 h-3.5 text-primary ml-1 shrink-0" />
                           )}
                         </div>
                         
-                        {/* Row 3: Badge */}
+                        {/* Row 3: Stage badge */}
                         <Badge 
-                          variant="outline" 
+                          variant="secondary" 
                           className={cn(
-                            "text-[10px] font-medium px-1.5 py-0",
-                            statusColors[caseItem.status || 'Novo Contato'] || statusColors['Novo Contato']
+                            "text-[10px] font-normal px-1.5 py-0 h-4",
+                            statusBadgeColors[caseItem.status || 'Novo Contato'] || statusBadgeColors['Novo Contato']
                           )}
                         >
-                          {caseItem.status || 'Novo Contato'}
+                          {caseItem.status || 'Recepção - S...'}
                         </Badge>
                       </div>
 
@@ -340,10 +347,10 @@ const ConversationsList = ({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-0.5"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                            <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-card border-border">
@@ -363,6 +370,14 @@ const ConversationsList = ({
             </div>
           )}
         </ScrollArea>
+
+        {/* New Conversation Button */}
+        <div className="p-3 border-t border-border">
+          <Button className="w-full gap-2" size="sm">
+            <Plus className="w-4 h-4" />
+            Nova conversa
+          </Button>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
