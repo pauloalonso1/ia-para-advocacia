@@ -5,7 +5,7 @@ import ChatView from './conversations/ChatView';
 import CRMPanel from './conversations/CRMPanel';
 
 const ConversationsView = () => {
-  const { cases, loading: casesLoading, updateCaseStatus, updateCaseName, deleteCase, assignAgentToCase } = useCases();
+  const { cases, loading: casesLoading, updateCaseStatus, updateCaseName, deleteCase, assignAgentToCase, markAsRead } = useCases();
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   
   const { messages, loading: messagesLoading } = useMessages(selectedCase?.id || null);
@@ -29,6 +29,10 @@ const ConversationsView = () => {
 
   const handleSelectCase = (caseItem: Case) => {
     setSelectedCase(caseItem);
+    // Mark as read when selecting
+    if (caseItem.unread_count > 0) {
+      markAsRead(caseItem.id);
+    }
   };
 
   const handleUpdateStatus = async (caseId: string, status: string) => {

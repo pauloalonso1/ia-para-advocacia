@@ -13,6 +13,9 @@ export interface Case {
   current_step_id: string | null;
   created_at: string;
   updated_at: string;
+  unread_count: number;
+  last_message: string | null;
+  last_message_at: string | null;
 }
 
 export interface Message {
@@ -219,6 +222,23 @@ export const useCases = () => {
     }
   };
 
+  const markAsRead = async (caseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('cases')
+        .update({ unread_count: 0 })
+        .eq('id', caseId);
+
+      if (error) throw error;
+      
+      setCases(prev => prev.map(c => 
+        c.id === caseId ? { ...c, unread_count: 0 } : c
+      ));
+    } catch (error: any) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
   return {
     cases,
     loading,
@@ -227,6 +247,7 @@ export const useCases = () => {
     updateCaseName,
     deleteCase,
     assignAgentToCase,
+    markAsRead,
     refetch: fetchCases,
   };
 };

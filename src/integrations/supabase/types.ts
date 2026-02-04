@@ -210,7 +210,10 @@ export type Database = {
           created_at: string
           current_step_id: string | null
           id: string
+          last_message: string | null
+          last_message_at: string | null
           status: string | null
+          unread_count: number
           updated_at: string
           user_id: string
         }
@@ -221,7 +224,10 @@ export type Database = {
           created_at?: string
           current_step_id?: string | null
           id?: string
+          last_message?: string | null
+          last_message_at?: string | null
           status?: string | null
+          unread_count?: number
           updated_at?: string
           user_id: string
         }
@@ -232,7 +238,10 @@ export type Database = {
           created_at?: string
           current_step_id?: string | null
           id?: string
+          last_message?: string | null
+          last_message_at?: string | null
           status?: string | null
+          unread_count?: number
           updated_at?: string
           user_id?: string
         }
