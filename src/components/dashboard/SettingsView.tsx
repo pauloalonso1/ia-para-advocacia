@@ -10,13 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Settings,
   MessageSquare,
   Loader2,
   CheckCircle2,
   XCircle,
-  RefreshCw,
   Smartphone,
   QrCode,
   Wifi,
@@ -35,7 +35,10 @@ import {
   Copy,
   Check,
   Eye,
-  EyeOff
+  EyeOff,
+  Calendar,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -43,14 +46,17 @@ import GoogleCalendarSettings from './settings/GoogleCalendarSettings';
 import ScheduleSettings from './settings/ScheduleSettings';
 import FollowupSettings from './settings/FollowupSettings';
 
+type SettingsSection = 'profile' | 'whatsapp' | 'calendar' | 'schedule' | 'notifications' | 'followup';
+
 const SettingsView = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
+
   const {
     loading: evolutionLoading,
     qrCode,
     connectionStatus,
-    error: evolutionError,
     createInstance,
     checkStatus,
     deleteInstance,
@@ -100,6 +106,16 @@ const SettingsView = () => {
 
   // Webhook URL
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+
+  // Menu items
+  const menuItems: { id: SettingsSection; label: string; icon: React.ElementType; description: string }[] = [
+    { id: 'profile', label: 'Perfil', icon: User, description: 'Informações da conta' },
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, description: 'Evolution API' },
+    { id: 'calendar', label: 'Google Calendar', icon: Calendar, description: 'Agendamentos' },
+    { id: 'schedule', label: 'Horários', icon: Clock, description: 'Expediente e agenda' },
+    { id: 'notifications', label: 'Notificações', icon: Bell, description: 'Alertas WhatsApp' },
+    { id: 'followup', label: 'Follow-up', icon: Zap, description: 'Automação' },
+  ];
 
   // Load Evolution API settings
   useEffect(() => {
@@ -161,7 +177,6 @@ const SettingsView = () => {
       return;
     }
 
-    // First save settings to database
     const saved = await saveSettings({
       api_url: apiUrl.trim(),
       api_key: apiKey.trim(),
@@ -179,7 +194,6 @@ const SettingsView = () => {
     });
 
     if (saved) {
-      // Then create instance via Evolution API
       await createInstance(instanceName);
     }
   };
@@ -211,16 +225,6 @@ const SettingsView = () => {
     });
   };
 
-  const handleCheckStatus = async () => {
-    if (!instanceName) return;
-    const status = await checkStatus(instanceName);
-    if (status === 'connected') {
-      await updateConnectionStatus(true);
-    } else if (status === 'disconnected') {
-      await updateConnectionStatus(false);
-    }
-  };
-
   const handleDisconnect = async () => {
     if (!instanceName) return;
     await deleteInstance(instanceName);
@@ -236,11 +240,6 @@ const SettingsView = () => {
     setApiKey('');
     setInstanceName('');
     setConnectionStatus('disconnected');
-  };
-
-  const handleRefreshQR = async () => {
-    if (!instanceName) return;
-    await createInstance(instanceName);
   };
 
   const handleCopyWebhook = () => {
@@ -286,28 +285,14 @@ const SettingsView = () => {
     );
   }
 
-  return (
-    <div className="p-6 space-y-6 w-full max-w-6xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Settings className="w-6 h-6 text-primary" />
-          Configurações
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Configure sua conta e integrações
-        </p>
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left Column - Settings Form */}
-        <div className="space-y-6 xl:col-span-8">
-          {/* Profile Card */}
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'profile':
+        return (
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-foreground flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-500" />
+                <User className="w-5 h-5 text-primary" />
                 Perfil
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -324,377 +309,369 @@ const SettingsView = () => {
               </div>
             </CardContent>
           </Card>
+        );
 
-          {/* Evolution API Configuration Card */}
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-foreground flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-green-500" />
-                    Evolution API
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground mt-1">
-                    Configure sua conexão com a Evolution API
-                  </CardDescription>
-                </div>
-                {evolutionSettings && (
-                  <Badge
-                    className={cn(
-                      "ml-auto",
-                      connectionStatus === 'connected'
-                        ? "bg-green-500/20 text-green-500 border-green-500/30"
-                        : connectionStatus === 'connecting'
-                        ? "bg-primary/20 text-primary border-primary/30"
-                        : "bg-destructive/20 text-destructive border-destructive/30"
-                    )}
-                  >
-                    {connectionStatus === 'connected' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                    {connectionStatus === 'connecting' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                    {connectionStatus === 'disconnected' && <XCircle className="w-3 h-3 mr-1" />}
-                    {connectionStatus === 'connected' ? 'Conectado' : 
-                     connectionStatus === 'connecting' ? 'Conectando' : 'Desconectado'}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="connection" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-muted">
-                  <TabsTrigger value="connection" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    <Link className="w-4 h-4 mr-2" />
-                    Conexão
-                  </TabsTrigger>
-                  <TabsTrigger value="advanced" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    <Cog className="w-4 h-4 mr-2" />
-                    Avançado
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="connection" className="space-y-4 mt-4">
-                  {/* API URL */}
-                  <div className="space-y-2">
-                    <Label htmlFor="api-url" className="text-foreground flex items-center gap-2">
-                      <Globe className="w-4 h-4" />
-                      URL da API *
-                    </Label>
-                    <Input
-                      id="api-url"
-                      value={apiUrl}
-                      onChange={(e) => setApiUrl(e.target.value)}
-                      placeholder="https://api.seuservidor.com"
-                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      URL do seu servidor Evolution API
-                    </p>
+      case 'whatsapp':
+        return (
+          <div className="space-y-6">
+            {/* WhatsApp Connection Status */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-foreground flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-green-500" />
+                      Evolution API
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground mt-1">
+                      Configure sua conexão com a Evolution API
+                    </CardDescription>
                   </div>
-
-                  {/* API Key */}
-                  <div className="space-y-2">
-                    <Label htmlFor="api-key" className="text-foreground flex items-center gap-2">
-                      <Key className="w-4 h-4" />
-                      API Key *
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="api-key"
-                        type={showApiKey ? 'text' : 'password'}
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                        placeholder="Sua chave de autenticação"
-                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                      >
-                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Chave de autenticação da Evolution API
-                    </p>
-                  </div>
-
-                  {/* Instance Name */}
-                  <div className="space-y-2">
-                    <Label htmlFor="instance" className="text-foreground flex items-center gap-2">
-                      <Smartphone className="w-4 h-4" />
-                      Nome da Instância *
-                    </Label>
-                    <Input
-                      id="instance"
-                      value={instanceName}
-                      onChange={(e) => setInstanceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                      placeholder="minha-instancia"
-                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                      disabled={connectionStatus === 'connected'}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Identificador único (apenas letras minúsculas, números e hífens)
-                    </p>
-                  </div>
-
-                  {/* Webhook URL */}
-                  <div className="space-y-2">
-                    <Label className="text-foreground flex items-center gap-2">
-                      <Link className="w-4 h-4" />
-                      URL do Webhook
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={webhookUrl}
-                        readOnly
-                        className="bg-muted border-border text-muted-foreground flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="border-border text-muted-foreground hover:bg-accent"
-                        onClick={handleCopyWebhook}
-                      >
-                        {copiedWebhook ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Configure este webhook na sua instância Evolution API
-                    </p>
-                  </div>
-
-                  {evolutionError && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-                      <p className="text-sm text-destructive">{evolutionError}</p>
-                    </div>
+                  {evolutionSettings && (
+                    <Badge
+                      className={cn(
+                        "ml-auto",
+                        connectionStatus === 'connected'
+                          ? "bg-green-500/20 text-green-500 border-green-500/30"
+                          : connectionStatus === 'connecting'
+                          ? "bg-primary/20 text-primary border-primary/30"
+                          : "bg-destructive/20 text-destructive border-destructive/30"
+                      )}
+                    >
+                      {connectionStatus === 'connected' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                      {connectionStatus === 'connecting' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                      {connectionStatus === 'disconnected' && <XCircle className="w-3 h-3 mr-1" />}
+                      {connectionStatus === 'connected' ? 'Conectado' : 
+                       connectionStatus === 'connecting' ? 'Conectando' : 'Desconectado'}
+                    </Badge>
                   )}
-                </TabsContent>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Form Section */}
+                  <div>
+                    <Tabs defaultValue="connection" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 bg-muted">
+                        <TabsTrigger value="connection" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                          <Link className="w-4 h-4 mr-2" />
+                          Conexão
+                        </TabsTrigger>
+                        <TabsTrigger value="advanced" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                          <Cog className="w-4 h-4 mr-2" />
+                          Avançado
+                        </TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="connection" className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="api-url" className="text-foreground flex items-center gap-2">
+                            <Globe className="w-4 h-4" />
+                            URL da API *
+                          </Label>
+                          <Input
+                            id="api-url"
+                            value={apiUrl}
+                            onChange={(e) => setApiUrl(e.target.value)}
+                            placeholder="https://api.seuservidor.com"
+                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                          />
+                        </div>
 
-                <TabsContent value="advanced" className="space-y-4 mt-4">
-                  {/* Integration Type */}
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Tipo de Integração</Label>
-                    <div className="p-3 bg-muted rounded-lg">
-                      <span className="text-foreground">{integrationType}</span>
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="api-key" className="text-foreground flex items-center gap-2">
+                            <Key className="w-4 h-4" />
+                            API Key *
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="api-key"
+                              type={showApiKey ? 'text' : 'password'}
+                              value={apiKey}
+                              onChange={(e) => setApiKey(e.target.value)}
+                              placeholder="Sua chave de autenticação"
+                              className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                              onClick={() => setShowApiKey(!showApiKey)}
+                            >
+                              {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="instance" className="text-foreground flex items-center gap-2">
+                            <Smartphone className="w-4 h-4" />
+                            Nome da Instância *
+                          </Label>
+                          <Input
+                            id="instance"
+                            value={instanceName}
+                            onChange={(e) => setInstanceName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                            placeholder="minha-instancia"
+                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                            disabled={connectionStatus === 'connected'}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-foreground flex items-center gap-2">
+                            <Link className="w-4 h-4" />
+                            URL do Webhook
+                          </Label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={webhookUrl}
+                              readOnly
+                              className="bg-muted border-border text-muted-foreground flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="border-border text-muted-foreground hover:bg-accent"
+                              onClick={handleCopyWebhook}
+                            >
+                              {copiedWebhook ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-4">
+                          {connectionStatus === 'disconnected' && (
+                            <Button
+                              onClick={handleSaveAndConnect}
+                              disabled={savingSettings || evolutionLoading}
+                              className="bg-primary hover:bg-primary/90"
+                            >
+                              {(savingSettings || evolutionLoading) ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <Wifi className="w-4 h-4 mr-2" />
+                              )}
+                              Salvar e Conectar
+                            </Button>
+                          )}
+
+                          {connectionStatus === 'connected' && (
+                            <>
+                              <Button
+                                onClick={handleSaveSettings}
+                                disabled={savingSettings}
+                                className="bg-primary hover:bg-primary/90"
+                              >
+                                {savingSettings ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Save className="w-4 h-4 mr-2" />
+                                )}
+                                Salvar
+                              </Button>
+                              <Button
+                                onClick={handleDisconnect}
+                                variant="outline"
+                                disabled={evolutionLoading}
+                                className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                              >
+                                <WifiOff className="w-4 h-4 mr-2" />
+                                Desconectar
+                              </Button>
+                            </>
+                          )}
+
+                          {evolutionSettings && (
+                            <Button
+                              onClick={handleDeleteSettings}
+                              variant="outline"
+                              disabled={savingSettings}
+                              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Remover
+                            </Button>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="advanced" className="space-y-4 mt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label className="text-foreground">Rejeitar Chamadas</Label>
+                              <p className="text-xs text-muted-foreground">Rejeitar chamadas automaticamente</p>
+                            </div>
+                            <Switch
+                              checked={rejectCall}
+                              onCheckedChange={setRejectCall}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          </div>
+
+                          {rejectCall && (
+                            <div className="space-y-2 pl-4 border-l-2 border-border">
+                              <Label className="text-foreground">Mensagem de Rejeição</Label>
+                              <Input
+                                value={msgCall}
+                                onChange={(e) => setMsgCall(e.target.value)}
+                                placeholder="Desculpe, não posso atender ligações no momento."
+                                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                              />
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label className="text-foreground">Ignorar Grupos</Label>
+                              <p className="text-xs text-muted-foreground">Não processar mensagens de grupos</p>
+                            </div>
+                            <Switch
+                              checked={groupsIgnore}
+                              onCheckedChange={setGroupsIgnore}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label className="text-foreground">Sempre Online</Label>
+                              <p className="text-xs text-muted-foreground">Manter status online</p>
+                            </div>
+                            <Switch
+                              checked={alwaysOnline}
+                              onCheckedChange={setAlwaysOnline}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label className="text-foreground">Marcar como Lido</Label>
+                              <p className="text-xs text-muted-foreground">Marcar mensagens como lidas</p>
+                            </div>
+                            <Switch
+                              checked={readMessages}
+                              onCheckedChange={setReadMessages}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label className="text-foreground">Sincronizar Histórico</Label>
+                              <p className="text-xs text-muted-foreground">Sincronizar histórico completo</p>
+                            </div>
+                            <Switch
+                              checked={syncFullHistory}
+                              onCheckedChange={setSyncFullHistory}
+                              className="data-[state=checked]:bg-primary"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-4">
+                          <Button
+                            onClick={handleSaveSettings}
+                            disabled={savingSettings}
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            {savingSettings ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4 mr-2" />
+                            )}
+                            Salvar Configurações
+                          </Button>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   </div>
 
-                  {/* Advanced Options */}
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">QR Code Habilitado</Label>
-                        <p className="text-xs text-muted-foreground">Gerar QR Code ao conectar</p>
+                  {/* QR Code Section */}
+                  <div className="flex flex-col items-center justify-center p-6 bg-muted/30 rounded-lg border border-border min-h-[400px]">
+                    {connectionStatus === 'connected' ? (
+                      <div className="text-center space-y-4">
+                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+                          <Wifi className="w-10 h-10 text-green-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">Conectado!</h3>
+                          <p className="text-muted-foreground text-sm mt-1">
+                            Instância "{instanceName}" ativa
+                          </p>
+                        </div>
+                        <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Online
+                        </Badge>
                       </div>
-                      <Switch
-                        checked={qrcodeEnabled}
-                        onCheckedChange={setQrcodeEnabled}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">Rejeitar Chamadas</Label>
-                        <p className="text-xs text-muted-foreground">Rejeitar chamadas automaticamente</p>
+                    ) : qrCode ? (
+                      <div className="text-center space-y-4">
+                        <div className="bg-white p-3 rounded-xl inline-block">
+                          {qrCode.startsWith('data:image') ? (
+                            <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                          ) : (
+                            <img src={`data:image/png;base64,${qrCode}`} alt="QR Code" className="w-48 h-48" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">Escaneie o QR Code</h3>
+                          <p className="text-muted-foreground text-xs mt-1">
+                            WhatsApp → Menu → Dispositivos conectados
+                          </p>
+                        </div>
+                        <Badge className="bg-primary/20 text-primary border-primary/30">
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          Aguardando...
+                        </Badge>
                       </div>
-                      <Switch
-                        checked={rejectCall}
-                        onCheckedChange={setRejectCall}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-
-                    {rejectCall && (
-                      <div className="space-y-2 pl-4 border-l-2 border-border">
-                        <Label className="text-muted-foreground text-sm">Mensagem ao rejeitar</Label>
-                        <Input
-                          value={msgCall}
-                          onChange={(e) => setMsgCall(e.target.value)}
-                          placeholder="Não posso atender no momento..."
-                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                        />
+                    ) : evolutionLoading ? (
+                      <div className="text-center space-y-4">
+                        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+                        <p className="text-muted-foreground text-sm">Gerando QR Code...</p>
+                      </div>
+                    ) : (
+                      <div className="text-center space-y-4">
+                        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+                          <QrCode className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">Conecte seu WhatsApp</h3>
+                          <p className="text-muted-foreground text-xs mt-1">
+                            Configure e clique em "Salvar e Conectar"
+                          </p>
+                        </div>
                       </div>
                     )}
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">Ignorar Grupos</Label>
-                        <p className="text-xs text-muted-foreground">Não processar mensagens de grupos</p>
-                      </div>
-                      <Switch
-                        checked={groupsIgnore}
-                        onCheckedChange={setGroupsIgnore}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">Sempre Online</Label>
-                        <p className="text-xs text-muted-foreground">Manter status online</p>
-                      </div>
-                      <Switch
-                        checked={alwaysOnline}
-                        onCheckedChange={setAlwaysOnline}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">Marcar Mensagens como Lidas</Label>
-                        <p className="text-xs text-muted-foreground">Marcar automaticamente ao receber</p>
-                      </div>
-                      <Switch
-                        checked={readMessages}
-                        onCheckedChange={setReadMessages}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">Ler Status</Label>
-                        <p className="text-xs text-muted-foreground">Visualizar status automaticamente</p>
-                      </div>
-                      <Switch
-                        checked={readStatus}
-                        onCheckedChange={setReadStatus}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-foreground">Sincronizar Histórico Completo</Label>
-                        <p className="text-xs text-muted-foreground">Sincronizar todas as conversas anteriores</p>
-                      </div>
-                      <Switch
-                        checked={syncFullHistory}
-                        onCheckedChange={setSyncFullHistory}
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
                   </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t border-border mt-4">
-                {!evolutionSettings || connectionStatus === 'disconnected' ? (
-                  <>
-                    <Button
-                      onClick={handleSaveSettings}
-                      disabled={savingSettings || !apiUrl.trim() || !apiKey.trim()}
-                      variant="outline"
-                      className="border-border text-muted-foreground hover:bg-accent"
-                    >
-                      {savingSettings ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Salvar Configurações
-                    </Button>
-                    <Button
-                      onClick={handleSaveAndConnect}
-                      disabled={evolutionLoading || savingSettings || !apiUrl.trim() || !apiKey.trim() || !instanceName.trim()}
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                    >
-                      {evolutionLoading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Wifi className="w-4 h-4 mr-2" />
-                      )}
-                      Salvar e Conectar
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleSaveSettings}
-                      disabled={savingSettings}
-                      variant="outline"
-                      className="border-border text-muted-foreground hover:bg-accent"
-                    >
-                      {savingSettings ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Salvar
-                    </Button>
-                    <Button
-                      onClick={handleCheckStatus}
-                      variant="outline"
-                      disabled={evolutionLoading}
-                      className="border-border text-muted-foreground hover:bg-accent"
-                    >
-                      {evolutionLoading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                      )}
-                      Verificar Status
-                    </Button>
-                    {connectionStatus === 'connecting' && (
-                      <Button
-                        onClick={handleRefreshQR}
-                        variant="outline"
-                        disabled={evolutionLoading}
-                        className="border-border text-muted-foreground hover:bg-accent"
-                      >
-                        <QrCode className="w-4 h-4 mr-2" />
-                        Novo QR Code
-                      </Button>
-                    )}
-                    <Button
-                      onClick={handleDisconnect}
-                      variant="outline"
-                      disabled={evolutionLoading}
-                      className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                    >
-                      <WifiOff className="w-4 h-4 mr-2" />
-                      Desconectar
-                    </Button>
-                  </>
-                )}
-                {evolutionSettings && (
-                  <Button
-                    onClick={handleDeleteSettings}
-                    variant="outline"
-                    disabled={savingSettings}
-                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Excluir
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      case 'calendar':
+        return <GoogleCalendarSettings />;
 
-          {/* Google Calendar Card */}
-          <GoogleCalendarSettings />
+      case 'schedule':
+        return <ScheduleSettings />;
 
-          {/* Schedule Settings Card */}
-          <ScheduleSettings />
-
-          {/* Notifications Card */}
+      case 'notifications':
+        return (
           <Card className="bg-card border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-foreground flex items-center gap-2">
                     <BellRing className="w-5 h-5 text-primary" />
-                    Notificações WhatsApp
+                    Notificações via WhatsApp
                   </CardTitle>
                   <CardDescription className="text-muted-foreground mt-1">
-                    Receba alertas sobre seus leads no seu celular pessoal
+                    Receba alertas no seu celular pessoal
                   </CardDescription>
                 </div>
                 {notificationSettings && (
@@ -738,7 +715,6 @@ const SettingsView = () => {
                 </p>
               </div>
 
-              {/* Notification Toggles */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -824,91 +800,65 @@ const SettingsView = () => {
               </div>
             </CardContent>
           </Card>
+        );
 
-          {/* Follow-up Settings */}
-          <FollowupSettings />
-        </div>
+      case 'followup':
+        return <FollowupSettings />;
 
-        {/* Right Column - QR Code */}
-        <div className="xl:col-span-4 xl:sticky xl:top-6">
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-primary" />
-                Conexão WhatsApp
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Escaneie o QR Code com seu WhatsApp
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center min-h-[400px]">
-                {connectionStatus === 'connected' ? (
-                  <div className="text-center space-y-4">
-                    <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-                      <Wifi className="w-12 h-12 text-green-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold text-foreground">WhatsApp Conectado!</h3>
-                      <p className="text-muted-foreground mt-1">
-                        Sua instância "{instanceName}" está ativa
-                      </p>
-                    </div>
-                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Online e pronto para receber mensagens
-                    </Badge>
-                  </div>
-                ) : qrCode ? (
-                  <div className="text-center space-y-4">
-                    <div className="bg-white p-4 rounded-xl inline-block">
-                      {qrCode.startsWith('data:image') ? (
-                        <img 
-                          src={qrCode} 
-                          alt="QR Code WhatsApp" 
-                          className="w-64 h-64"
-                        />
-                      ) : (
-                        <img 
-                          src={`data:image/png;base64,${qrCode}`} 
-                          alt="QR Code WhatsApp" 
-                          className="w-64 h-64"
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">Escaneie o QR Code</h3>
-                      <p className="text-muted-foreground text-sm mt-1">
-                        Abra o WhatsApp → Menu → Dispositivos conectados → Conectar dispositivo
-                      </p>
-                    </div>
-                    <Badge className="bg-primary/20 text-primary border-primary/30">
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Aguardando escaneamento...
-                    </Badge>
-                  </div>
-                ) : evolutionLoading ? (
-                  <div className="text-center space-y-4">
-                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
-                    <p className="text-muted-foreground">Gerando QR Code...</p>
-                  </div>
-                ) : (
-                  <div className="text-center space-y-4">
-                    <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto">
-                      <QrCode className="w-12 h-12 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">Conecte seu WhatsApp</h3>
-                      <p className="text-muted-foreground text-sm mt-1">
-                        Configure a Evolution API e clique em "Salvar e Conectar"
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="h-full flex">
+      {/* Sidebar Menu */}
+      <div className="w-64 border-r border-border bg-card/50 flex-shrink-0">
+        <div className="p-4 border-b border-border">
+          <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary" />
+            Configurações
+          </h1>
         </div>
+        <ScrollArea className="h-[calc(100vh-8rem)]">
+          <nav className="p-2 space-y-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                    isActive
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-primary")} />
+                  <div className="min-w-0">
+                    <div className={cn("font-medium text-sm", isActive && "text-primary")}>
+                      {item.label}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {item.description}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
+        </ScrollArea>
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-auto">
+        <ScrollArea className="h-full">
+          <div className="p-6 max-w-4xl">
+            {renderContent()}
+          </div>
+        </ScrollArea>
       </div>
     </div>
   );
