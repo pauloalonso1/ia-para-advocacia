@@ -900,24 +900,29 @@ ${calendarContext}
     const conversationText = history.map(h => h.content).join(' ').toLowerCase();
     const alreadyShowedSlots = conversationText.includes('horários disponíveis') || 
                                 conversationText.includes('horario') ||
+                                /\(20\d{2}-\d{2}-\d{2}\)/.test(conversationText) ||
                                 conversationText.includes('09:00') ||
                                 conversationText.includes('10:00');
     
-    // Check if we have an email in the conversation
+    // Check if we have an email in the conversation OR current message
     const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+    const hasEmailInMessage = emailRegex.test(clientMessage);
     const hasEmailInHistory = history.some(h => emailRegex.test(h.content));
+    const hasEmail = hasEmailInMessage || hasEmailInHistory;
     
     // Check if current message looks like a time selection
     const looksLikeTimeSelection = /\d{1,2}[:\s]?\d{0,2}|manhã|tarde|amanhã|segunda|terça|quarta|quinta|sexta/i.test(clientMessage);
     
-    console.log(`📅 Context check: showedSlots=${alreadyShowedSlots}, hasEmail=${hasEmailInHistory}, timeSelection=${looksLikeTimeSelection}`);
+    console.log(`📅 Context check: showedSlots=${alreadyShowedSlots}, hasEmail=${hasEmail}, hasEmailInMessage=${hasEmailInMessage}, timeSelection=${looksLikeTimeSelection}`);
     
-    tools.push(
-      {
+    // Only add check_calendar_availability if we haven't shown slots yet
+    // This prevents the AI from calling it repeatedly in a loop
+    if (!alreadyShowedSlots) {
+      tools.push({
         type: "function",
         function: {
           name: "check_calendar_availability",
-          description: "Verifica os horários disponíveis. USE SOMENTE se você ainda NÃO MOSTROU os horários para o cliente. Se já mostrou e o cliente escolheu um horário, use create_calendar_event.",
+          description: "Verifica os horários disponíveis para agendamento. USE SOMENTE quando o cliente pedir para agendar e você AINDA NÃO MOSTROU os horários. NUNCA use se já mostrou horários antes.",
           parameters: {
             type: "object",
             properties: {
@@ -930,42 +935,50 @@ ${calendarContext}
             additionalProperties: false
           }
         }
-      },
-      {
-        type: "function",
-        function: {
-          name: "create_calendar_event",
-          description: "CRIA O AGENDAMENTO no calendário. Use quando o cliente JÁ ESCOLHEU um horário específico (ex: '10:00', 'quarta às 14h'). Você já deve ter o email do cliente do histórico da conversa.",
-          parameters: {
-            type: "object",
-            properties: {
-              date: {
-                type: "string",
-                description: "Data do agendamento no formato YYYY-MM-DD"
-              },
-              time: {
-                type: "string",
-                description: "Horário no formato HH:MM (ex: 14:00)"
-              },
-              summary: {
-                type: "string",
-                description: "Título da reunião (ex: Consulta inicial - Nome do Cliente)"
-              },
-              duration_minutes: {
-                type: "number",
-                description: "Duração em minutos (padrão: 60)"
-              },
-              client_email: {
-                type: "string",
-                description: "Email do cliente para enviar convite (pergunte ao cliente se não souber)"
-              }
+      });
+    }
+    
+    // Always add create_calendar_event if calendar is connected
+    tools.push({
+      type: "function",
+      function: {
+        name: "create_calendar_event",
+        description: `CRIA O AGENDAMENTO no calendário. Use quando:
+1. Você JÁ MOSTROU os horários disponíveis ao cliente
+2. O cliente ESCOLHEU um horário específico (ex: '10:00', 'quinta 11:30', 'amanhã às 9')
+3. Você TEM o email do cliente (da mensagem atual ou do histórico)
+
+${hasEmail ? `EMAIL DISPONÍVEL: Sim - use o email do cliente que já está na conversa.` : `EMAIL: Ainda não temos. Peça o email ANTES de criar o evento.`}
+${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolhendo um horário agora. CRIE O EVENTO se tiver o email!` : ''}`,
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description: "Data do agendamento no formato YYYY-MM-DD (use a data que corresponde ao dia da semana escolhido)"
             },
-            required: ["date", "time", "summary"],
-            additionalProperties: false
-          }
+            time: {
+              type: "string",
+              description: "Horário no formato HH:MM (ex: 14:00, 09:30)"
+            },
+            summary: {
+              type: "string",
+              description: "Título da reunião (ex: Consulta - Nome do Cliente)"
+            },
+            duration_minutes: {
+              type: "number",
+              description: "Duração em minutos (padrão: 30 ou conforme configuração)"
+            },
+            client_email: {
+              type: "string",
+              description: "Email do cliente para enviar convite. OBRIGATÓRIO para criar o evento."
+            }
+          },
+          required: ["date", "time", "summary", "client_email"],
+          additionalProperties: false
         }
       }
-    );
+    });
   }
 
   // First AI call
@@ -1073,7 +1086,23 @@ ${calendarContext}
             messages: followUpMessages,
             temperature: 0.7,
             max_tokens: 500,
-            tools: [tools[0]], // Only send_response tool
+            tools: [{
+              type: "function",
+              function: {
+                name: "send_response",
+                description: "Envia a resposta para o cliente",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    response_text: { type: "string", description: "A mensagem a ser enviada" },
+                    action: { type: "string", enum: ["PROCEED", "STAY"], description: "Ação" },
+                    new_status: { type: "string", description: "Novo status se houver" }
+                  },
+                  required: ["response_text", "action"],
+                  additionalProperties: false
+                }
+              }
+            }],
             tool_choice: { type: "function", function: { name: "send_response" } }
           }),
         });
