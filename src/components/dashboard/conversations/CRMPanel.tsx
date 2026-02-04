@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Case } from '@/hooks/useCases';
 import { useAgents } from '@/hooks/useAgents';
+import { useAISummary } from '@/hooks/useAISummary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +26,6 @@ import {
   Check,
   X,
   Bot,
-  ChevronRight,
   FileText,
   Info,
   Image,
@@ -36,7 +36,9 @@ import {
   Power,
   Filter,
   Plus,
-  Building2
+  Building2,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -60,11 +62,17 @@ const crmStages = [
 
 const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }: CRMPanelProps) => {
   const { agents } = useAgents();
+  const { loading: summaryLoading, summary, generateSummary, clearSummary } = useAISummary();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [aiStatus, setAiStatus] = useState<'active' | 'paused' | 'disabled'>('disabled');
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('info');
+
+  // Clear summary when case changes
+  useEffect(() => {
+    clearSummary();
+  }, [selectedCase?.id]);
 
   useEffect(() => {
     if (selectedCase) {
@@ -420,15 +428,42 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
                   <FileText className="w-3 h-3" />
                   Resumo do atendimento
                 </Label>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => generateSummary(selectedCase.id)}
+                  disabled={summaryLoading}
+                  className="h-6 px-2 text-xs"
+                >
+                  {summaryLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Gerar
+                    </>
+                  )}
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground italic">
                 Pode levar cerca de 1 minuto para gerar um resumo.
               </p>
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-xs text-muted-foreground">
-                  Resumo da negociação com {selectedCase.client_name || 'o cliente'}...
-                </p>
+              <div className="p-3 bg-muted/50 rounded-lg min-h-[60px]">
+                {summaryLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <p className="text-xs text-muted-foreground">Analisando conversa...</p>
+                  </div>
+                ) : summary ? (
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{summary}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Resumo da negociação com {selectedCase.client_name || 'o cliente'}...
+                  </p>
+                )}
               </div>
             </div>
 
