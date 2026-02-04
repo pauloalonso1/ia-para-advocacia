@@ -754,23 +754,42 @@ ${calendarContext}
         const slots = await getCalendarAvailability(supabase, userId, daysAhead);
         console.log(`📅 Found ${slots.length} available slots`);
         
-        // Make second AI call with slots info - show 10 slots with full date including year
+        // Make second AI call with slots info - show ALL available slots up to 20
         const today = new Date();
         const currentYear = today.getFullYear();
         
-        const slotsText = slots.slice(0, 10).map(s => {
+        console.log(`📅 Total slots available: ${slots.length}`);
+        
+        // Group slots by date for better presentation
+        const slotsByDate = new Map<string, { start: string; end: string }[]>();
+        slots.slice(0, 20).forEach(s => {
           const date = new Date(s.start);
-          const dateStr = date.toLocaleDateString('pt-BR', { 
+          const dateKey = date.toISOString().split('T')[0];
+          if (!slotsByDate.has(dateKey)) {
+            slotsByDate.set(dateKey, []);
+          }
+          slotsByDate.get(dateKey)!.push(s);
+        });
+        
+        let slotsText = "";
+        slotsByDate.forEach((daySlots, dateKey) => {
+          const sampleDate = new Date(daySlots[0].start);
+          const dateStr = sampleDate.toLocaleDateString('pt-BR', { 
             weekday: 'long', 
             day: '2-digit', 
             month: '2-digit',
             year: 'numeric'
           });
-          const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          // Include ISO date for the AI to use when creating events
-          const isoDate = date.toISOString().split('T')[0];
-          return `- ${dateStr} às ${timeStr} (data: ${isoDate}, horário: ${timeStr.replace(':', ':')})`;
-        }).join('\n');
+          
+          const times = daySlots.map(s => {
+            const d = new Date(s.start);
+            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          }).join(', ');
+          
+          slotsText += `📆 ${dateStr} (${dateKey}):\n   Horários: ${times}\n\n`;
+        });
+        
+        console.log(`📅 Slots text to AI:\n${slotsText}`);
         
         const followUpMessages = [
           ...messages,
@@ -778,7 +797,7 @@ ${calendarContext}
           { 
             role: "tool" as const, 
             tool_call_id: toolCall.id,
-            content: `Horários disponíveis encontrados (ano atual: ${currentYear}):\n${slotsText}\n\nOfereça pelo menos 5-6 opções de horários variados ao cliente. IMPORTANTE: Quando o cliente escolher um horário, use a data no formato YYYY-MM-DD mostrada entre parênteses.`
+            content: `Horários disponíveis encontrados (ano atual: ${currentYear}):\n\n${slotsText}\nVocê DEVE apresentar TODOS estes horários ao cliente de forma organizada por dia. Deixe o cliente escolher. Quando ele escolher, use create_calendar_event com a data no formato YYYY-MM-DD (mostrada entre parênteses ao lado de cada dia) e o horário escolhido.`
           }
         ];
         
@@ -818,7 +837,7 @@ ${calendarContext}
     if (funcName === "create_calendar_event") {
       try {
         const args = JSON.parse(funcArgs);
-        console.log(`📅 Creating event: ${JSON.stringify(args)}`);
+        console.log(`📅 Creating event with args: date=${args.date}, time=${args.time}, summary=${args.summary}, duration=${args.duration_minutes || 60}`);
         
         const eventResult = await createCalendarEvent(
           supabase, 
@@ -879,9 +898,20 @@ ${calendarContext}
           };
         } else {
           console.error(`❌ Event creation failed: ${eventResult.error}`);
+          // Return error message to user
+          return {
+            response_text: `Desculpe, houve um problema ao agendar. Erro: ${eventResult.error}. Podemos tentar novamente?`,
+            action: "STAY" as const,
+            new_status: undefined,
+          };
         }
       } catch (e) {
         console.error("Calendar event creation error:", e);
+        return {
+          response_text: "Desculpe, houve um erro técnico ao agendar. Pode tentar novamente?",
+          action: "STAY" as const,
+          new_status: undefined,
+        };
       }
     }
     
