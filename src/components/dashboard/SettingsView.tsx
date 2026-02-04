@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import GoogleCalendarSettings from './settings/GoogleCalendarSettings';
 import ScheduleSettings from './settings/ScheduleSettings';
+import FollowupSettings from './settings/FollowupSettings';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -823,6 +824,9 @@ const SettingsView = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Follow-up Settings */}
+          <FollowupSettings />
         </div>
 
         {/* Right Column - QR Code */}
