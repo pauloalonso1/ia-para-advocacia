@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -24,14 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Contact as ContactIcon,
   Plus,
@@ -229,121 +221,137 @@ const ContactsView = () => {
         />
       </div>
 
-      {/* Contacts Table */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground">Lista de Contatos</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            {filteredContacts.length} contato(s) encontrado(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredContacts.length === 0 ? (
-            <div className="text-center py-12">
-              <ContactIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                {searchQuery ? 'Nenhum contato encontrado' : 'Nenhum contato cadastrado'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery 
-                  ? 'Tente buscar por outros termos'
-                  : 'Adicione seu primeiro contato para começar'
-                }
-              </p>
-              {!searchQuery && (
-                <Button onClick={handleOpenCreate} variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar Contato
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border">
-                    <TableHead className="text-muted-foreground">Nome</TableHead>
-                    <TableHead className="text-muted-foreground">Telefone</TableHead>
-                    <TableHead className="text-muted-foreground">Email</TableHead>
-                    <TableHead className="text-muted-foreground">Empresa</TableHead>
-                    <TableHead className="text-muted-foreground">Origem</TableHead>
-                    <TableHead className="text-muted-foreground">Data</TableHead>
-                    <TableHead className="text-muted-foreground text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContacts.map((contact) => (
-                    <TableRow key={contact.id} className="border-border">
-                      <TableCell className="font-medium text-foreground">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                              {contact.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          {contact.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Phone className="w-4 h-4" />
-                          {formatPhoneDisplay(contact.phone)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {contact.email ? (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Mail className="w-4 h-4" />
-                            {contact.email}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground/50">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contact.company ? (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Building2 className="w-4 h-4" />
-                            {contact.company}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground/50">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {getSourceBadge(contact.source)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(contact.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEdit(contact)}
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDelete(contact)}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Contacts List */}
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        {/* List Header */}
+        <div className="px-6 py-2 text-sm flex items-center text-muted-foreground border-b border-border bg-muted/30 sticky top-0 z-10">
+          <div className="flex-grow">Nome</div>
+          <div className="w-40 shrink-0 hidden md:block">Telefone</div>
+          <div className="w-44 shrink-0 hidden lg:block">Email</div>
+          <div className="w-32 shrink-0 hidden lg:block">Empresa</div>
+          <div className="w-24 shrink-0 hidden sm:block">Origem</div>
+          <div className="w-24 shrink-0 hidden sm:block">Data</div>
+          <div className="w-20 shrink-0 text-right">Ações</div>
+        </div>
+
+        {filteredContacts.length === 0 ? (
+          <div className="text-center py-12">
+            <ContactIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              {searchQuery ? 'Nenhum contato encontrado' : 'Nenhum contato cadastrado'}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {searchQuery 
+                ? 'Tente buscar por outros termos'
+                : 'Adicione seu primeiro contato para começar'
+              }
+            </p>
+            {!searchQuery && (
+              <Button onClick={handleOpenCreate} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Contato
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="w-full">
+            {filteredContacts.map((contact) => (
+              <div
+                key={contact.id}
+                className="w-full flex items-center py-3 px-6 border-b border-border/50 hover:bg-muted/30 text-sm last:border-b-0 transition-colors"
+              >
+                {/* Name + Avatar */}
+                <div className="flex-grow flex items-center gap-3 overflow-hidden min-w-0">
+                  <div className="relative shrink-0">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+                        {contact.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span
+                      className="absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-card"
+                      style={{ backgroundColor: contact.source === 'whatsapp' ? '#00cc66' : '#969696' }}
+                    />
+                  </div>
+                  <div className="flex flex-col items-start overflow-hidden min-w-0">
+                    <span className="font-medium truncate w-full text-foreground">{contact.name}</span>
+                    <span className="text-xs text-muted-foreground truncate w-full md:hidden">
+                      {formatPhoneDisplay(contact.phone)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Phone */}
+                <div className="w-40 shrink-0 text-muted-foreground hidden md:flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{formatPhoneDisplay(contact.phone)}</span>
+                </div>
+
+                {/* Email */}
+                <div className="w-44 shrink-0 text-muted-foreground hidden lg:flex items-center gap-1.5 overflow-hidden">
+                  {contact.email ? (
+                    <>
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{contact.email}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground/40">—</span>
+                  )}
+                </div>
+
+                {/* Company */}
+                <div className="w-32 shrink-0 text-muted-foreground hidden lg:flex items-center gap-1.5 overflow-hidden">
+                  {contact.company ? (
+                    <>
+                      <Building2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{contact.company}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground/40">—</span>
+                  )}
+                </div>
+
+                {/* Source */}
+                <div className="w-24 shrink-0 hidden sm:block">
+                  {getSourceBadge(contact.source)}
+                </div>
+
+                {/* Date */}
+                <div className="w-24 shrink-0 text-xs text-muted-foreground hidden sm:block">
+                  {format(new Date(contact.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                </div>
+
+                {/* Actions */}
+                <div className="w-20 shrink-0 flex items-center justify-end gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleOpenEdit(contact)}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleOpenDelete(contact)}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer count */}
+        {filteredContacts.length > 0 && (
+          <div className="px-6 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+            {filteredContacts.length} contato(s)
+          </div>
+        )}
+      </div>
 
       {/* Create Contact Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
