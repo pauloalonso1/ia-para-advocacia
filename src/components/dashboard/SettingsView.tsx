@@ -38,7 +38,8 @@ import {
   EyeOff,
   Clock,
   Zap,
-  FileSignature
+  FileSignature,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -46,8 +47,9 @@ import { useToast } from '@/hooks/use-toast';
 import ScheduleSettings from './settings/ScheduleSettings';
 import FollowupSettings from './settings/FollowupSettings';
 import ZapSignSettings from './settings/ZapSignSettings';
+import TeamMembersView from './TeamMembersView';
 
-type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign';
+type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign' | 'team';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -113,6 +115,7 @@ const SettingsView = () => {
   const menuItems: { id: SettingsSection; label: string; icon: React.ElementType; description: string }[] = [
     { id: 'profile', label: 'Perfil', icon: User, description: 'Informações da conta' },
     { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, description: 'Evolution API' },
+    { id: 'team', label: 'Gestão de Usuários', icon: Users, description: 'Equipe do escritório' },
     { id: 'schedule', label: 'Horários', icon: Clock, description: 'Expediente e agenda' },
     { id: 'notifications', label: 'Notificações', icon: Bell, description: 'Alertas WhatsApp' },
     { id: 'followup', label: 'Follow-up', icon: Zap, description: 'Automação' },
@@ -807,6 +810,9 @@ const SettingsView = () => {
 
       case 'zapsign':
         return <ZapSignSettings />;
+
+      case 'team':
+        return <TeamMembersView />;
 
       default:
         return null;
