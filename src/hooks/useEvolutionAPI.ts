@@ -171,6 +171,40 @@ export const useEvolutionAPI = () => {
     }
   }, []);
 
+  const logoutInstance = useCallback(async (instanceName: string) => {
+    setLoading(true);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('evolution-api', {
+        body: { action: 'logout', instanceName }
+      });
+
+      if (fnError) {
+        throw new Error(fnError.message);
+      }
+
+      setQrCode(null);
+      setConnectionStatus('disconnected');
+
+      toast({
+        title: 'WhatsApp desconectado',
+        description: 'A sessão foi encerrada. A instância ainda existe na Evolution API.'
+      });
+
+      return data;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao desconectar';
+      toast({
+        title: 'Erro',
+        description: message,
+        variant: 'destructive'
+      });
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
   const deleteInstance = useCallback(async (instanceName: string) => {
     setLoading(true);
 
@@ -188,7 +222,7 @@ export const useEvolutionAPI = () => {
 
       toast({
         title: 'Instância removida',
-        description: 'A conexão WhatsApp foi desconectada'
+        description: 'A conexão WhatsApp foi excluída permanentemente'
       });
 
       return data;
@@ -213,6 +247,7 @@ export const useEvolutionAPI = () => {
     createInstance,
     getQRCode,
     checkStatus,
+    logoutInstance,
     deleteInstance,
     setQrCode,
     setConnectionStatus

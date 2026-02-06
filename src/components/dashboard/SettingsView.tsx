@@ -60,6 +60,7 @@ const SettingsView = () => {
     connectionStatus,
     createInstance,
     checkStatus,
+    logoutInstance,
     deleteInstance,
     setConnectionStatus
   } = useEvolutionAPI();
@@ -228,7 +229,7 @@ const SettingsView = () => {
 
   const handleDisconnect = async () => {
     if (!instanceName) return;
-    await deleteInstance(instanceName);
+    await logoutInstance(instanceName);
     await updateConnectionStatus(false);
   };
 
@@ -443,7 +444,7 @@ const SettingsView = () => {
                           </div>
                         </div>
 
-                        <div className="flex gap-2 pt-4">
+                        <div className="flex flex-wrap gap-2 pt-4">
                           {connectionStatus === 'disconnected' && (
                             <Button
                               onClick={handleSaveAndConnect}
@@ -455,7 +456,7 @@ const SettingsView = () => {
                               ) : (
                                 <Wifi className="w-4 h-4 mr-2" />
                               )}
-                              Salvar e Conectar
+                              {evolutionSettings ? 'Reconectar Instância' : 'Criar e Conectar'}
                             </Button>
                           )}
 
@@ -477,7 +478,7 @@ const SettingsView = () => {
                                 onClick={handleDisconnect}
                                 variant="outline"
                                 disabled={evolutionLoading}
-                                className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                                className="border-orange-500/30 text-orange-500 hover:bg-orange-500/10"
                               >
                                 <WifiOff className="w-4 h-4 mr-2" />
                                 Desconectar
@@ -485,15 +486,15 @@ const SettingsView = () => {
                             </>
                           )}
 
-                          {evolutionSettings && (
+                          {connectionStatus === 'disconnected' && evolutionSettings && (
                             <Button
                               onClick={handleDeleteSettings}
                               variant="outline"
-                              disabled={savingSettings}
+                              disabled={savingSettings || evolutionLoading}
                               className="border-destructive/30 text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              Remover
+                              Excluir Tudo
                             </Button>
                           )}
                         </div>
