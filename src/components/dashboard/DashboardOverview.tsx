@@ -12,7 +12,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const DashboardOverview = () => {
   const { metrics, loading } = useDashboardMetrics();
-  const [dateRange] = useState('12 de nov. - 12 de dez. de 2025');
+  const [dateRange] = useState(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${fmt(thirtyDaysAgo)} - ${fmt(now)}`;
+  });
 
   if (loading) {
     return (
@@ -42,27 +48,6 @@ const DashboardOverview = () => {
     );
   }
 
-  // Funnel steps based on reference image
-  const funnelSteps = [
-    { name: 'Recepção', count: 51, rate: 45.9, color: 'bg-blue-500' },
-    { name: 'Qualificação do lead', count: 9, rate: 8.1, color: 'bg-cyan-500' },
-    { name: 'Análise de viabilidade', count: 9, rate: 8.1, color: 'bg-teal-500' },
-    { name: 'Oferta do contrato', count: 10, rate: 9.0, color: 'bg-green-500' },
-    { name: 'Contrato Enviado', count: 4, rate: 3.6, color: 'bg-lime-500' },
-    { name: 'Agendamento feito', count: 5, rate: 4.5, color: 'bg-yellow-500' },
-    { name: 'Desqualificado', count: 5, rate: 4.5, color: 'bg-orange-500' },
-    { name: 'Não tem interesse', count: 9, rate: 8.1, color: 'bg-red-500' },
-    { name: 'Reunião Feita', count: 1, rate: 0.9, color: 'bg-purple-500' },
-  ];
-
-  // Tags data from reference image
-  const tagsData = [
-    { name: 'Rescisão Indireta', value: 14, color: '#818cf8' },
-    { name: 'Reconhecimento de vínculo', value: 13, color: '#38bdf8' },
-    { name: 'Aguardando documentação', value: 4, color: '#fb923c' },
-    { name: 'Novo Lead', value: 3, color: '#4ade80' },
-  ];
-
   return (
     <div className="p-6 space-y-6 overflow-auto h-full">
       {/* Header */}
@@ -87,28 +72,28 @@ const DashboardOverview = () => {
 
       {/* Main 3-column layout */}
       <div className="grid grid-cols-12 gap-6">
-        {/* Left Column: Metrics + Chart + Map */}
+        {/* Left Column */}
         <div className="col-span-5 space-y-6">
           <MetricCards 
-            total={111}
-            totalChange={56}
-            average={3.8}
-            peak={27}
-            peakDate="18/11"
+            total={metrics.totalLeads}
+            totalChange={metrics.contactsChange}
+            average={metrics.averagePerDay}
+            peak={metrics.peakDay.count}
+            peakDate={metrics.peakDay.date}
           />
-          <ConversationsChart />
-          <BrazilMap total={89} />
+          <ConversationsChart data={metrics.conversationsByDay} />
+          <BrazilMap total={metrics.totalContacts} />
         </div>
         
-        {/* Center Column: Conversion Funnel */}
+        {/* Center Column */}
         <div className="col-span-4">
-          <ConversionFunnel steps={funnelSteps} />
+          <ConversionFunnel steps={metrics.funnelSteps.length > 0 ? metrics.funnelSteps : undefined} />
         </div>
         
-        {/* Right Column: Meetings + Tags */}
+        {/* Right Column */}
         <div className="col-span-3 space-y-6">
           <UpcomingMeetings />
-          <TagsDonutChart data={tagsData} />
+          <TagsDonutChart data={metrics.tagsData.length > 0 ? metrics.tagsData : undefined} />
         </div>
       </div>
     </div>
