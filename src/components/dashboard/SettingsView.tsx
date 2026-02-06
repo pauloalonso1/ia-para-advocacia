@@ -37,15 +37,17 @@ import {
   Eye,
   EyeOff,
   Clock,
-  Zap
+  Zap,
+  FileSignature
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 import ScheduleSettings from './settings/ScheduleSettings';
 import FollowupSettings from './settings/FollowupSettings';
+import ZapSignSettings from './settings/ZapSignSettings';
 
-type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup';
+type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -113,6 +115,7 @@ const SettingsView = () => {
     { id: 'schedule', label: 'Horários', icon: Clock, description: 'Expediente e agenda' },
     { id: 'notifications', label: 'Notificações', icon: Bell, description: 'Alertas WhatsApp' },
     { id: 'followup', label: 'Follow-up', icon: Zap, description: 'Automação' },
+    { id: 'zapsign', label: 'ZapSign', icon: FileSignature, description: 'Assinatura digital' },
   ];
 
   // Load Evolution API settings
@@ -800,6 +803,9 @@ const SettingsView = () => {
 
       case 'followup':
         return <FollowupSettings />;
+
+      case 'zapsign':
+        return <ZapSignSettings />;
 
       default:
         return null;

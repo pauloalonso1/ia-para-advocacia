@@ -756,6 +756,36 @@ export type Database = {
         }
         Relationships: []
       }
+      zapsign_settings: {
+        Row: {
+          api_token: string
+          created_at: string
+          id: string
+          is_enabled: boolean | null
+          sandbox_mode: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_token: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          sandbox_mode?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_token?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          sandbox_mode?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
