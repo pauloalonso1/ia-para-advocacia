@@ -10,6 +10,7 @@ import { AnimatedGroup } from '@/components/ui/animated-group';
 import { FeatureCard as GridFeatureCard } from '@/components/ui/grid-feature-cards';
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import FlickeringFooter from '@/components/landing/FlickeringFooter';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -322,36 +323,7 @@ const Index = () => {
         </section>
 
         {/* ═══ FOOTER ═══ */}
-        <footer className="border-t border-border py-12">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div>
-                <span className="text-lg font-bold text-foreground">Advocacia IA</span>
-                <p className="mt-3 text-sm text-muted-foreground max-w-xs">
-                  Plataforma de automação inteligente para escritórios de advocacia.
-                </p>
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-foreground">Produto</span>
-                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <li><a href="#features" className="hover:text-foreground transition-colors">Funcionalidades</a></li>
-                  <li><a href="#how-it-works" className="hover:text-foreground transition-colors">Como funciona</a></li>
-                  <li><a href="#benefits" className="hover:text-foreground transition-colors">Benefícios</a></li>
-                </ul>
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-foreground">Legal</span>
-                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                  <li><Link to="/privacy" className="hover:text-foreground transition-colors">Política de Privacidade</Link></li>
-                  <li><Link to="/terms" className="hover:text-foreground transition-colors">Termos de Serviço</Link></li>
-                </ul>
-              </div>
-            </div>
-            <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-              <span>© {new Date().getFullYear()} Advocacia IA. Todos os direitos reservados.</span>
-            </div>
-          </div>
-        </footer>
+        <FlickeringFooter />
       </main>
     </>
   );
