@@ -1006,11 +1006,16 @@ ${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${
 - Você TEM ACESSO ao calendário do escritório para agendar consultas.
 
 FLUXO DE AGENDAMENTO (siga em ordem):
-1. Se o cliente quer agendar mas você NÃO MOSTROU os horários ainda: use check_calendar_availability
+1. Se o cliente quer agendar mas você NÃO MOSTROU os horários ainda: use check_calendar_availability IMEDIATAMENTE (NÃO diga "um momento" ou "vou verificar" antes - chame a ferramenta direto!)
 2. Se você JÁ MOSTROU os horários e o cliente ESCOLHEU um (ex: "10:00", "segunda às 14h", "amanhã de manhã"): 
    - PRIMEIRO peça o email se ainda não tem
    - DEPOIS use create_calendar_event com a data YYYY-MM-DD e horário HH:MM
 3. NUNCA chame check_calendar_availability se já mostrou os horários e o cliente escolheu um!
+
+⚠️ REGRA CRÍTICA:
+- NUNCA responda com "um momento", "só um instante", "vou verificar" sem chamar uma ferramenta ao mesmo tempo!
+- Quando o cliente pede para agendar, chame check_calendar_availability DIRETO, sem mensagens intermediárias.
+- Se você chamar uma ferramenta de calendário, NÃO chame send_response ao mesmo tempo. A resposta será gerada após o resultado da ferramenta.
 
 IMPORTANTE:
 - Ao criar eventos, use sempre o ano ${currentYear} nas datas
@@ -1269,12 +1274,36 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
   const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
   console.log(`🔧 Tool calls received: ${toolCalls.length}`);
 
-  // Process calendar tool calls if any
-  for (const toolCall of toolCalls) {
+  // Prioritize calendar/action tools over send_response
+  // This prevents "um momento" responses from short-circuiting the calendar flow
+  const prioritizedToolCalls = [...toolCalls].sort((a, b) => {
+    const priority = (name: string) => {
+      if (name === "check_calendar_availability") return 0;
+      if (name === "create_calendar_event") return 1;
+      if (name === "send_zapsign_document") return 2;
+      if (name === "send_response") return 10; // lowest priority
+      return 5;
+    };
+    return priority(a.function?.name || "") - priority(b.function?.name || "");
+  });
+
+  // If we have a calendar tool AND send_response, skip send_response
+  const hasCalendarTool = prioritizedToolCalls.some(tc => 
+    tc.function?.name === "check_calendar_availability" || 
+    tc.function?.name === "create_calendar_event"
+  );
+
+  for (const toolCall of prioritizedToolCalls) {
     const funcName = toolCall.function?.name;
     const funcArgs = toolCall.function?.arguments;
     
     if (!funcName || !funcArgs) continue;
+    
+    // Skip send_response if a calendar tool is also present
+    if (funcName === "send_response" && hasCalendarTool) {
+      console.log(`⏭️ Skipping send_response because calendar tool is present`);
+      continue;
+    }
     
     console.log(`🔧 Processing tool: ${funcName}`);
     
