@@ -162,7 +162,8 @@ export const AnimatedSidebarLink = ({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center justify-start gap-3 group/sidebar py-2.5 px-3 rounded-lg w-full transition-colors duration-200",
+        "flex items-center gap-3 group/sidebar py-2.5 rounded-lg w-full transition-colors duration-200",
+        open ? "justify-start px-3" : "justify-center px-0",
         active
           ? "bg-primary/15 text-primary"
           : "text-muted-foreground hover:text-foreground hover:bg-accent",
