@@ -33,7 +33,7 @@ const categories = [
 interface CreateAgentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (name: string, description: string, category: string) => Promise<any>;
+  onSubmit: (name: string, description: string, category: string, skipDefaultRules?: boolean) => Promise<any>;
 }
 
 const CreateAgentModal = ({ open, onOpenChange, onSubmit }: CreateAgentModalProps) => {
@@ -58,8 +58,8 @@ const CreateAgentModal = ({ open, onOpenChange, onSubmit }: CreateAgentModalProp
     setIsLoading(true);
     
     try {
-      // Create the agent
-      const result = await onSubmit(name, description, category);
+      // Create the agent (skip default rules if using template, since we'll create template rules)
+      const result = await onSubmit(name, description, category, !!selectedTemplate);
       
       if (result && selectedTemplate) {
         const agentId = result.id;

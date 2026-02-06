@@ -63,7 +63,7 @@ export const useAgents = () => {
     setLoading(false);
   };
 
-  const createAgent = async (name: string, description: string, category: string) => {
+  const createAgent = async (name: string, description: string, category: string, skipDefaultRules = false) => {
     if (!user) return null;
 
     const { data, error } = await supabase
@@ -86,20 +86,18 @@ export const useAgents = () => {
       return null;
     }
 
-    // Create default rules
-    await supabase.from('agent_rules').insert({
-      agent_id: data.id,
-      system_prompt: '',
-      agent_rules: '',
-      forbidden_actions: '',
-      welcome_message: ''
-    });
+    // Only create default rules if not using a template (template handles its own rules)
+    if (!skipDefaultRules) {
+      await supabase.from('agent_rules').insert({
+        agent_id: data.id,
+        system_prompt: '',
+        agent_rules: '',
+        forbidden_actions: '',
+        welcome_message: ''
+      });
+    }
 
     await fetchAgents();
-    toast({
-      title: 'Agente criado!',
-      description: `${name} foi criado com sucesso.`
-    });
     return data;
   };
 

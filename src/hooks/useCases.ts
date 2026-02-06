@@ -226,6 +226,34 @@ export const useCases = () => {
     }
   };
 
+  const pauseAgentForCase = async (caseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('cases')
+        .update({ is_agent_paused: true, updated_at: new Date().toISOString() })
+        .eq('id', caseId);
+
+      if (error) throw error;
+      
+      setCases(prev => prev.map(c => 
+        c.id === caseId ? { ...c, is_agent_paused: true, updated_at: new Date().toISOString() } : c
+      ));
+
+      toast({
+        title: 'Agente pausado',
+        description: 'O agente IA foi pausado. O atendimento agora é manual.',
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao pausar agente',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   const markAsRead = async (caseId: string) => {
     try {
       const { error } = await supabase
@@ -251,6 +279,7 @@ export const useCases = () => {
     updateCaseName,
     deleteCase,
     assignAgentToCase,
+    pauseAgentForCase,
     markAsRead,
     refetch: fetchCases,
   };

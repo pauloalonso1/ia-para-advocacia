@@ -50,17 +50,12 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL");
-    const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase configuration missing");
     }
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY not configured");
-    }
-    if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
-      throw new Error("Evolution API not configured");
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -140,6 +135,24 @@ serve(async (req) => {
 
     console.log(`📩 Message from ${clientPhone}: ${messageBody}`);
 
+    // Resolve the owner and Evolution API credentials from the database (per-user, multi-tenant)
+    const { data: instanceSettings } = await supabase
+      .from("evolution_api_settings")
+      .select("user_id, api_url, api_key")
+      .eq("instance_name", instanceName)
+      .maybeSingle();
+
+    const ownerId = instanceSettings?.user_id;
+    const EVOLUTION_API_URL = instanceSettings?.api_url;
+    const EVOLUTION_API_KEY = instanceSettings?.api_key;
+
+    if (!ownerId || !EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
+      console.log(`❌ No owner/credentials found for instance: ${instanceName}`);
+      return new Response(JSON.stringify({ status: "no_owner" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Deduplicate: if this message was already processed, skip
     if (incomingMessageId) {
       const { data: existingMsg } = await supabase
@@ -156,11 +169,12 @@ serve(async (req) => {
       }
     }
 
-    // Find case by phone
+    // Find case by phone AND owner
     let { data: existingCase } = await supabase
       .from("cases")
       .select("*, active_agent:agents(*), current_step:agent_script_steps(*)")
       .eq("client_phone", clientPhone)
+      .eq("user_id", ownerId)
       .maybeSingle();
 
     const previousStatus = existingCase?.status;
@@ -173,6 +187,7 @@ serve(async (req) => {
       const { data: defaultAgent } = await supabase
         .from("agents")
         .select("*")
+        .eq("user_id", ownerId)
         .eq("is_active", true)
         .eq("is_default", true)
         .limit(1)
@@ -181,6 +196,7 @@ serve(async (req) => {
       const agent = defaultAgent || (await supabase
         .from("agents")
         .select("*")
+        .eq("user_id", ownerId)
         .eq("is_active", true)
         .limit(1)
         .maybeSingle()).data;
