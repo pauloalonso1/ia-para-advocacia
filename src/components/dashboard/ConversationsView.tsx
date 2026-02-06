@@ -5,7 +5,7 @@ import ChatView from './conversations/ChatView';
 import CRMPanel from './conversations/CRMPanel';
 
 const ConversationsView = () => {
-  const { cases, loading: casesLoading, updateCaseStatus, updateCaseName, deleteCase, assignAgentToCase, markAsRead } = useCases();
+  const { cases, loading: casesLoading, updateCaseStatus, updateCaseName, deleteCase, assignAgentToCase, pauseAgentForCase, markAsRead } = useCases();
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   
   const { messages, loading: messagesLoading } = useMessages(selectedCase?.id || null);
@@ -83,7 +83,7 @@ const ConversationsView = () => {
         selectedCase={selectedCase}
         messages={messages}
         loading={messagesLoading}
-        onPauseAgent={(caseId) => handleAssignAgent(caseId, null)}
+        onPauseAgent={(caseId) => pauseAgentForCase(caseId)}
       />
 
       {/* Right: CRM Panel */}
