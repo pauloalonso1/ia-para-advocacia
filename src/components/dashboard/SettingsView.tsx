@@ -626,7 +626,7 @@ const SettingsView = () => {
                             WhatsApp → Menu → Dispositivos conectados
                           </p>
                         </div>
-                        <Badge className="bg-primary/20 text-primary border-primary/30">
+                        <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30">
                           <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                           Aguardando...
                         </Badge>
