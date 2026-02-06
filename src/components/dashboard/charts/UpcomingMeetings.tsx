@@ -26,7 +26,7 @@ const UpcomingMeetings = ({ meetings = [] }: UpcomingMeetingsProps) => {
   ];
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
+    <div className="bg-card border border-border rounded-lg p-4 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-primary" />

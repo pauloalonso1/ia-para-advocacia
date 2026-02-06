@@ -14,7 +14,7 @@ const MetricCard = ({ label, value, change, changeLabel, highlight }: MetricCard
   
   return (
     <div className={cn(
-      "bg-card border border-border rounded-lg p-4",
+      "bg-card border border-border rounded-lg p-4 overflow-hidden",
       highlight && "border-accent"
     )}>
       <div className="flex items-center justify-between mb-1">

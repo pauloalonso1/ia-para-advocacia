@@ -22,7 +22,7 @@ const TagsDonutChart = ({ data = defaultData }: TagsDonutChartProps) => {
   const total = data.reduce((acc, item) => acc + item.value, 0);
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 h-full">
+    <div className="bg-card border border-border rounded-lg p-4 h-full overflow-hidden">
       <div className="flex items-center gap-2 mb-4">
         <Tags className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-foreground">Etiquetas</h3>

@@ -28,7 +28,7 @@ const ConversionFunnel = ({ steps = defaultSteps }: ConversionFunnelProps) => {
   const maxCount = Math.max(...steps.map(s => s.count));
   
   return (
-    <div className="bg-card border border-border rounded-lg p-4 h-full">
+    <div className="bg-card border border-border rounded-lg p-4 h-full overflow-hidden">
       <div className="flex items-center gap-2 mb-4">
         <Flame className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-foreground">Funil de Conversão</h3>
