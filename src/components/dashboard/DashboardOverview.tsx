@@ -1,6 +1,10 @@
 import { useState } from 'react';
-import { Calendar, Filter } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import MetricCards from './charts/MetricCards';
 import ConversationsChart from './charts/ConversationsChart';
@@ -9,16 +13,24 @@ import UpcomingMeetings from './charts/UpcomingMeetings';
 import TagsDonutChart from './charts/TagsDonutChart';
 import BrazilMap from './charts/BrazilMap';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import type { DateRange } from 'react-day-picker';
 
 const DashboardOverview = () => {
-  const { metrics, loading } = useDashboardMetrics();
-  const [dateRange] = useState(() => {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `${fmt(thirtyDaysAgo)} - ${fmt(now)}`;
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    return { from, to };
   });
+
+  const { metrics, loading } = useDashboardMetrics(dateRange?.from, dateRange?.to);
+
+  const dateLabel = dateRange?.from
+    ? dateRange.to
+      ? `${format(dateRange.from, "dd MMM yyyy", { locale: ptBR })} - ${format(dateRange.to, "dd MMM yyyy", { locale: ptBR })}`
+      : format(dateRange.from, "dd MMM yyyy", { locale: ptBR })
+    : 'Selecionar período';
 
   if (loading) {
     return (
@@ -58,16 +70,27 @@ const DashboardOverview = () => {
           </h1>
           <p className="text-muted-foreground">Visão geral das conversas e contatos</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="text-xs">
-            <Calendar className="w-3.5 h-3.5 mr-1.5" />
-            {dateRange}
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs">
-            <Filter className="w-3.5 h-3.5 mr-1.5" />
-            Selecionar Data
-          </Button>
-        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("text-xs", !dateRange && "text-muted-foreground")}>
+              <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+              {dateLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              locale={ptBR}
+              className={cn("p-3 pointer-events-auto")}
+              disabled={(date) => date > new Date()}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Main 3-column layout */}
