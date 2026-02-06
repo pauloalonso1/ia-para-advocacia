@@ -63,14 +63,8 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
           "group relative bg-card border-border rounded-xl",
           "transition-all duration-300",
         )}>
-      <div className={cn(
-        "absolute top-0 left-0 right-0 h-1 rounded-t-lg",
-        agent.is_active 
-          ? "bg-gradient-to-r from-primary to-primary/70" 
-          : "bg-muted"
-      )} />
 
-      <CardContent className="p-5 pt-6">
+      <CardContent className="p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
