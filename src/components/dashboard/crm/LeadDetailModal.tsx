@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Case } from '@/hooks/useCases';
 import { useAgents } from '@/hooks/useAgents';
 import {
@@ -24,11 +25,13 @@ import {
   Bot,
   MessageSquare,
   ExternalLink,
-  Zap
+  Zap,
+  FileSignature
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import SendDocumentModal from './SendDocumentModal';
 
 interface LeadDetailModalProps {
   open: boolean;
@@ -58,6 +61,7 @@ const LeadDetailModal = ({
 }: LeadDetailModalProps) => {
   const { agents } = useAgents();
   const activeAgents = agents.filter(a => a.is_active);
+  const [showDocModal, setShowDocModal] = useState(false);
 
   if (!selectedCase) return null;
 
@@ -215,16 +219,24 @@ const LeadDetailModal = ({
               <MessageSquare className="w-4 h-4 mr-2" />
               Ver Conversa
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="border-border"
-              onClick={() => onOpenChange(false)}
+              onClick={() => setShowDocModal(true)}
             >
-              Fechar
+              <FileSignature className="w-4 h-4 mr-2" />
+              Contrato
             </Button>
           </div>
         </div>
       </DialogContent>
+
+      <SendDocumentModal
+        open={showDocModal}
+        onOpenChange={setShowDocModal}
+        clientName={selectedCase.client_name || ''}
+        clientPhone={selectedCase.client_phone}
+      />
     </Dialog>
   );
 };
