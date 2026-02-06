@@ -36,17 +36,16 @@ import {
   Check,
   Eye,
   EyeOff,
-  Calendar,
   Clock,
   Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import GoogleCalendarSettings from './settings/GoogleCalendarSettings';
+
 import ScheduleSettings from './settings/ScheduleSettings';
 import FollowupSettings from './settings/FollowupSettings';
 
-type SettingsSection = 'profile' | 'whatsapp' | 'calendar' | 'schedule' | 'notifications' | 'followup';
+type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -111,7 +110,6 @@ const SettingsView = () => {
   const menuItems: { id: SettingsSection; label: string; icon: React.ElementType; description: string }[] = [
     { id: 'profile', label: 'Perfil', icon: User, description: 'Informações da conta' },
     { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, description: 'Evolution API' },
-    { id: 'calendar', label: 'Google Calendar', icon: Calendar, description: 'Agendamentos' },
     { id: 'schedule', label: 'Horários', icon: Clock, description: 'Expediente e agenda' },
     { id: 'notifications', label: 'Notificações', icon: Bell, description: 'Alertas WhatsApp' },
     { id: 'followup', label: 'Follow-up', icon: Zap, description: 'Automação' },
@@ -654,8 +652,6 @@ const SettingsView = () => {
           </div>
         );
 
-      case 'calendar':
-        return <GoogleCalendarSettings />;
 
       case 'schedule':
         return <ScheduleSettings />;
