@@ -26,6 +26,8 @@ export interface Message {
   role: string;
   content: string;
   created_at: string;
+  message_status?: string;
+  external_message_id?: string;
 }
 
 export const useCases = () => {
@@ -297,7 +299,24 @@ export const useMessages = (caseId: string | null) => {
           filter: `case_id=eq.${caseId}`,
         },
         (payload) => {
-          setMessages(prev => [...prev, payload.new as Message]);
+          setMessages(prev => {
+            const newMsg = payload.new as Message;
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversation_history',
+          filter: `case_id=eq.${caseId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
         }
       )
       .subscribe();
