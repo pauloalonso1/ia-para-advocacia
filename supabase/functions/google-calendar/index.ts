@@ -286,6 +286,20 @@ serve(async (req) => {
           );
         }
 
+        // Get user's schedule settings
+        const { data: scheduleSettings } = await supabase
+          .from("schedule_settings")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        const workStartHour = scheduleSettings?.work_start_hour ?? 9;
+        const workEndHour = scheduleSettings?.work_end_hour ?? 18;
+        const lunchStartHour = scheduleSettings?.lunch_start_hour ?? null;
+        const lunchEndHour = scheduleSettings?.lunch_end_hour ?? null;
+        const appointmentDuration = scheduleSettings?.appointment_duration_minutes ?? 60;
+        const workDays: number[] = scheduleSettings?.work_days ?? [1, 2, 3, 4, 5];
+
         const { startDate, endDate } = body;
         const start = startDate ? new Date(startDate) : new Date();
         const end = endDate ? new Date(endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -304,34 +318,55 @@ serve(async (req) => {
           end: event.end?.dateTime || event.end?.date,
         }));
 
-        // Generate available slots (9h-18h, 1 hour slots)
+        // São Paulo timezone offset (UTC-3)
+        const SP_OFFSET_HOURS = 3;
+
+        // Generate available slots using São Paulo timezone
         const availableSlots: { start: string; end: string }[] = [];
         const currentDate = new Date(start);
-        currentDate.setHours(0, 0, 0, 0);
+        currentDate.setUTCHours(0, 0, 0, 0);
+
+        const slotDurationMs = appointmentDuration * 60 * 1000;
 
         while (currentDate <= end) {
-          // Skip weekends
-          if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-            for (let hour = 9; hour < 18; hour++) {
-              const slotStart = new Date(currentDate);
-              slotStart.setHours(hour, 0, 0, 0);
-              const slotEnd = new Date(slotStart);
-              slotEnd.setHours(hour + 1, 0, 0, 0);
+          // Get day of week in São Paulo time
+          const spDate = new Date(currentDate.getTime() - SP_OFFSET_HOURS * 3600000);
+          const dayOfWeek = spDate.getUTCDay();
 
-              // Check if slot is in the future and not busy
-              if (slotStart > new Date()) {
-                const isBusy = busySlots.some((busy: any) => {
-                  const busyStart = new Date(busy.start);
-                  const busyEnd = new Date(busy.end);
-                  return slotStart < busyEnd && slotEnd > busyStart;
-                });
+          if (workDays.includes(dayOfWeek)) {
+            let currentHour = workStartHour;
+            let currentMinute = 0;
 
-                if (!isBusy) {
-                  availableSlots.push({
-                    start: slotStart.toISOString(),
-                    end: slotEnd.toISOString(),
+            while (currentHour < workEndHour) {
+              const isLunchTime = lunchStartHour !== null && lunchEndHour !== null &&
+                currentHour >= lunchStartHour && currentHour < lunchEndHour;
+
+              if (!isLunchTime) {
+                // Create slot in São Paulo time by adding offset to UTC
+                const slotStart = new Date(currentDate);
+                slotStart.setUTCHours(currentHour + SP_OFFSET_HOURS, currentMinute, 0, 0);
+                const slotEnd = new Date(slotStart.getTime() + slotDurationMs);
+
+                if (slotStart > new Date()) {
+                  const isBusy = busySlots.some((busy: any) => {
+                    const busyStart = new Date(busy.start);
+                    const busyEnd = new Date(busy.end);
+                    return slotStart < busyEnd && slotEnd > busyStart;
                   });
+
+                  if (!isBusy) {
+                    availableSlots.push({
+                      start: slotStart.toISOString(),
+                      end: slotEnd.toISOString(),
+                    });
+                  }
                 }
+              }
+
+              currentMinute += appointmentDuration;
+              if (currentMinute >= 60) {
+                currentHour += Math.floor(currentMinute / 60);
+                currentMinute = currentMinute % 60;
               }
             }
           }
@@ -339,7 +374,7 @@ serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ slots: availableSlots.slice(0, 20) }), // Limit to 20 slots
+          JSON.stringify({ slots: availableSlots.slice(0, 20) }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

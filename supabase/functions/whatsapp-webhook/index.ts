@@ -1689,15 +1689,20 @@ async function getCalendarAvailability(
       end: event.end?.dateTime || event.end?.date,
     }));
 
-    // Generate available slots based on user settings
+    // São Paulo timezone offset (UTC-3)
+    const SP_OFFSET_HOURS = 3;
+
+    // Generate available slots based on user settings using São Paulo timezone
     const availableSlots: { start: string; end: string }[] = [];
     const currentDate = new Date(start);
-    currentDate.setHours(0, 0, 0, 0);
+    currentDate.setUTCHours(0, 0, 0, 0);
 
     const slotDurationMs = appointmentDuration * 60 * 1000;
 
     while (currentDate <= end) {
-      const dayOfWeek = currentDate.getDay();
+      // Get day of week in São Paulo time
+      const spDate = new Date(currentDate.getTime() - SP_OFFSET_HOURS * 3600000);
+      const dayOfWeek = spDate.getUTCDay();
       
       // Check if this day is a work day
       if (workDays.includes(dayOfWeek)) {
@@ -1711,12 +1716,13 @@ async function getCalendarAvailability(
             currentHour >= lunchStartHour && currentHour < lunchEndHour;
           
           if (!isLunchTime) {
+            // Create slot in São Paulo time by adding offset to UTC
             const slotStart = new Date(currentDate);
-            slotStart.setHours(currentHour, currentMinute, 0, 0);
+            slotStart.setUTCHours(currentHour + SP_OFFSET_HOURS, currentMinute, 0, 0);
             const slotEnd = new Date(slotStart.getTime() + slotDurationMs);
 
-            // Only add if slot is in the future and doesn't exceed work hours
-            if (slotStart > new Date() && slotEnd.getHours() <= workEndHour) {
+            // Only add if slot is in the future
+            if (slotStart > new Date()) {
               const isBusy = busySlots.some((busy: any) => {
                 const busyStart = new Date(busy.start);
                 const busyEnd = new Date(busy.end);
