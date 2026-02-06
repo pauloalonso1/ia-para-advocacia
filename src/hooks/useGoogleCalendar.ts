@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,7 @@ interface CalendarEvent {
   start: { dateTime?: string; date?: string };
   end: { dateTime?: string; date?: string };
   attendees?: { email: string }[];
+  hangoutLink?: string;
 }
 
 interface AvailableSlot {
@@ -20,23 +21,24 @@ interface AvailableSlot {
 export const useGoogleCalendar = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
+  const [calendarEmail, setCalendarEmail] = useState('');
+  const [calendarId, setCalendarId] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Check connection status
   const checkStatus = useCallback(async () => {
     if (!user) return;
-    
     try {
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: { action: 'status' },
       });
-
       if (error) throw error;
       setIsConnected(data.connected);
+      if (data.calendarId) setCalendarId(data.calendarId);
+      if (data.email) setCalendarEmail(data.email);
     } catch (error: any) {
       console.error('Error checking calendar status:', error);
     } finally {
@@ -48,73 +50,46 @@ export const useGoogleCalendar = () => {
     checkStatus();
   }, [checkStatus]);
 
-  // Get OAuth URL to start authorization
-  const getAuthUrl = async (): Promise<string | null> => {
+  const saveCalendarId = async (email: string, calId: string): Promise<boolean> => {
     try {
-      setConnecting(true);
+      setSaving(true);
       const { data, error } = await supabase.functions.invoke('google-calendar', {
-        body: { action: 'auth-url' },
+        body: { action: 'save-calendar-id', email, calendarId: calId },
       });
-
       if (error) throw error;
-      return data.authUrl;
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar conexão',
-        description: error.message,
-        variant: 'destructive',
-      });
-      return null;
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  // Exchange authorization code for tokens
-  const handleCallback = async (code: string): Promise<boolean> => {
-    try {
-      setConnecting(true);
-      const { data, error } = await supabase.functions.invoke('google-calendar', {
-        body: { action: 'callback', code },
-      });
-
-      if (error) throw error;
-      
       if (data.success) {
         setIsConnected(true);
+        setCalendarEmail(email);
+        setCalendarId(calId);
         toast({
-          title: 'Conectado!',
-          description: 'Google Calendar conectado com sucesso.',
+          title: 'Agenda vinculada!',
+          description: 'Seu Google Calendar foi vinculado com sucesso.',
         });
         return true;
       }
       return false;
     } catch (error: any) {
       toast({
-        title: 'Erro ao conectar',
+        title: 'Erro ao vincular',
         description: error.message,
         variant: 'destructive',
       });
       return false;
     } finally {
-      setConnecting(false);
+      setSaving(false);
     }
   };
 
-  // List calendar events
   const listEvents = async (startDate?: string, endDate?: string): Promise<CalendarEvent[]> => {
     try {
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: { action: 'list-events', startDate, endDate },
       });
-
       if (error) throw error;
-      
       if (data.error && data.code === 'NOT_CONNECTED') {
         setIsConnected(false);
         return [];
       }
-
       setEvents(data.events || []);
       return data.events || [];
     } catch (error: any) {
@@ -123,20 +98,16 @@ export const useGoogleCalendar = () => {
     }
   };
 
-  // Get available slots
   const getAvailableSlots = async (startDate?: string, endDate?: string): Promise<AvailableSlot[]> => {
     try {
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: { action: 'available-slots', startDate, endDate },
       });
-
       if (error) throw error;
-      
       if (data.error && data.code === 'NOT_CONNECTED') {
         setIsConnected(false);
         return [];
       }
-
       setAvailableSlots(data.slots || []);
       return data.slots || [];
     } catch (error: any) {
@@ -145,7 +116,6 @@ export const useGoogleCalendar = () => {
     }
   };
 
-  // Create a calendar event
   const createEvent = async (event: {
     summary: string;
     description?: string;
@@ -157,19 +127,16 @@ export const useGoogleCalendar = () => {
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: { action: 'create-event', event },
       });
-
       if (error) throw error;
-      
       if (data.error && data.code === 'NOT_CONNECTED') {
         setIsConnected(false);
         toast({
           title: 'Calendário não conectado',
-          description: 'Conecte seu Google Calendar nas configurações.',
+          description: 'Vincule seu Google Calendar nas configurações.',
           variant: 'destructive',
         });
         return null;
       }
-
       if (data.success) {
         toast({
           title: 'Evento criado!',
@@ -188,28 +155,25 @@ export const useGoogleCalendar = () => {
     }
   };
 
-  // Disconnect calendar
   const disconnect = async (): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from('google_calendar_tokens')
-        .delete()
-        .eq('user_id', user?.id);
-
+      const { error } = await supabase.functions.invoke('google-calendar', {
+        body: { action: 'disconnect' },
+      });
       if (error) throw error;
-      
       setIsConnected(false);
       setEvents([]);
       setAvailableSlots([]);
-      
+      setCalendarEmail('');
+      setCalendarId('');
       toast({
-        title: 'Desconectado',
-        description: 'Google Calendar foi desconectado.',
+        title: 'Desvinculado',
+        description: 'Google Calendar foi desvinculado.',
       });
       return true;
     } catch (error: any) {
       toast({
-        title: 'Erro ao desconectar',
+        title: 'Erro ao desvincular',
         description: error.message,
         variant: 'destructive',
       });
@@ -220,12 +184,13 @@ export const useGoogleCalendar = () => {
   return {
     isConnected,
     loading,
-    connecting,
+    saving,
     events,
     availableSlots,
+    calendarEmail,
+    calendarId,
     checkStatus,
-    getAuthUrl,
-    handleCallback,
+    saveCalendarId,
     listEvents,
     getAvailableSlots,
     createEvent,
