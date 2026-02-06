@@ -7,7 +7,40 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnimatedGroup } from '@/components/ui/animated-group';
+import { FeatureCard as GridFeatureCard } from '@/components/ui/grid-feature-cards';
+import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
+
+const featuresData = [
+  { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
+  { title: 'WhatsApp Integrado', icon: MessageSquare, description: 'Receba e responda todas as mensagens em um painel centralizado com histórico completo.' },
+  { title: 'Agendamento Automático', icon: Calendar, description: 'Integração com Google Calendar que verifica disponibilidade e marca consultas sozinho.' },
+  { title: 'Contratos e Assinatura', icon: FileSignature, description: 'Envie contratos via ZapSign e acompanhe assinaturas digitais em tempo real.' },
+  { title: 'CRM Jurídico', icon: BarChart3, description: 'Kanban de leads com funil completo, tags, notas e acompanhamento por estágio.' },
+  { title: 'Base de Conhecimento', icon: BrainCircuit, description: 'Alimente seus agentes com documentos e FAQs para respostas precisas e contextuais.' },
+];
+
+type AnimatedContainerProps = {
+  delay?: number;
+  className?: string;
+  children: React.ReactNode;
+};
+
+function AnimatedContainer({ className, delay = 0.1, children }: AnimatedContainerProps) {
+  const shouldReduceMotion = useReducedMotion();
+  if (shouldReduceMotion) return <>{children}</>;
+  return (
+    <motion.div
+      initial={{ filter: 'blur(4px)', translateY: -8, opacity: 0 }}
+      whileInView={{ filter: 'blur(0px)', translateY: 0, opacity: 1 }}
+      viewport={{ once: true }}
+      transition={{ delay, duration: 0.8 }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 const transitionVariants = {
   item: {
@@ -174,23 +207,19 @@ const Index = () => {
 
         {/* ═══ FEATURES ═══ */}
         <section id="features" className="py-24 md:py-32">
-          <div className="mx-auto max-w-6xl px-6">
-            <div className="text-center mb-16">
+          <div className="mx-auto max-w-5xl px-4">
+            <AnimatedContainer className="text-center mb-12">
               <span className="text-primary text-sm font-semibold uppercase tracking-wider">Funcionalidades</span>
-              <h2 className="mt-4 text-3xl md:text-4xl font-bold text-foreground">Tudo que seu escritório precisa em um só lugar</h2>
-              <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-wide text-balance text-foreground">Tudo que seu escritório precisa em um só lugar</h2>
+              <p className="mt-4 text-muted-foreground text-sm md:text-base tracking-wide text-balance max-w-2xl mx-auto">
                 Cada funcionalidade foi pensada para eliminar trabalho manual e acelerar a conversão de clientes.
               </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <FeatureCard icon={<Bot className="size-7 text-primary" />} title="Agentes de IA" description="Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp." />
-              <FeatureCard icon={<MessageSquare className="size-7 text-primary" />} title="WhatsApp Integrado" description="Receba e responda todas as mensagens em um painel centralizado com histórico completo." />
-              <FeatureCard icon={<Calendar className="size-7 text-primary" />} title="Agendamento Automático" description="Integração com Google Calendar que verifica disponibilidade e marca consultas sozinho." />
-              <FeatureCard icon={<FileSignature className="size-7 text-primary" />} title="Contratos e Assinatura" description="Envie contratos via ZapSign e acompanhe assinaturas digitais em tempo real." />
-              <FeatureCard icon={<BarChart3 className="size-7 text-primary" />} title="CRM Jurídico" description="Kanban de leads com funil completo, tags, notas e acompanhamento por estágio." />
-              <FeatureCard icon={<BrainCircuit className="size-7 text-primary" />} title="Base de Conhecimento" description="Alimente seus agentes com documentos e FAQs para respostas precisas e contextuais." />
-            </div>
-            {/* CTA after features */}
+            </AnimatedContainer>
+            <AnimatedContainer delay={0.4} className="grid grid-cols-1 divide-x divide-y divide-dashed border border-dashed sm:grid-cols-2 md:grid-cols-3">
+              {featuresData.map((feature, i) => (
+                <GridFeatureCard key={i} feature={feature} />
+              ))}
+            </AnimatedContainer>
             <div className="mt-12 text-center">
               <Button asChild size="lg" className="rounded-xl px-8 text-base">
                 <Link to="/auth">
@@ -330,13 +359,6 @@ const Index = () => {
 
 /* ─── Sub-components ─── */
 
-const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
-  <div className="rounded-xl border border-border bg-card p-6 space-y-3 hover:border-primary/30 transition-colors duration-300">
-    <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center">{icon}</div>
-    <h3 className="font-semibold text-foreground">{title}</h3>
-    <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-  </div>
-);
 
 const StepCard = ({ number, icon, title, description }: { number: string; icon: React.ReactNode; title: string; description: string }) => (
   <div className="text-center space-y-4">
