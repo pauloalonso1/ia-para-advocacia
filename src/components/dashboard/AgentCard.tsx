@@ -1,5 +1,6 @@
 import { Agent } from '@/hooks/useAgents';
 import { Card, CardContent } from '@/components/ui/card';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -45,14 +46,23 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
   const categoryStyle = categoryColors[agent.category || 'Outro'] || categoryColors['Outro'];
 
   return (
-    <Card className={cn(
-      "group relative bg-card border-border",
-      "hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5",
-      "transition-all duration-300",
-      agent.is_default && "ring-2 ring-primary/30"
-    )}>
-
-      {/* Status indicator bar */}
+    <div className="relative list-none">
+      <div className={cn(
+        "relative rounded-[1.25rem] border-[0.75px] border-border p-2",
+        agent.is_default && "ring-2 ring-primary/30"
+      )}>
+        <GlowingEffect
+          spread={40}
+          glow={true}
+          disabled={false}
+          proximity={64}
+          inactiveZone={0.01}
+          borderWidth={3}
+        />
+        <Card className={cn(
+          "group relative bg-card border-border rounded-xl",
+          "transition-all duration-300",
+        )}>
       <div className={cn(
         "absolute top-0 left-0 right-0 h-1 rounded-t-lg",
         agent.is_active 
@@ -177,6 +187,8 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
         </div>
       </CardContent>
     </Card>
+      </div>
+    </div>
   );
 };
 
