@@ -140,6 +140,22 @@ serve(async (req) => {
 
     console.log(`📩 Message from ${clientPhone}: ${messageBody}`);
 
+    // Deduplicate: if this message was already processed, skip
+    if (incomingMessageId) {
+      const { data: existingMsg } = await supabase
+        .from("conversation_history")
+        .select("id")
+        .eq("external_message_id", incomingMessageId)
+        .maybeSingle();
+
+      if (existingMsg) {
+        console.log(`⏭️ Message ${incomingMessageId} already processed, skipping`);
+        return new Response(JSON.stringify({ status: "duplicate" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Find case by phone
     let { data: existingCase } = await supabase
       .from("cases")
