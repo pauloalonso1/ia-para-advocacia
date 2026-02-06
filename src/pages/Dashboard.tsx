@@ -9,6 +9,7 @@ import DashboardOverview from '@/components/dashboard/DashboardOverview';
 import TeamMembersView from '@/components/dashboard/TeamMembersView';
 import PerformanceView from '@/components/dashboard/PerformanceView';
 import MeetingsView from '@/components/dashboard/MeetingsView';
+import KnowledgeBaseView from '@/components/dashboard/KnowledgeBaseView';
 import { cn } from '@/lib/utils';
 
 interface DashboardProps {
@@ -42,6 +43,8 @@ const Dashboard = ({ initialTab = 'agents' }: DashboardProps) => {
         return <ConversationsView />;
       case 'meetings':
         return <MeetingsView />;
+      case 'knowledge':
+        return <KnowledgeBaseView />;
       case 'team':
         return <TeamMembersView />;
       case 'performance':

@@ -396,7 +396,8 @@ serve(async (req) => {
       existingCase.client_name || clientName,
       clientPhone,
       hasCalendarConnected,
-      userId
+      userId,
+      agentId
     );
 
     console.log(`🤖 AI Response action: ${aiResponse.action}, new_status: ${aiResponse.new_status || 'none'}`);
@@ -563,6 +564,90 @@ Responda APENAS com o número da FAQ correspondente ou "0" se nenhuma correspond
   return null;
 }
 
+// Helper: search RAG knowledge base for relevant context
+async function searchRAGContext(
+  supabase: any,
+  apiKey: string,
+  userId: string,
+  agentId: string,
+  query: string
+): Promise<string> {
+  try {
+    // Generate embedding for the query using the same method as rag-ingest
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: `You are an embedding generator. Given text, produce a 768-dimensional numerical vector representation.
+Return ONLY a JSON array of 768 floating point numbers between -1 and 1, nothing else.
+The vector should capture the semantic meaning of the text.
+Different texts with similar meaning should produce similar vectors.`
+          },
+          { role: "user", content: query.slice(0, 2000) }
+        ],
+        temperature: 0,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("RAG embedding error:", response.status);
+      return "";
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+    
+    let embedding: number[];
+    try {
+      let jsonStr = content;
+      if (content.includes("```")) {
+        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) jsonStr = match[1].trim();
+      }
+      embedding = JSON.parse(jsonStr);
+      if (!Array.isArray(embedding) || embedding.length !== 768) {
+        console.error("Invalid embedding size from RAG search");
+        return "";
+      }
+    } catch {
+      console.error("Failed to parse RAG search embedding");
+      return "";
+    }
+
+    // Search using the match function
+    const { data: results, error } = await supabase.rpc("match_knowledge_chunks", {
+      query_embedding: JSON.stringify(embedding),
+      match_user_id: userId,
+      match_agent_id: agentId,
+      match_threshold: 0.5,
+      match_count: 3,
+    });
+
+    if (error || !results || results.length === 0) {
+      return "";
+    }
+
+    console.log(`🧠 RAG found ${results.length} relevant chunks`);
+    
+    const ragContext = results
+      .map((r: any, i: number) => `[${i + 1}] ${r.content}`)
+      .join("\n\n");
+
+    return ragContext;
+  } catch (e) {
+    console.error("RAG search error:", e);
+    return "";
+  }
+}
+
 async function processWithAI(
   apiKey: string,
   supabaseUrl: string,
@@ -576,7 +661,8 @@ async function processWithAI(
   clientName: string,
   clientPhone: string,
   hasCalendarConnected: boolean,
-  userId: string
+  userId: string,
+  agentId: string
 ): Promise<{ response_text: string; action: "PROCEED" | "STAY"; new_status?: string }> {
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -822,6 +908,24 @@ IMPORTANTE:
 - Exemplos de escolha: "10:00", "quarta 10h", "amanhã às 9", "prefiro às 14:00"`
     : "";
 
+  // RAG: Search knowledge base for relevant context
+  let ragContext = "";
+  try {
+    ragContext = await searchRAGContext(supabase, apiKey, userId, agentId, clientMessage);
+    if (ragContext) {
+      console.log(`🧠 RAG context injected (${ragContext.length} chars)`);
+    }
+  } catch (e) {
+    console.error("RAG context error:", e);
+  }
+
+  const knowledgeBaseContext = ragContext
+    ? `\n\n📚 BASE DE CONHECIMENTO (informações relevantes encontradas):
+${ragContext}
+
+IMPORTANTE: Use as informações acima para fundamentar suas respostas quando relevantes. Cite os dados da base de conhecimento de forma natural na conversa.`
+    : "";
+
   const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
 
 ${rules?.system_prompt || "Seja profissional, educado e objetivo nas respostas."}
@@ -838,6 +942,7 @@ ${currentStepInfo}
 ${nextStepInfo}
 ${conversationMemory}
 ${calendarContext}
+${knowledgeBaseContext}
 
 👤 INFORMAÇÕES DO CLIENTE:
 - Nome: ${clientName}
