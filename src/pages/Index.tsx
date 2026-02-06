@@ -10,7 +10,7 @@ import { AnimatedGroup } from '@/components/ui/animated-group';
 import { FeatureCard as GridFeatureCard } from '@/components/ui/grid-feature-cards';
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
-import FlickeringFooter from '@/components/landing/FlickeringFooter';
+import { Footer } from '@/components/ui/footer-section';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -323,7 +323,7 @@ const Index = () => {
         </section>
 
         {/* ═══ FOOTER ═══ */}
-        <FlickeringFooter />
+        <Footer />
       </main>
     </>
   );
