@@ -999,6 +999,45 @@ ${knowledgeBaseContext}
     }
   ];
 
+  // Add ZapSign tool - check if user has ZapSign configured
+  const { data: zapsignSettings } = await supabase
+    .from("zapsign_settings")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_enabled", true)
+    .maybeSingle();
+
+  const hasZapSign = !!zapsignSettings;
+  
+  if (hasZapSign) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "send_zapsign_document",
+        description: `Envia um documento para assinatura digital via ZapSign. Use quando:
+- O cliente precisa assinar um contrato ou documento
+- O atendimento chegou na etapa de envio de contrato
+- O status do lead indica que é hora de enviar documentos (ex: Qualificado, Convertido)
+O documento será enviado automaticamente para o WhatsApp do cliente.`,
+        parameters: {
+          type: "object",
+          properties: {
+            template_id: {
+              type: "string",
+              description: "ID/token do template da ZapSign. Se não souber, use 'default' para enviar o primeiro template disponível."
+            },
+            signer_name: {
+              type: "string",
+              description: "Nome do signatário (use o nome do cliente)"
+            }
+          },
+          required: ["signer_name"],
+          additionalProperties: false
+        }
+      }
+    });
+  }
+
   // Add calendar tools if connected
   if (hasCalendarConnected) {
     // Check if conversation history suggests we already showed slots
@@ -1324,6 +1363,131 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
       }
     }
     
+    // Handle ZapSign document sending
+    if (funcName === "send_zapsign_document" && zapsignSettings) {
+      try {
+        const args = JSON.parse(funcArgs);
+        const signerName = args.signer_name || clientName;
+        let templateId = args.template_id;
+
+        const ZAPSIGN_API_URL = zapsignSettings.sandbox_mode
+          ? "https://sandbox.api.zapsign.com.br/api/v1"
+          : "https://api.zapsign.com.br/api/v1";
+
+        // If no specific template, get the first available one
+        if (!templateId || templateId === "default") {
+          const templatesResp = await fetch(`${ZAPSIGN_API_URL}/templates/`, {
+            headers: { Authorization: `Bearer ${zapsignSettings.api_token}` },
+          });
+          if (templatesResp.ok) {
+            const templatesData = await templatesResp.json();
+            const templates = templatesData?.results || templatesData || [];
+            if (Array.isArray(templates) && templates.length > 0) {
+              templateId = templates[0].token;
+            }
+          }
+        }
+
+        if (!templateId) {
+          console.error("❌ No ZapSign templates available");
+          return {
+            response_text: `${signerName}, gostaria de enviar o contrato para assinatura, mas ainda não temos um modelo configurado. Vou verificar internamente e retorno em breve!`,
+            action: "STAY" as const,
+            new_status: undefined,
+          };
+        }
+
+        // Create document from template
+        const payload = {
+          template_id: templateId,
+          signer_name: signerName,
+          signers: [{
+            name: signerName,
+            phone_country: "55",
+            phone_number: clientPhone.replace(/\D/g, ""),
+            auth_mode: "assinaturaTela",
+            send_automatic_whatsapp: true,
+          }],
+          data: [{ de: "{{nome}}", para: signerName }],
+        };
+
+        const docResp = await fetch(`${ZAPSIGN_API_URL}/models/create-doc/`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${zapsignSettings.api_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!docResp.ok) {
+          const errText = await docResp.text();
+          console.error("❌ ZapSign create doc error:", docResp.status, errText);
+          return {
+            response_text: `${signerName}, tive um problema ao gerar o contrato. Vou tentar novamente em instantes!`,
+            action: "STAY" as const,
+            new_status: undefined,
+          };
+        }
+
+        const docData = await docResp.json();
+        console.log(`✅ ZapSign document created: ${docData.token || docData.open_id}`);
+
+        // Make follow-up AI call to confirm to the client
+        const followUpMessages = [
+          ...messages,
+          { role: "assistant" as const, content: "", tool_calls: [toolCall] },
+          {
+            role: "tool" as const,
+            tool_call_id: toolCall.id,
+            content: `Documento de assinatura criado e enviado com sucesso via ZapSign para o WhatsApp do cliente ${signerName}. O cliente receberá o link para assinatura digital automaticamente no WhatsApp.`,
+          },
+        ];
+
+        const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: followUpMessages,
+            temperature: 0.7,
+            max_tokens: 300,
+            tools: [tools[0]],
+            tool_choice: { type: "function", function: { name: "send_response" } },
+          }),
+        });
+
+        if (followUpResponse.ok) {
+          const followUpData = await followUpResponse.json();
+          const finalToolCall = followUpData.choices?.[0]?.message?.tool_calls?.[0];
+          if (finalToolCall?.function?.arguments) {
+            const parsed = JSON.parse(finalToolCall.function.arguments);
+            return {
+              response_text: parsed.response_text || `${signerName}, enviei o contrato para assinatura no seu WhatsApp! 📄✍️`,
+              action: "STAY" as const,
+              new_status: parsed.new_status || undefined,
+            };
+          }
+        }
+
+        return {
+          response_text: `${signerName}, acabei de enviar o contrato para assinatura digital no seu WhatsApp! Você receberá o link em instantes. É só clicar e assinar. 📄✍️`,
+          action: "STAY" as const,
+          new_status: "Convertido",
+        };
+      } catch (e) {
+        console.error("ZapSign tool error:", e);
+        return {
+          response_text: "Desculpe, houve um erro ao enviar o documento. Vou tentar novamente em breve!",
+          action: "STAY" as const,
+          new_status: undefined,
+        };
+      }
+    }
+
     // Handle send_response tool call
     if (funcName === "send_response") {
       try {
