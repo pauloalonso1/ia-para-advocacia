@@ -987,14 +987,22 @@ async function processWithAI(
 ${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${h.content}`).join('\n')}`
     : "";
 
-  // Calendar context if available
-  const today = new Date();
-  const currentDateStr = today.toISOString().split('T')[0];
-  const currentYear = today.getFullYear();
+  // Calendar context if available - use São Paulo timezone
+  const SP_OFFSET_MS = 3 * 60 * 60 * 1000;
+  const nowSP = new Date(Date.now() - SP_OFFSET_MS);
+  const currentDateStr = nowSP.toISOString().split('T')[0];
+  const currentYear = nowSP.getUTCFullYear();
+  const currentMonth = nowSP.getUTCMonth() + 1;
+  const currentDay = nowSP.getUTCDate();
+  const currentHourSP = nowSP.getUTCHours();
+  const currentMinuteSP = nowSP.getUTCMinutes();
+  const diasSemana = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  const currentDayOfWeek = diasSemana[nowSP.getUTCDay()];
   
   const calendarContext = hasCalendarConnected 
     ? `\n\n📅 AGENDAMENTO DISPONÍVEL:
-- Data atual: ${currentDateStr} (ano: ${currentYear})
+- HOJE É: ${currentDayOfWeek}, ${String(currentDay).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear} (${currentDateStr}), ${String(currentHourSP).padStart(2, '0')}:${String(currentMinuteSP).padStart(2, '0')} horário de Brasília
+- ATENÇÃO: Use SEMPRE esta data como referência. "Amanhã" = dia ${String(currentDay + 1).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear}. "Sexta-feira" = verifique o calendário para encontrar a próxima sexta-feira a partir de HOJE.
 - Você TEM ACESSO ao calendário do escritório para agendar consultas.
 
 FLUXO DE AGENDAMENTO (siga em ordem):
@@ -1006,8 +1014,10 @@ FLUXO DE AGENDAMENTO (siga em ordem):
 
 IMPORTANTE:
 - Ao criar eventos, use sempre o ano ${currentYear} nas datas
+- Use APENAS datas FUTURAS (a partir de ${currentDateStr}). NUNCA agende em datas passadas!
 - Quando o cliente responde com um horário específico, isso é uma ESCOLHA - use create_calendar_event!
-- Exemplos de escolha: "10:00", "quarta 10h", "amanhã às 9", "prefiro às 14:00"`
+- Exemplos de escolha: "10:00", "quarta 10h", "amanhã às 9", "prefiro às 14:00"
+- CONFIRA que a data do evento corresponde ao dia da semana correto antes de responder`
     : "";
 
   // RAG: Search knowledge base for relevant context
@@ -1278,35 +1288,37 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
         console.log(`📅 Found ${slots.length} available slots`);
         
         // Make second AI call with slots info - show ALL available slots up to 20
-        const today = new Date();
-        const currentYear = today.getFullYear();
+        const spNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const currentYear = spNow.getUTCFullYear();
         
         console.log(`📅 Total slots available: ${slots.length}`);
         
-        // Group slots by date for better presentation
+        // Group slots by date for better presentation (using São Paulo time)
         const slotsByDate = new Map<string, { start: string; end: string }[]>();
         slots.slice(0, 20).forEach(s => {
-          const date = new Date(s.start);
-          const dateKey = date.toISOString().split('T')[0];
+          // Convert UTC to São Paulo for grouping
+          const spDate = new Date(new Date(s.start).getTime() - 3 * 60 * 60 * 1000);
+          const dateKey = spDate.toISOString().split('T')[0];
           if (!slotsByDate.has(dateKey)) {
             slotsByDate.set(dateKey, []);
           }
           slotsByDate.get(dateKey)!.push(s);
         });
         
+        const diasSemanaSlots = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
         let slotsText = "";
         slotsByDate.forEach((daySlots, dateKey) => {
-          const sampleDate = new Date(daySlots[0].start);
-          const dateStr = sampleDate.toLocaleDateString('pt-BR', { 
-            weekday: 'long', 
-            day: '2-digit', 
-            month: '2-digit',
-            year: 'numeric'
-          });
+          // Format in São Paulo time
+          const spDate = new Date(new Date(daySlots[0].start).getTime() - 3 * 60 * 60 * 1000);
+          const dayName = diasSemanaSlots[spDate.getUTCDay()];
+          const day = String(spDate.getUTCDate()).padStart(2, '0');
+          const month = String(spDate.getUTCMonth() + 1).padStart(2, '0');
+          const year = spDate.getUTCFullYear();
+          const dateStr = `${dayName}, ${day}/${month}/${year}`;
           
           const times = daySlots.map(s => {
-            const d = new Date(s.start);
-            return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const d = new Date(new Date(s.start).getTime() - 3 * 60 * 60 * 1000);
+            return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
           }).join(', ');
           
           slotsText += `📆 ${dateStr} (${dateKey}):\n   Horários: ${times}\n\n`;
@@ -1320,7 +1332,7 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
           { 
             role: "tool" as const, 
             tool_call_id: toolCall.id,
-            content: `Horários disponíveis encontrados (ano atual: ${currentYear}):\n\n${slotsText}\nVocê DEVE apresentar TODOS estes horários ao cliente de forma organizada por dia. Deixe o cliente escolher. Quando ele escolher, use create_calendar_event com a data no formato YYYY-MM-DD (mostrada entre parênteses ao lado de cada dia) e o horário escolhido.`
+            content: `HOJE É ${currentDateStr} (${currentDayOfWeek}). Horários disponíveis encontrados (ano atual: ${currentYear}):\n\n${slotsText}\nVocê DEVE apresentar TODOS estes horários ao cliente de forma organizada por dia. Deixe o cliente escolher. Quando ele escolher, use create_calendar_event com a data no formato YYYY-MM-DD (mostrada entre parênteses ao lado de cada dia) e o horário escolhido. NUNCA invente datas - use SOMENTE as datas listadas acima.`
           }
         ];
         
