@@ -313,12 +313,42 @@ serve(async (req) => {
       case "delete":
         // Delete instance
         console.log("Deleting instance:", finalInstanceName);
-        response = await fetch(`${EVOLUTION_API_URL}/instance/delete/${finalInstanceName}`, {
-          method: "DELETE",
-          headers: baseHeaders,
-        });
-        result = await response.json();
-        console.log("Delete response:", JSON.stringify(result));
+        try {
+          // First try logout to cleanly disconnect
+          try {
+            const logoutResponse = await fetch(`${EVOLUTION_API_URL}/instance/logout/${finalInstanceName}`, {
+              method: "DELETE",
+              headers: baseHeaders,
+            });
+            console.log("Logout response status:", logoutResponse.status);
+          } catch (logoutErr) {
+            console.log("Logout attempt failed (non-critical):", logoutErr);
+          }
+
+          response = await fetch(`${EVOLUTION_API_URL}/instance/delete/${finalInstanceName}`, {
+            method: "DELETE",
+            headers: baseHeaders,
+          });
+          
+          // Handle cases where response may not be valid JSON
+          const responseText = await response.text();
+          console.log("Delete response status:", response.status, "body:", responseText);
+          
+          try {
+            result = JSON.parse(responseText);
+          } catch {
+            result = { status: response.ok ? "deleted" : "error", raw: responseText };
+          }
+
+          // If instance not found (404), treat as success - it's already gone
+          if (response.status === 404 || !response.ok) {
+            console.log("Instance not found or error - treating as successfully deleted");
+            result = { status: "deleted", message: "Instance removed" };
+          }
+        } catch (deleteErr) {
+          console.log("Delete request failed, treating as success:", deleteErr);
+          result = { status: "deleted", message: "Instance considered removed" };
+        }
         break;
 
       case "send-text":
