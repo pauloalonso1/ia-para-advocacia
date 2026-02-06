@@ -45,6 +45,7 @@ import {
   UserPlus,
   MessageSquare
 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -274,7 +275,14 @@ const ContactsView = () => {
                   {filteredContacts.map((contact) => (
                     <TableRow key={contact.id} className="border-border">
                       <TableCell className="font-medium text-foreground">
-                        {contact.name}
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+                              {contact.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {contact.name}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-muted-foreground">
