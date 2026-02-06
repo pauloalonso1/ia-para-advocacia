@@ -135,7 +135,7 @@ const HeroHeader = () => {
                   <Link to="/auth"><span>Criar conta</span></Link>
                 </Button>
                 <Button asChild size="sm" className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                  <Link to="/auth"><span>Começar grátis</span></Link>
+                  <Link to="/auth"><span>Contratar agora</span></Link>
                 </Button>
               </div>
             </div>
@@ -190,7 +190,7 @@ const Index = () => {
                   <div className="bg-foreground/10 rounded-[14px] border p-0.5">
                     <Button asChild size="lg" className="rounded-xl px-6 text-base">
                       <Link to="/auth">
-                        Começar grátis
+                        Contratar agora
                         <ArrowRight className="ml-2 size-4" />
                       </Link>
                     </Button>
@@ -202,7 +202,7 @@ const Index = () => {
 
                 {/* Social proof mini */}
                 <AnimatedGroup variants={staggeredVariants} className="mt-10 flex items-center justify-center gap-6 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><CheckCircle2 className="size-4 text-primary" /> Sem cartão de crédito</span>
+                  <span className="flex items-center gap-1.5"><CheckCircle2 className="size-4 text-primary" /> Planos acessíveis</span>
                   <span className="flex items-center gap-1.5"><Clock className="size-4 text-primary" /> Setup em 5 minutos</span>
                   <span className="flex items-center gap-1.5"><Shield className="size-4 text-primary" /> Dados protegidos</span>
                 </AnimatedGroup>
@@ -330,15 +330,15 @@ const Index = () => {
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link to="/auth">
                 <Button size="lg" className="rounded-xl px-8 text-base">
-                  Começar grátis
-                  <ArrowRight className="ml-2 size-4" />
+                  Contratar agora
+                   <ArrowRight className="ml-2 size-4" />
                 </Button>
               </Link>
               <Button asChild size="lg" variant="ghost" className="rounded-xl px-6">
                 <Link to="/auth">Entrar na minha conta</Link>
               </Button>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">Sem cartão de crédito. Cancele quando quiser.</p>
+            <p className="mt-4 text-xs text-muted-foreground">Cancele quando quiser. Sem fidelidade.</p>
           </div>
         </section>
 
