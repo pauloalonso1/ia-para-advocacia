@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEvolutionAPI } from '@/hooks/useEvolutionAPI';
 import { useEvolutionSettings } from '@/hooks/useEvolutionSettings';
@@ -107,6 +108,7 @@ const SettingsView = () => {
   const [notifyContractSent, setNotifyContractSent] = useState(true);
   const [notifyContractSigned, setNotifyContractSigned] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [testingNotification, setTestingNotification] = useState(false);
 
   // Webhook URL
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
@@ -280,6 +282,24 @@ const SettingsView = () => {
     setNotifyContractSent(true);
     setNotifyContractSigned(true);
     setNotificationsEnabled(true);
+  };
+
+  const handleTestNotification = async () => {
+    setTestingNotification(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-notification');
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: 'Erro no teste', description: data.error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Teste enviado!', description: data?.message || 'Verifique seu WhatsApp.' });
+      }
+    } catch (error: any) {
+      console.error('Test notification error:', error);
+      toast({ title: 'Erro ao testar', description: error.message || 'Não foi possível enviar o teste.', variant: 'destructive' });
+    } finally {
+      setTestingNotification(false);
+    }
   };
 
   if (settingsLoading) {
@@ -790,15 +810,30 @@ const SettingsView = () => {
                   Salvar Notificações
                 </Button>
                 {notificationSettings && (
-                  <Button
-                    onClick={handleDisableNotifications}
-                    variant="outline"
-                    disabled={savingNotifications}
-                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Desativar
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleDisableNotifications}
+                      variant="outline"
+                      disabled={savingNotifications}
+                      className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Desativar
+                    </Button>
+                    <Button
+                      onClick={handleTestNotification}
+                      variant="outline"
+                      disabled={testingNotification || !notificationSettings.is_enabled}
+                      className="border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      {testingNotification ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <BellRing className="w-4 h-4 mr-2" />
+                      )}
+                      Testar Notificação
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>
