@@ -49,7 +49,7 @@ const STATUS_CONFIG: Record<string, { order: number; color: string }> = {
   'Não tem interesse': { order: 10, color: 'bg-chart-5' },
 };
 
-export const useDashboardMetrics = () => {
+export const useDashboardMetrics = (dateFrom?: Date, dateTo?: Date) => {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     activeAgents: 0,
     totalContacts: 0,
@@ -77,11 +77,22 @@ export const useDashboardMetrics = () => {
     if (!user) return;
 
     try {
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+      const now = dateTo ? new Date(dateTo.getTime()) : new Date();
+      // Set end of day for dateTo
+      now.setHours(23, 59, 59, 999);
+      const rangeStart = dateFrom ? new Date(dateFrom.getTime()) : new Date(now);
+      if (!dateFrom) {
+        rangeStart.setDate(rangeStart.getDate() - 30);
+      }
+      rangeStart.setHours(0, 0, 0, 0);
+      
+      const rangeDays = Math.max(1, Math.ceil((now.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      // For month-over-month comparison, use equivalent previous period
+      const prevEnd = new Date(rangeStart.getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - (now.getTime() - rangeStart.getTime()));
+      const startOfMonth = rangeStart.toISOString();
+      const startOfLastMonth = prevStart.toISOString();
 
       const [
         agentsResult,
@@ -93,12 +104,12 @@ export const useDashboardMetrics = () => {
         lastMonthCasesResult,
       ] = await Promise.all([
         supabase.from('agents').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_active', true),
-        supabase.from('contacts').select('id, tags', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('cases').select('id, status, created_at').eq('user_id', user.id),
-        supabase.from('conversation_history').select('id, role, created_at, case_id').gte('created_at', thirtyDaysAgo.toISOString()),
-        supabase.from('contacts').select('id', { count: 'exact' }).eq('user_id', user.id).lt('created_at', startOfMonth).gte('created_at', startOfLastMonth),
-        supabase.from('conversation_history').select('id, role').lt('created_at', startOfMonth).gte('created_at', startOfLastMonth),
-        supabase.from('cases').select('id, status').eq('user_id', user.id).lt('created_at', startOfMonth).gte('created_at', startOfLastMonth),
+        supabase.from('contacts').select('id, tags', { count: 'exact' }).eq('user_id', user.id).gte('created_at', rangeStart.toISOString()).lte('created_at', now.toISOString()),
+        supabase.from('cases').select('id, status, created_at').eq('user_id', user.id).gte('created_at', rangeStart.toISOString()).lte('created_at', now.toISOString()),
+        supabase.from('conversation_history').select('id, role, created_at, case_id').gte('created_at', rangeStart.toISOString()).lte('created_at', now.toISOString()),
+        supabase.from('contacts').select('id', { count: 'exact' }).eq('user_id', user.id).gte('created_at', startOfLastMonth).lt('created_at', startOfMonth),
+        supabase.from('conversation_history').select('id, role').gte('created_at', startOfLastMonth).lt('created_at', startOfMonth),
+        supabase.from('cases').select('id, status').eq('user_id', user.id).gte('created_at', startOfLastMonth).lt('created_at', startOfMonth),
       ]);
 
       const activeAgents = agentsResult.count || 0;
@@ -118,11 +129,11 @@ export const useDashboardMetrics = () => {
       const convertedLeads = cases.filter(c => c.status === 'Convertido').length;
       const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
-      // --- Conversations by day (last 30 days) ---
+      // --- Conversations by day (selected range) ---
       const dayCounts: Record<string, number> = {};
-      for (let i = 0; i < 30; i++) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - (29 - i));
+      for (let i = 0; i < rangeDays; i++) {
+        const d = new Date(rangeStart);
+        d.setDate(d.getDate() + i);
         dayCounts[d.toISOString().slice(0, 10)] = 0;
       }
       for (const c of cases) {
@@ -223,7 +234,7 @@ export const useDashboardMetrics = () => {
 
   useEffect(() => {
     fetchMetrics();
-  }, [user]);
+  }, [user, dateFrom?.getTime(), dateTo?.getTime()]);
 
   return { metrics, loading, refetch: fetchMetrics };
 };
