@@ -7,7 +7,9 @@ const corsHeaders = {
 };
 
 interface CalendarRequest {
-  action: "save-calendar-id" | "list-events" | "create-event" | "available-slots" | "status" | "disconnect";
+  action: "auth-url" | "callback" | "save-calendar-id" | "list-events" | "create-event" | "available-slots" | "status" | "disconnect";
+  code?: string;
+  redirectUri?: string;
   email?: string;
   calendarId?: string;
   startDate?: string;
@@ -55,6 +57,105 @@ serve(async (req) => {
     const { action } = body;
 
     switch (action) {
+      case "auth-url": {
+        const redirectUri = body.redirectUri;
+        if (!redirectUri) {
+          return new Response(
+            JSON.stringify({ error: "redirectUri is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const scopes = [
+          "https://www.googleapis.com/auth/calendar",
+          "https://www.googleapis.com/auth/calendar.events",
+          "https://www.googleapis.com/auth/userinfo.email",
+        ];
+
+        const params = new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          redirect_uri: redirectUri,
+          response_type: "code",
+          scope: scopes.join(" "),
+          access_type: "offline",
+          prompt: "consent",
+          state: user.id,
+        });
+
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+        return new Response(
+          JSON.stringify({ authUrl }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "callback": {
+        const { code, redirectUri } = body;
+        if (!code || !redirectUri) {
+          return new Response(
+            JSON.stringify({ error: "code and redirectUri are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Exchange code for tokens
+        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            code,
+            grant_type: "authorization_code",
+            redirect_uri: redirectUri,
+          }),
+        });
+
+        const tokenData = await tokenResponse.json();
+        if (!tokenResponse.ok || tokenData.error) {
+          console.error("Token exchange failed:", tokenData);
+          return new Response(
+            JSON.stringify({ error: "Failed to exchange code for tokens", details: tokenData.error_description || tokenData.error }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Get user email from Google
+        const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const userinfo = await userinfoRes.json();
+
+        // Get primary calendar ID (usually the email)
+        const calendarId = userinfo.email || "primary";
+
+        const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+        const { error: upsertError } = await supabase
+          .from("google_calendar_tokens")
+          .upsert({
+            user_id: user.id,
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token || "no-refresh-token",
+            expires_at: expiresAt,
+            calendar_id: calendarId,
+          }, { onConflict: "user_id" });
+
+        if (upsertError) {
+          console.error("Upsert error:", upsertError);
+          return new Response(
+            JSON.stringify({ error: "Failed to save tokens" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, email: userinfo.email, calendarId }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       case "save-calendar-id": {
         const { email, calendarId } = body;
         if (!email?.trim() || !calendarId?.trim()) {
@@ -64,15 +165,14 @@ serve(async (req) => {
           );
         }
 
-        // Save calendar_id to the tokens table (reusing existing table structure)
         const { error: upsertError } = await supabase
           .from("google_calendar_tokens")
           .upsert({
             user_id: user.id,
             calendar_id: calendarId.trim(),
-            access_token: email.trim(), // Store email in access_token field for reference
-            refresh_token: "calendar-id-mode", // Marker for this mode
-            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+            access_token: email.trim(),
+            refresh_token: "calendar-id-mode",
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
           }, { onConflict: "user_id" });
 
         if (upsertError) {
@@ -92,15 +192,18 @@ serve(async (req) => {
       case "status": {
         const { data: tokenData } = await supabase
           .from("google_calendar_tokens")
-          .select("calendar_id, access_token")
+          .select("calendar_id, access_token, refresh_token")
           .eq("user_id", user.id)
           .maybeSingle();
+
+        const isOAuth = tokenData && tokenData.refresh_token !== "calendar-id-mode";
 
         return new Response(
           JSON.stringify({
             connected: !!tokenData?.calendar_id,
             calendarId: tokenData?.calendar_id || null,
-            email: tokenData?.refresh_token === "calendar-id-mode" ? tokenData?.access_token : null,
+            email: isOAuth ? null : tokenData?.access_token,
+            mode: isOAuth ? "oauth" : tokenData ? "calendar-id" : null,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -137,7 +240,7 @@ serve(async (req) => {
         const accessToken = await getValidAccessToken(supabase, user.id);
         if (!accessToken) {
           return new Response(
-            JSON.stringify({ error: "Calendar not connected", code: "NOT_CONNECTED" }),
+            JSON.stringify({ error: "OAuth não configurado. Reconecte usando 'Conectar com Google'.", code: "NOT_CONNECTED" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -153,6 +256,7 @@ serve(async (req) => {
 
         const eventsData = await eventsResponse.json();
         if (!eventsResponse.ok) {
+          console.error("List events error:", eventsData);
           return new Response(
             JSON.stringify({ error: "Failed to fetch events", details: eventsData }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -177,7 +281,7 @@ serve(async (req) => {
         const accessToken = await getValidAccessToken(supabase, user.id);
         if (!accessToken) {
           return new Response(
-            JSON.stringify({ error: "Calendar not connected", code: "NOT_CONNECTED" }),
+            JSON.stringify({ error: "OAuth não configurado. Reconecte usando 'Conectar com Google'.", code: "NOT_CONNECTED" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -231,6 +335,7 @@ serve(async (req) => {
 
         const createdEvent = await createResponse.json();
         if (!createResponse.ok) {
+          console.error("Create event error:", createdEvent);
           return new Response(
             JSON.stringify({ error: "Failed to create event", details: createdEvent }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -255,12 +360,11 @@ serve(async (req) => {
         const accessToken = await getValidAccessToken(supabase, user.id);
         if (!accessToken) {
           return new Response(
-            JSON.stringify({ error: "Calendar not connected", code: "NOT_CONNECTED" }),
+            JSON.stringify({ error: "OAuth não configurado. Reconecte usando 'Conectar com Google'.", code: "NOT_CONNECTED" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        // Get user's schedule settings
         const { data: scheduleSettings } = await supabase
           .from("schedule_settings")
           .select("*")
@@ -378,11 +482,8 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
 
   if (!tokenData) return null;
 
-  // If using calendar-id-mode (no OAuth), we can't make API calls with user tokens
-  // Return null to indicate no direct API access
+  // calendar-id-mode has no OAuth tokens
   if (tokenData.refresh_token === "calendar-id-mode") {
-    // For calendar-id mode, we'll use a service approach
-    // For now, return null - the calendar ID is stored for agent reference
     return null;
   }
 
