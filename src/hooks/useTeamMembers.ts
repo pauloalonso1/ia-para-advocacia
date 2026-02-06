@@ -20,9 +20,11 @@ export interface TeamMember {
 export interface TeamMemberInput {
   name: string;
   email: string;
+  password?: string;
   phone?: string;
   oab_number?: string;
   specialty?: string;
+  role?: string;
   is_active?: boolean;
 }
 
@@ -62,35 +64,39 @@ export const useTeamMembers = () => {
     setSaving(true);
 
     try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .insert({
-          owner_id: user.id,
+      // Use edge function to create auth user + team member + role
+      const { data, error } = await supabase.functions.invoke('manage-team-user', {
+        body: {
+          action: 'create',
           name: input.name,
           email: input.email,
+          password: input.password,
           phone: input.phone || null,
           oab_number: input.oab_number || null,
           specialty: input.specialty || null,
-          is_active: input.is_active ?? true,
-        })
-        .select()
-        .single();
+          role: input.role || 'lawyer',
+        },
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
-      const newMember = data as TeamMember;
-      setMembers(prev => [...prev, newMember]);
+      const newMember = data.member as TeamMember;
+      setMembers(prev => {
+        const exists = prev.some(m => m.id === newMember.id);
+        return exists ? prev : [...prev, newMember];
+      });
       
       toast({
-        title: 'Membro adicionado',
-        description: `${input.name} foi adicionado à equipe.`,
+        title: 'Usuário criado',
+        description: `${input.name} foi cadastrado com acesso à plataforma.`,
       });
 
       return newMember;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: 'Erro ao adicionar membro',
+        title: 'Erro ao criar usuário',
         description: errorMessage,
         variant: 'destructive',
       });
@@ -141,25 +147,26 @@ export const useTeamMembers = () => {
     setSaving(true);
 
     try {
-      const { error } = await supabase
-        .from('team_members')
-        .delete()
-        .eq('id', id);
+      // Use edge function to delete auth user + team member
+      const { data, error } = await supabase.functions.invoke('manage-team-user', {
+        body: { action: 'delete', team_member_id: id },
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
       setMembers(prev => prev.filter(m => m.id !== id));
 
       toast({
-        title: 'Membro removido',
-        description: 'O membro foi removido da equipe.',
+        title: 'Usuário removido',
+        description: 'O usuário e seu acesso foram removidos.',
       });
 
       return true;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: 'Erro ao remover membro',
+        title: 'Erro ao remover usuário',
         description: errorMessage,
         variant: 'destructive',
       });

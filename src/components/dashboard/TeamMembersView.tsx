@@ -79,9 +79,11 @@ const TeamMembersView = () => {
   const [formData, setFormData] = useState<TeamMemberInput>({
     name: '',
     email: '',
+    password: '',
     phone: '',
     oab_number: '',
     specialty: '',
+    role: 'lawyer',
     is_active: true
   });
 
@@ -96,9 +98,11 @@ const TeamMembersView = () => {
     setFormData({
       name: '',
       email: '',
+      password: '',
       phone: '',
       oab_number: '',
       specialty: '',
+      role: 'lawyer',
       is_active: true
     });
   };
@@ -127,7 +131,8 @@ const TeamMembersView = () => {
   };
 
   const handleCreate = async () => {
-    if (!formData.name.trim() || !formData.email.trim()) return;
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password?.trim()) return;
+    if ((formData.password?.length || 0) < 6) return;
     
     const result = await createMember(formData);
     if (result) {
@@ -374,9 +379,9 @@ const TeamMembersView = () => {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Novo Membro</DialogTitle>
+            <DialogTitle className="text-foreground">Novo Usuário</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Adicione um advogado ou colaborador à equipe
+              Cadastre um novo usuário com acesso à plataforma
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -400,6 +405,37 @@ const TeamMembersView = () => {
                 placeholder="email@escritorio.com"
                 className="bg-background border-border"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-foreground">Senha *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Mínimo 6 caracteres"
+                className="bg-background border-border"
+              />
+              {formData.password && formData.password.length < 6 && (
+                <p className="text-xs text-destructive">A senha deve ter pelo menos 6 caracteres</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role" className="text-foreground">Função *</Label>
+              <Select 
+                value={formData.role || 'lawyer'} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger className="bg-background border-border">
+                  <SelectValue placeholder="Selecione a função" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="manager">Gerente</SelectItem>
+                  <SelectItem value="lawyer">Advogado</SelectItem>
+                  <SelectItem value="assistant">Assistente</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-foreground">Telefone</Label>
@@ -446,11 +482,11 @@ const TeamMembersView = () => {
             </Button>
             <Button 
               onClick={handleCreate}
-              disabled={saving || !formData.name.trim() || !formData.email.trim()}
+              disabled={saving || !formData.name.trim() || !formData.email.trim() || !formData.password?.trim() || (formData.password?.length || 0) < 6}
               className="bg-primary hover:bg-primary/90"
             >
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Adicionar
+              Criar Usuário
             </Button>
           </DialogFooter>
         </DialogContent>
