@@ -150,11 +150,12 @@ const Index = () => {
                   </Link>
 
                   <h1 className="mt-8 max-w-4xl mx-auto text-balance text-5xl md:text-6xl lg:mt-16 xl:text-[5.25rem] font-bold tracking-tight text-foreground">
-                    Atendimento inteligente para advogados
+                    Do primeiro contato à assinatura do contrato, sem esforço
                   </h1>
                   <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-muted-foreground">
-                    O <strong className="text-foreground">Advocacia IA</strong> automatiza o atendimento via WhatsApp, 
-                    agendamentos no Google Calendar e gestão de leads — tudo integrado para seu escritório.
+                    O <strong className="text-foreground">Advocacia IA</strong> captura leads pelo WhatsApp, 
+                    qualifica com inteligência artificial, agenda reuniões no Google Calendar, 
+                    envia contratos para assinatura digital e acompanha toda a conversão — tudo no piloto automático.
                   </p>
                 </AnimatedGroup>
 
