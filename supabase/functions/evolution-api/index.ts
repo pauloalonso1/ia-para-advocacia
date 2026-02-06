@@ -193,10 +193,12 @@ serve(async (req) => {
         
         if (!response.ok) {
           // If instance already exists (403), try to get QR code
-          if (response.status === 403 || 
-              result.error?.includes("already") || result.message?.includes("already") || 
-              result.response?.message?.some((m: string) => m.includes("already")) ||
-              result.error?.includes("exists") || result.message?.includes("exists")) {
+          const responseMessages = Array.isArray(result.response?.message) 
+            ? result.response.message 
+            : typeof result.response?.message === 'string' ? [result.response.message] : [];
+          const allMessages = [result.error, result.message, ...responseMessages].filter(Boolean).join(' ').toLowerCase();
+          
+          if (response.status === 403 || allMessages.includes("already") || allMessages.includes("exists")) {
             
             console.log("Instance already exists, trying to connect...");
             
