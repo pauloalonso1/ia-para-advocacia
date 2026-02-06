@@ -65,7 +65,7 @@ function PlanName({ className, ...props }: React.ComponentProps<'div'>) {
 	return (
 		<div
 			className={cn(
-				"text-muted-foreground flex items-center gap-2 text-sm font-medium [&_svg:not([class*='size-'])]:size-4",
+				"text-muted-foreground flex items-center gap-2 text-sm font-semibold [&_svg:not([class*='size-'])]:size-4",
 				className,
 			)}
 			{...props}
