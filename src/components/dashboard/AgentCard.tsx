@@ -62,6 +62,7 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
         <Card className={cn(
           "group relative bg-card border-border rounded-xl",
           "transition-all duration-300",
+          !agent.is_active && "opacity-50 grayscale"
         )}>
 
       <CardContent className="p-5">
