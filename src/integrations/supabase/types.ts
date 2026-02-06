@@ -322,21 +322,27 @@ export type Database = {
           case_id: string
           content: string
           created_at: string
+          external_message_id: string | null
           id: string
+          message_status: string | null
           role: string
         }
         Insert: {
           case_id: string
           content: string
           created_at?: string
+          external_message_id?: string | null
           id?: string
+          message_status?: string | null
           role: string
         }
         Update: {
           case_id?: string
           content?: string
           created_at?: string
+          external_message_id?: string | null
           id?: string
+          message_status?: string | null
           role?: string
         }
         Relationships: [

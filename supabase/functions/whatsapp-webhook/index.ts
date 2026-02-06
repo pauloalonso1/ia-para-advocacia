@@ -64,9 +64,65 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const payload: WebhookPayload = await req.json();
+    const payload = await req.json();
 
-    // Extract message content
+    // Handle MESSAGES_UPDATE event (delivery/read status)
+    if (payload.event === "messages.update" || payload.event === "MESSAGES_UPDATE") {
+      console.log("📨 Message status update received");
+      const updates = Array.isArray(payload.data) ? payload.data : [payload.data];
+      
+      for (const update of updates) {
+        const messageId = update?.key?.id;
+        const status = update?.status || update?.update?.status;
+        if (!messageId || status === undefined) continue;
+
+        // Map Evolution status codes to readable status
+        // 1=pending, 2=sent(server), 3=delivered, 4=read, 5=played
+        const statusMap: Record<number, string> = { 1: "pending", 2: "sent", 3: "delivered", 4: "read", 5: "read" };
+        const mappedStatus = typeof status === "number" ? (statusMap[status] || "sent") : String(status);
+
+        await supabase
+          .from("conversation_history")
+          .update({ message_status: mappedStatus })
+          .eq("external_message_id", messageId);
+
+        console.log(`✅ Updated message ${messageId} to status: ${mappedStatus}`);
+      }
+
+      return new Response(JSON.stringify({ status: "status_updated" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle PRESENCE_UPDATE event (typing indicator)
+    if (payload.event === "presence.update" || payload.event === "PRESENCE_UPDATE") {
+      console.log("👤 Presence update received");
+      // We broadcast presence via Supabase Realtime channel
+      const remoteJid = payload.data?.id || payload.data?.remoteJid;
+      const presences = payload.data?.presences || payload.data?.participants;
+      
+      if (remoteJid) {
+        const phone = remoteJid.replace("@s.whatsapp.net", "");
+        const isTyping = presences 
+          ? Object.values(presences).some((p: any) => p?.lastKnownPresence === "composing")
+          : false;
+
+        // Broadcast typing status via Realtime
+        await supabase.channel("typing-indicators").send({
+          type: "broadcast",
+          event: "typing",
+          payload: { phone, isTyping },
+        });
+
+        console.log(`⌨️ ${phone} typing: ${isTyping}`);
+      }
+
+      return new Response(JSON.stringify({ status: "presence_handled" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Extract message content (original MESSAGES_UPSERT flow)
     const messageBody =
       payload.data?.message?.conversation ||
       payload.data?.message?.extendedTextMessage?.text;
@@ -80,6 +136,7 @@ serve(async (req) => {
     const clientPhone = payload.data.key.remoteJid.replace("@s.whatsapp.net", "");
     const clientName = payload.data.pushName || "Cliente";
     const instanceName = payload.instance;
+    const incomingMessageId = payload.data.key.id || null;
 
     console.log(`📩 Message from ${clientPhone}: ${messageBody}`);
 
@@ -201,7 +258,7 @@ serve(async (req) => {
 
       // Send welcome message if available
       if (rules?.welcome_message) {
-        await sendWhatsAppMessage(
+        const welcomeMsgId = await sendWhatsAppMessage(
           EVOLUTION_API_URL,
           EVOLUTION_API_KEY,
           instanceName,
@@ -213,6 +270,8 @@ serve(async (req) => {
           case_id: newCase.id,
           role: "assistant",
           content: rules.welcome_message,
+          external_message_id: welcomeMsgId,
+          message_status: "sent",
         });
       }
 
@@ -221,7 +280,7 @@ serve(async (req) => {
         // Delay slightly for better UX
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        await sendWhatsAppMessage(
+        const stepMsgId = await sendWhatsAppMessage(
           EVOLUTION_API_URL,
           EVOLUTION_API_KEY,
           instanceName,
@@ -233,6 +292,8 @@ serve(async (req) => {
           case_id: newCase.id,
           role: "assistant",
           content: firstStep.message_to_send,
+          external_message_id: stepMsgId,
+          message_status: "sent",
         });
       }
 
@@ -241,6 +302,7 @@ serve(async (req) => {
         case_id: newCase.id,
         role: "client",
         content: messageBody,
+        external_message_id: incomingMessageId,
       });
 
       return new Response(JSON.stringify({ status: "new_case_created" }), {
@@ -257,6 +319,7 @@ serve(async (req) => {
         case_id: existingCase.id,
         role: "client",
         content: messageBody,
+        external_message_id: incomingMessageId,
       });
       
       // Update unread count and last message
@@ -280,6 +343,7 @@ serve(async (req) => {
       case_id: existingCase.id,
       role: "client",
       content: messageBody,
+      external_message_id: incomingMessageId,
     });
     
     // Update last message info and increment unread count
@@ -346,7 +410,7 @@ serve(async (req) => {
       const faqMatch = await checkFAQ(LOVABLE_API_KEY, messageBody, faqs);
       if (faqMatch) {
         console.log("📖 FAQ matched");
-        await sendWhatsAppMessage(
+        const faqMsgId = await sendWhatsAppMessage(
           EVOLUTION_API_URL,
           EVOLUTION_API_KEY,
           instanceName,
@@ -358,6 +422,8 @@ serve(async (req) => {
           case_id: existingCase.id,
           role: "assistant",
           content: faqMatch,
+          external_message_id: faqMsgId,
+          message_status: "sent",
         });
 
         return new Response(JSON.stringify({ status: "faq_answered" }), {
@@ -439,7 +505,7 @@ serve(async (req) => {
         existingCase.client_name || clientName
       );
 
-      await sendWhatsAppMessage(
+      const proceedMsgId = await sendWhatsAppMessage(
         EVOLUTION_API_URL,
         EVOLUTION_API_KEY,
         instanceName,
@@ -451,10 +517,12 @@ serve(async (req) => {
         case_id: existingCase.id,
         role: "assistant",
         content: nextMessage,
+        external_message_id: proceedMsgId,
+        message_status: "sent",
       });
     } else {
       // Only send AI response when staying on current step
-      await sendWhatsAppMessage(
+      const stayMsgId = await sendWhatsAppMessage(
         EVOLUTION_API_URL,
         EVOLUTION_API_KEY,
         instanceName,
@@ -466,6 +534,8 @@ serve(async (req) => {
         case_id: existingCase.id,
         role: "assistant",
         content: aiResponse.response_text,
+        external_message_id: stayMsgId,
+        message_status: "sent",
       });
     }
 
@@ -1800,7 +1870,7 @@ async function sendWhatsAppMessage(
   instanceName: string,
   phone: string,
   text: string
-): Promise<void> {
+): Promise<string | null> {
   const url = `${apiUrl}/message/sendText/${instanceName}`;
   
   const response = await fetch(url, {
@@ -1821,7 +1891,10 @@ async function sendWhatsAppMessage(
     throw new Error(`WhatsApp send failed: ${response.status}`);
   }
 
-  console.log(`✅ Message sent to ${phone}`);
+  const data = await response.json();
+  const messageId = data?.key?.id || null;
+  console.log(`✅ Message sent to ${phone}, id: ${messageId}`);
+  return messageId;
 }
 
 // Helper function to update contact email when client provides it

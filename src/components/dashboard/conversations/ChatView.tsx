@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X, Loader2 } from 'lucide-react';
+import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X, Loader2, Check, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -38,10 +38,34 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ file: File; preview: string; type: 'image' | 'document' } | null>(null);
   const [sending, setSending] = useState(false);
+  const [isContactTyping, setIsContactTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (!selectedCase) return;
+
+    const channel = supabase.channel('typing-indicators')
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { phone, isTyping } = payload.payload as { phone: string; isTyping: boolean };
+        if (phone === selectedCase.client_phone) {
+          setIsContactTyping(isTyping);
+          // Auto-clear after 5 seconds
+          if (isTyping) {
+            setTimeout(() => setIsContactTyping(false), 5000);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      setIsContactTyping(false);
+    };
+  }, [selectedCase?.id, selectedCase?.client_phone]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -328,10 +352,23 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
                             {msg.content}
                           </p>
                           <p className={cn(
-                            "text-[10px] mt-1 text-right",
+                            "text-[10px] mt-1 text-right flex items-center justify-end gap-1",
                             isAssistant ? "text-primary-foreground/70" : "text-muted-foreground"
                           )}>
                             {format(new Date(msg.created_at), 'HH:mm')}
+                            {isAssistant && msg.message_status && (
+                              <span className="inline-flex">
+                                {msg.message_status === 'read' ? (
+                                  <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                                ) : msg.message_status === 'delivered' ? (
+                                  <CheckCheck className="w-3.5 h-3.5" />
+                                ) : msg.message_status === 'sent' ? (
+                                  <Check className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Clock className="w-3 h-3" />
+                                )}
+                              </span>
+                            )}
                           </p>
                         </div>
 
@@ -348,6 +385,25 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Typing indicator */}
+        {isContactTyping && (
+          <div className="flex gap-2 items-center mt-3">
+            <Avatar className="w-8 h-8">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70">
+                <User className="w-4 h-4 text-primary-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+            <span className="text-xs text-muted-foreground">digitando...</span>
           </div>
         )}
       </ScrollArea>
