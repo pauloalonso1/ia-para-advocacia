@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EvolutionRequest {
-  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text";
+  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text" | "logout";
   instanceName?: string;
   phone?: string;
   message?: string;
@@ -309,6 +309,34 @@ serve(async (req) => {
           });
           result = await qrResponse.json();
           console.log("QR after restart:", JSON.stringify(result));
+        }
+        break;
+
+      case "logout":
+        // Logout (disconnect session) without deleting instance
+        console.log("Logging out instance:", finalInstanceName);
+        try {
+          response = await fetch(`${EVOLUTION_API_URL}/instance/logout/${finalInstanceName}`, {
+            method: "DELETE",
+            headers: baseHeaders,
+          });
+          const logoutText = await response.text();
+          console.log("Logout response status:", response.status, "body:", logoutText);
+          try {
+            result = JSON.parse(logoutText);
+          } catch {
+            result = { status: response.ok ? "logged_out" : "error", raw: logoutText };
+          }
+          if (!response.ok && response.status !== 404) {
+            return new Response(
+              JSON.stringify({ error: "Failed to logout", details: result }),
+              { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          result = { status: "logged_out", message: "Session disconnected" };
+        } catch (logoutErr) {
+          console.log("Logout failed:", logoutErr);
+          result = { status: "logged_out", message: "Session considered disconnected" };
         }
         break;
 
