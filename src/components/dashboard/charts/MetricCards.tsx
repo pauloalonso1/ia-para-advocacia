@@ -15,14 +15,14 @@ const MetricCard = ({ label, value, change, changeLabel, highlight }: MetricCard
   return (
     <div className={cn(
       "bg-card border border-border rounded-lg p-4",
-      highlight && "border-primary/50"
+      highlight && "border-accent"
     )}>
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
         {change !== undefined && (
           <div className={cn(
             "flex items-center gap-0.5 text-xs",
-            isPositive ? "text-emerald-500" : "text-destructive"
+            isPositive ? "text-chart-2" : "text-destructive"
           )}>
             {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
             <span>{isPositive ? '+' : ''}{change}%</span>
