@@ -26,6 +26,7 @@ export const useGoogleCalendar = () => {
   const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [calendarEmail, setCalendarEmail] = useState('');
   const [calendarId, setCalendarId] = useState('');
+  const [connectionMode, setConnectionMode] = useState<'oauth' | 'calendar-id' | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -39,6 +40,7 @@ export const useGoogleCalendar = () => {
       setIsConnected(data.connected);
       if (data.calendarId) setCalendarId(data.calendarId);
       if (data.email) setCalendarEmail(data.email);
+      setConnectionMode(data.mode || null);
     } catch (error: any) {
       console.error('Error checking calendar status:', error);
     } finally {
@@ -49,6 +51,56 @@ export const useGoogleCalendar = () => {
   useEffect(() => {
     checkStatus();
   }, [checkStatus]);
+
+  const getOAuthUrl = async (): Promise<string | null> => {
+    try {
+      const redirectUri = `${window.location.origin}/dashboard?tab=settings&calendar_callback=true`;
+      const { data, error } = await supabase.functions.invoke('google-calendar', {
+        body: { action: 'auth-url', redirectUri },
+      });
+      if (error) throw error;
+      return data.authUrl;
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível gerar a URL de autenticação.',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  const handleOAuthCallback = async (code: string): Promise<boolean> => {
+    try {
+      setSaving(true);
+      const redirectUri = `${window.location.origin}/dashboard?tab=settings&calendar_callback=true`;
+      const { data, error } = await supabase.functions.invoke('google-calendar', {
+        body: { action: 'callback', code, redirectUri },
+      });
+      if (error) throw error;
+      if (data.success) {
+        setIsConnected(true);
+        setCalendarEmail(data.email || '');
+        setCalendarId(data.calendarId || '');
+        setConnectionMode('oauth');
+        toast({
+          title: 'Google Calendar conectado!',
+          description: 'Sua conta Google foi vinculada com sucesso.',
+        });
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao conectar',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const saveCalendarId = async (email: string, calId: string): Promise<boolean> => {
     try {
@@ -61,6 +113,7 @@ export const useGoogleCalendar = () => {
         setIsConnected(true);
         setCalendarEmail(email);
         setCalendarId(calId);
+        setConnectionMode('calendar-id');
         toast({
           title: 'Agenda vinculada!',
           description: 'Seu Google Calendar foi vinculado com sucesso.',
@@ -166,6 +219,7 @@ export const useGoogleCalendar = () => {
       setAvailableSlots([]);
       setCalendarEmail('');
       setCalendarId('');
+      setConnectionMode(null);
       toast({
         title: 'Desvinculado',
         description: 'Google Calendar foi desvinculado.',
@@ -189,7 +243,10 @@ export const useGoogleCalendar = () => {
     availableSlots,
     calendarEmail,
     calendarId,
+    connectionMode,
     checkStatus,
+    getOAuthUrl,
+    handleOAuthCallback,
     saveCalendarId,
     listEvents,
     getAvailableSlots,

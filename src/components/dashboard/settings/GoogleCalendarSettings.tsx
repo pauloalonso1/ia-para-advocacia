@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,7 +14,8 @@ import {
   CalendarDays,
   Mail,
   Link2,
-  CalendarCheck,
+  LogIn,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -31,22 +30,47 @@ const GoogleCalendarSettings = () => {
     availableSlots,
     calendarEmail,
     calendarId,
-    saveCalendarId,
+    connectionMode,
+    getOAuthUrl,
+    handleOAuthCallback,
     listEvents,
     getAvailableSlots,
     disconnect,
   } = useGoogleCalendar();
 
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [emailInput, setEmailInput] = useState('');
-  const [calendarIdInput, setCalendarIdInput] = useState('');
+  const [connectingOAuth, setConnectingOAuth] = useState(false);
 
-  // Load events when connected
+  // Handle OAuth callback from URL
   useEffect(() => {
-    if (isConnected && events.length === 0) {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const calendarCallback = params.get('calendar_callback');
+
+    if (code && calendarCallback) {
+      // Clean URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('code');
+      url.searchParams.delete('calendar_callback');
+      url.searchParams.delete('scope');
+      url.searchParams.delete('state');
+      url.searchParams.delete('authuser');
+      url.searchParams.delete('prompt');
+      window.history.replaceState({}, '', url.toString());
+
+      // Exchange code for tokens
+      handleOAuthCallback(code).then(() => {
+        loadEventsAndSlots();
+      });
+    }
+  }, []);
+
+  // Load events when connected via OAuth
+  useEffect(() => {
+    if (isConnected && connectionMode === 'oauth' && events.length === 0) {
       loadEventsAndSlots();
     }
-  }, [isConnected]);
+  }, [isConnected, connectionMode]);
 
   const loadEventsAndSlots = async () => {
     setLoadingEvents(true);
@@ -54,9 +78,13 @@ const GoogleCalendarSettings = () => {
     setLoadingEvents(false);
   };
 
-  const handleSaveCalendar = async () => {
-    if (!emailInput.trim() || !calendarIdInput.trim()) return;
-    await saveCalendarId(emailInput.trim(), calendarIdInput.trim());
+  const handleConnectOAuth = async () => {
+    setConnectingOAuth(true);
+    const url = await getOAuthUrl();
+    if (url) {
+      window.location.href = url;
+    }
+    setConnectingOAuth(false);
   };
 
   const formatEventTime = (event: any) => {
@@ -107,7 +135,7 @@ const GoogleCalendarSettings = () => {
             {isConnected ? (
               <>
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                Vinculado
+                {connectionMode === 'oauth' ? 'OAuth' : 'ID'}
               </>
             ) : (
               <>
@@ -141,122 +169,130 @@ const GoogleCalendarSettings = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={loadEventsAndSlots} disabled={loadingEvents} className="border-border">
-                  {loadingEvents ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                </Button>
+                {connectionMode === 'oauth' && (
+                  <Button variant="outline" size="sm" onClick={loadEventsAndSlots} disabled={loadingEvents} className="border-border">
+                    {loadingEvents ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => disconnect()} className="border-destructive/30 text-destructive hover:bg-destructive/10">
                   Desvincular
                 </Button>
               </div>
             </div>
 
-            {/* Upcoming Events */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <CalendarDays className="w-4 h-4" />
-                Próximos eventos
-              </h4>
-              {loadingEvents ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            {/* Warning for calendar-id mode */}
+            {connectionMode === 'calendar-id' && (
+              <div className="flex items-start gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Funcionalidade limitada</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O modo atual (Calendar ID) não permite listar eventos ou criar agendamentos. 
+                    Para acesso completo, desvincule e reconecte usando "Conectar com Google".
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={async () => {
+                      await disconnect();
+                      handleConnectOAuth();
+                    }}
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Reconectar com OAuth
+                  </Button>
                 </div>
-              ) : events.length > 0 ? (
-                <ScrollArea className="h-[200px]">
-                  <div className="space-y-2">
-                    {events.slice(0, 10).map((event) => (
-                      <div key={event.id} className="p-3 bg-muted rounded-lg flex items-center justify-between">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">{event.summary || 'Sem título'}</p>
-                          <p className="text-xs text-muted-foreground">{formatEventTime(event)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nenhum evento nos próximos 7 dias</p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Available Slots */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Horários disponíveis
-              </h4>
-              {loadingEvents ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-              ) : availableSlots.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {availableSlots.slice(0, 8).map((slot, idx) => (
-                    <Badge key={idx} variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                      {format(new Date(slot.start), "dd/MM HH:mm", { locale: ptBR })}
-                    </Badge>
-                  ))}
-                  {availableSlots.length > 8 && (
-                    <Badge variant="outline" className="bg-muted text-muted-foreground">
-                      +{availableSlots.length - 8} mais
-                    </Badge>
+            {/* Upcoming Events (OAuth only) */}
+            {connectionMode === 'oauth' && (
+              <>
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Próximos eventos
+                  </h4>
+                  {loadingEvents ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  ) : events.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
+                        {events.slice(0, 10).map((event) => (
+                          <div key={event.id} className="p-3 bg-muted rounded-lg flex items-center justify-between">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-foreground truncate">{event.summary || 'Sem título'}</p>
+                              <p className="text-xs text-muted-foreground">{formatEventTime(event)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhum evento nos próximos 7 dias</p>
+                    </div>
                   )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nenhum horário disponível</p>
-              )}
-            </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Horários disponíveis
+                  </h4>
+                  {loadingEvents ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  ) : availableSlots.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {availableSlots.slice(0, 8).map((slot, idx) => (
+                        <Badge key={idx} variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                          {format(new Date(slot.start), "dd/MM HH:mm", { locale: ptBR })}
+                        </Badge>
+                      ))}
+                      {availableSlots.length > 8 && (
+                        <Badge variant="outline" className="bg-muted text-muted-foreground">
+                          +{availableSlots.length - 8} mais
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhum horário disponível</p>
+                  )}
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="settings-calendar-email" className="text-foreground flex items-center gap-2">
-                  <Mail className="w-4 h-4" /> Email
-                </Label>
-                <Input
-                  id="settings-calendar-email"
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="seu@email.com"
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="settings-calendar-id" className="text-foreground flex items-center gap-2">
-                  <Link2 className="w-4 h-4" /> ID da Agenda
-                </Label>
-                <Input
-                  id="settings-calendar-id"
-                  value={calendarIdInput}
-                  onChange={(e) => setCalendarIdInput(e.target.value)}
-                  placeholder="exemplo@group.calendar.google.com"
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Google Calendar → Configurações da agenda → ID da agenda
-                </p>
-              </div>
+            {/* OAuth Connect Button */}
+            <div className="space-y-3">
               <Button
-                onClick={handleSaveCalendar}
-                disabled={saving || !emailInput.trim() || !calendarIdInput.trim()}
-                className="w-full bg-primary text-primary-foreground"
+                onClick={handleConnectOAuth}
+                disabled={connectingOAuth || saving}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
               >
-                {saving ? (
+                {connectingOAuth ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Vinculando...
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Redirecionando...
                   </>
                 ) : (
                   <>
-                    <CalendarCheck className="w-4 h-4 mr-2" />
-                    Vincular Agenda
+                    <LogIn className="w-5 h-5 mr-2" />
+                    Conectar com Google
                   </>
                 )}
               </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Autorize o acesso ao seu Google Calendar para agendamento automático completo
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
