@@ -12,6 +12,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/ui/footer-section';
 import { RainbowButton } from '@/components/ui/rainbow-button';
+import { PricingSection } from '@/components/landing/PricingSection';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -64,6 +65,7 @@ const staggeredVariants = {
 const menuItems = [
   { name: 'Funcionalidades', href: '#features' },
   { name: 'Como funciona', href: '#how-it-works' },
+  { name: 'Planos', href: '#pricing' },
   { name: 'Benefícios', href: '#benefits' },
   { name: 'Privacidade', href: '/privacy' },
 ];
@@ -296,6 +298,9 @@ const Index = () => {
             </div>
           </div>
         </section>
+
+        {/* ═══ PRICING ═══ */}
+        <PricingSection />
 
         {/* ═══ FINAL CTA ═══ */}
         <section className="py-24 md:py-32">
