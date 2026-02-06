@@ -153,8 +153,8 @@ serve(async (req) => {
 
           if (!lastMessage) continue;
 
-          // Only follow up if last message was from assistant/user (not client)
-          if (lastMessage.role === "user") {
+          // Only follow up if last message was from assistant (not from the client)
+          if (lastMessage.role === "client") {
             console.log(`Last message from client for case ${caseItem.id}, skipping`);
             continue;
           }

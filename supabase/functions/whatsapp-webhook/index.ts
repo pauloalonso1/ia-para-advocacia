@@ -897,12 +897,13 @@ ${calendarContext}
   // Add calendar tools if connected
   if (hasCalendarConnected) {
     // Check if conversation history suggests we already showed slots
-    const conversationText = history.map(h => h.content).join(' ').toLowerCase();
-    const alreadyShowedSlots = conversationText.includes('horários disponíveis') || 
-                                conversationText.includes('horario') ||
-                                /\(20\d{2}-\d{2}-\d{2}\)/.test(conversationText) ||
-                                conversationText.includes('09:00') ||
-                                conversationText.includes('10:00');
+    // Only check assistant messages for the explicit date pattern (YYYY-MM-DD) to avoid false positives
+    const alreadyShowedSlots = history.some(
+      (h) =>
+        h.role === "assistant" &&
+        /hor[aá]rios?\s*(?:disponíveis|:)/i.test(String(h.content || "")) &&
+        /\(20\d{2}-\d{2}-\d{2}\)/.test(String(h.content || ""))
+    );
     
     // Check if we have an email in the conversation OR current message
     const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/;
