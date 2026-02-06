@@ -43,11 +43,21 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
   const documentInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const scrollToBottom = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
-  }, [messages]);
+  };
+
+  // Scroll to bottom when messages change (new message or conversation opened)
+  useEffect(() => {
+    // Small delay to ensure DOM is updated
+    const timer = setTimeout(scrollToBottom, 50);
+    return () => clearTimeout(timer);
+  }, [messages, selectedCase?.id]);
 
   const handleEmojiSelect = (emoji: string) => {
     setMessageInput(prev => prev + emoji);
