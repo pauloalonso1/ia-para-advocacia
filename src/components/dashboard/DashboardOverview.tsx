@@ -114,9 +114,11 @@ const DashboardOverview = () => {
         </div>
         
         {/* Right Column */}
-        <div className="col-span-3 space-y-6">
+        <div className="col-span-3 flex flex-col gap-6">
           <UpcomingMeetings />
-          <TagsDonutChart data={metrics.tagsData.length > 0 ? metrics.tagsData : undefined} />
+          <div className="flex-1 min-h-0">
+            <TagsDonutChart data={metrics.tagsData.length > 0 ? metrics.tagsData : undefined} />
+          </div>
         </div>
       </div>
     </div>
