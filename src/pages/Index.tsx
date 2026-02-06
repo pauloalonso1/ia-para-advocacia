@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Footer } from '@/components/ui/footer-section';
 import { RainbowButton } from '@/components/ui/rainbow-button';
 import { PricingSection } from '@/components/landing/PricingSection';
+import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -286,6 +287,9 @@ const Index = () => {
             </div>
           </div>
         </section>
+
+        {/* ═══ TESTIMONIALS ═══ */}
+        <TestimonialsSection />
 
         {/* ═══ STATS / SOCIAL PROOF ═══ */}
         <section className="py-16 bg-card/50 border-y border-border">
