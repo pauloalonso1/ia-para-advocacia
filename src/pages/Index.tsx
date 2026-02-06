@@ -248,12 +248,12 @@ const Index = () => {
             </div>
             {/* CTA after how-it-works */}
             <div className="mt-14 text-center">
-              <Button asChild size="lg" variant="outline" className="rounded-xl px-8 text-base border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                <Link to="/auth">
+              <Link to="/auth">
+                <RainbowButton className="px-8 text-base">
                   Criar minha conta
                   <ChevronRight className="ml-1 size-4" />
-                </Link>
-              </Button>
+                </RainbowButton>
+              </Link>
             </div>
           </div>
         </section>
@@ -308,10 +308,10 @@ const Index = () => {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link to="/auth">
-                <RainbowButton className="px-8 text-base">
+                <Button size="lg" className="rounded-xl px-8 text-base">
                   Começar grátis
                   <ArrowRight className="ml-2 size-4" />
-                </RainbowButton>
+                </Button>
               </Link>
               <Button asChild size="lg" variant="ghost" className="rounded-xl px-6">
                 <Link to="/auth">Entrar na minha conta</Link>
