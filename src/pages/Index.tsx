@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight, Menu, X, Bot, Calendar, MessageSquare, Shield,
   FileSignature, Zap, BarChart3, Users, CheckCircle2, Clock,
-  Send, BrainCircuit, ChevronRight
+  Send, BrainCircuit, ChevronRight, PlusIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnimatedGroup } from '@/components/ui/animated-group';
@@ -299,25 +299,35 @@ const Index = () => {
 
         {/* ═══ FINAL CTA ═══ */}
         <section className="py-24 md:py-32">
-          <div className="mx-auto max-w-3xl px-6 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold text-foreground">
-              Pronto para transformar seu escritório?
-            </h2>
-            <p className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
-              Crie sua conta gratuitamente e comece a automatizar atendimentos, agendamentos e contratos em minutos.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link to="/auth">
-                <RainbowButton className="px-8 text-base">
-                  Começar grátis
-                  <ArrowRight className="ml-2 size-4" />
-                </RainbowButton>
-              </Link>
-              <Button asChild size="lg" variant="ghost" className="rounded-xl px-6">
+          <div className="relative mx-auto flex w-full max-w-3xl flex-col justify-between gap-y-6 border-y bg-[radial-gradient(35%_80%_at_25%_0%,hsl(var(--foreground)/.08),transparent)] px-4 py-8">
+            <PlusIcon className="absolute top-[-12.5px] left-[-11.5px] z-[1] size-6 text-muted-foreground" strokeWidth={1} />
+            <PlusIcon className="absolute top-[-12.5px] right-[-11.5px] z-[1] size-6 text-muted-foreground" strokeWidth={1} />
+            <PlusIcon className="absolute bottom-[-12.5px] left-[-11.5px] z-[1] size-6 text-muted-foreground" strokeWidth={1} />
+            <PlusIcon className="absolute right-[-11.5px] bottom-[-12.5px] z-[1] size-6 text-muted-foreground" strokeWidth={1} />
+
+            <div className="-inset-y-6 pointer-events-none absolute left-0 w-px border-l" />
+            <div className="-inset-y-6 pointer-events-none absolute right-0 w-px border-r" />
+            <div className="-z-10 absolute top-0 left-1/2 h-full border-l border-dashed" />
+
+            <div className="space-y-1">
+              <h2 className="text-center font-bold text-2xl md:text-3xl text-foreground">
+                Pronto para transformar seu escritório?
+              </h2>
+              <p className="text-center text-muted-foreground">
+                Crie sua conta gratuitamente. Sem cartão de crédito.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-2">
+              <Button asChild variant="outline">
                 <Link to="/auth">Entrar na minha conta</Link>
               </Button>
+              <Link to="/auth">
+                <RainbowButton className="px-8 text-base">
+                  Começar grátis <ArrowRight className="ml-1 size-4" />
+                </RainbowButton>
+              </Link>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">Sem cartão de crédito. Cancele quando quiser.</p>
           </div>
         </section>
 
