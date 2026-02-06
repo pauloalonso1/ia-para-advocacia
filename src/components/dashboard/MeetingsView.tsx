@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -25,20 +23,35 @@ const MeetingsView = () => {
   const {
     isConnected,
     loading,
-    saving,
     events,
     availableSlots,
     calendarEmail,
     calendarId,
-    saveCalendarId,
+    getOAuthUrl,
+    handleOAuthCallback,
     listEvents,
     getAvailableSlots,
     disconnect,
+    checkStatus,
   } = useGoogleCalendar();
 
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [emailInput, setEmailInput] = useState('');
-  const [calendarIdInput, setCalendarIdInput] = useState('');
+  const [connectingOAuth, setConnectingOAuth] = useState(false);
+
+  // Handle OAuth callback from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const calendarCallback = params.get('calendar_callback');
+
+    if (code && calendarCallback === 'true') {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      handleOAuthCallback(code).then(() => {
+        checkStatus();
+      });
+    }
+  }, []);
 
   // Load events when connected
   useEffect(() => {
@@ -53,9 +66,13 @@ const MeetingsView = () => {
     setLoadingEvents(false);
   };
 
-  const handleSaveCalendar = async () => {
-    if (!emailInput.trim() || !calendarIdInput.trim()) return;
-    await saveCalendarId(emailInput.trim(), calendarIdInput.trim());
+  const handleConnectGoogle = async () => {
+    setConnectingOAuth(true);
+    const url = await getOAuthUrl();
+    if (url) {
+      window.location.href = url;
+    }
+    setConnectingOAuth(false);
   };
 
   const formatEventTime = (event: any) => {
@@ -326,7 +343,7 @@ const MeetingsView = () => {
           </div>
         </div>
       ) : (
-        /* Disconnected - Email + Calendar ID Form */
+        /* Disconnected - OAuth Connect */
         <Card className="bg-card border-border">
           <CardContent className="py-12">
             <div className="max-w-md mx-auto space-y-6">
@@ -335,64 +352,30 @@ const MeetingsView = () => {
                   <Calendar className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground">
-                  Vincule seu Google Calendar
+                  Conecte seu Google Calendar
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Informe seu email e o ID da agenda para que o agente IA possa gerenciar seus agendamentos.
+                  Conecte sua conta Google para que o agente IA possa gerenciar seus agendamentos automaticamente.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="calendar-email" className="text-foreground flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Email
-                  </Label>
-                  <Input
-                    id="calendar-email"
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="seu@email.com"
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="calendar-id" className="text-foreground flex items-center gap-2">
-                    <Link2 className="w-4 h-4" />
-                    ID da Agenda (Calendar ID)
-                  </Label>
-                  <Input
-                    id="calendar-id"
-                    value={calendarIdInput}
-                    onChange={(e) => setCalendarIdInput(e.target.value)}
-                    placeholder="exemplo@group.calendar.google.com"
-                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Encontre em: Google Calendar → Configurações da agenda → ID da agenda
-                  </p>
-                </div>
-
-                <Button
-                  onClick={handleSaveCalendar}
-                  disabled={saving || !emailInput.trim() || !calendarIdInput.trim()}
-                  className="w-full bg-primary text-primary-foreground"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Vinculando...
-                    </>
-                  ) : (
-                    <>
-                      <CalendarCheck className="w-4 h-4 mr-2" />
-                      Vincular Agenda
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button
+                onClick={handleConnectGoogle}
+                disabled={connectingOAuth}
+                className="w-full bg-primary text-primary-foreground h-12 text-base"
+              >
+                {connectingOAuth ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Conectando...
+                  </>
+                ) : (
+                  <>
+                    <CalendarCheck className="w-5 h-5 mr-2" />
+                    Conectar com Google
+                  </>
+                )}
+              </Button>
 
               <div className="grid grid-cols-3 gap-4 pt-6 border-t border-border">
                 <div className="text-center p-3">

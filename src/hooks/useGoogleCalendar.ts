@@ -54,7 +54,7 @@ export const useGoogleCalendar = () => {
 
   const getOAuthUrl = async (): Promise<string | null> => {
     try {
-      const redirectUri = `${window.location.origin}/dashboard?tab=settings&calendar_callback=true`;
+      const redirectUri = `${window.location.origin}/dashboard?tab=meetings&calendar_callback=true`;
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: { action: 'auth-url', redirectUri },
       });
@@ -73,7 +73,7 @@ export const useGoogleCalendar = () => {
   const handleOAuthCallback = async (code: string): Promise<boolean> => {
     try {
       setSaving(true);
-      const redirectUri = `${window.location.origin}/dashboard?tab=settings&calendar_callback=true`;
+      const redirectUri = `${window.location.origin}/dashboard?tab=meetings&calendar_callback=true`;
       const { data, error } = await supabase.functions.invoke('google-calendar', {
         body: { action: 'callback', code, redirectUri },
       });
