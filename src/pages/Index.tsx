@@ -11,6 +11,7 @@ import { FeatureCard as GridFeatureCard } from '@/components/ui/grid-feature-car
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/ui/footer-section';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -306,14 +307,12 @@ const Index = () => {
               Crie sua conta gratuitamente e comece a automatizar atendimentos, agendamentos e contratos em minutos.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <div className="bg-foreground/10 rounded-[14px] border p-0.5">
-                <Button asChild size="lg" className="rounded-xl px-8 text-base">
-                  <Link to="/auth">
-                    Começar grátis
-                    <ArrowRight className="ml-2 size-4" />
-                  </Link>
-                </Button>
-              </div>
+              <Link to="/auth">
+                <RainbowButton className="px-8 text-base">
+                  Começar grátis
+                  <ArrowRight className="ml-2 size-4" />
+                </RainbowButton>
+              </Link>
               <Button asChild size="lg" variant="ghost" className="rounded-xl px-6">
                 <Link to="/auth">Entrar na minha conta</Link>
               </Button>
