@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,55 +11,35 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  ExternalLink,
   RefreshCw,
   Clock,
-  CalendarDays
+  CalendarDays,
+  Mail,
+  Link2,
+  CalendarCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const GoogleCalendarSettings = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const {
     isConnected,
     loading,
-    connecting,
+    saving,
     events,
     availableSlots,
-    getAuthUrl,
-    handleCallback,
+    calendarEmail,
+    calendarId,
+    saveCalendarId,
     listEvents,
     getAvailableSlots,
     disconnect,
   } = useGoogleCalendar();
 
   const [loadingEvents, setLoadingEvents] = useState(false);
-
-  // Handle OAuth callback
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-    
-    if (error) {
-      console.error('OAuth error:', error, searchParams.get('error_description'));
-      searchParams.delete('error');
-      searchParams.delete('error_description');
-      setSearchParams(searchParams);
-      return;
-    }
-    
-    if (code && !isConnected && !connecting) {
-      handleCallback(code).then(() => {
-        // Clean up URL params regardless of success
-        searchParams.delete('code');
-        searchParams.delete('state');
-        searchParams.delete('scope');
-        setSearchParams(searchParams);
-      });
-    }
-  }, [searchParams, isConnected, connecting, handleCallback, setSearchParams]);
+  const [emailInput, setEmailInput] = useState('');
+  const [calendarIdInput, setCalendarIdInput] = useState('');
 
   // Load events when connected
   useEffect(() => {
@@ -69,42 +50,27 @@ const GoogleCalendarSettings = () => {
 
   const loadEventsAndSlots = async () => {
     setLoadingEvents(true);
-    await Promise.all([
-      listEvents(),
-      getAvailableSlots(),
-    ]);
+    await Promise.all([listEvents(), getAvailableSlots()]);
     setLoadingEvents(false);
   };
 
-  const handleConnect = async () => {
-    const authUrl = await getAuthUrl();
-    if (authUrl) {
-      window.location.href = authUrl;
-    }
-  };
-
-  const handleDisconnect = async () => {
-    await disconnect();
+  const handleSaveCalendar = async () => {
+    if (!emailInput.trim() || !calendarIdInput.trim()) return;
+    await saveCalendarId(emailInput.trim(), calendarIdInput.trim());
   };
 
   const formatEventTime = (event: any) => {
     const start = event.start?.dateTime || event.start?.date;
     const end = event.end?.dateTime || event.end?.date;
-    
     if (!start) return '';
-    
     const startDate = new Date(start);
     const endDate = end ? new Date(end) : null;
-    
     if (event.start?.date) {
-      // All-day event
       return format(startDate, "dd 'de' MMMM", { locale: ptBR });
     }
-    
     const timeRange = endDate
       ? `${format(startDate, 'HH:mm')} - ${format(endDate, 'HH:mm')}`
       : format(startDate, 'HH:mm');
-    
     return `${format(startDate, "dd/MM")} ${timeRange}`;
   };
 
@@ -128,7 +94,7 @@ const GoogleCalendarSettings = () => {
               Google Calendar
             </CardTitle>
             <CardDescription className="text-muted-foreground mt-1">
-              Conecte seu calendário para agendamento automático
+              Vincule seu calendário para agendamento automático
             </CardDescription>
           </div>
           <Badge
@@ -141,12 +107,12 @@ const GoogleCalendarSettings = () => {
             {isConnected ? (
               <>
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                Conectado
+                Vinculado
               </>
             ) : (
               <>
                 <XCircle className="w-3 h-3 mr-1" />
-                Desconectado
+                Desvinculado
               </>
             )}
           </Badge>
@@ -155,40 +121,31 @@ const GoogleCalendarSettings = () => {
       <CardContent className="space-y-6">
         {isConnected ? (
           <>
-            {/* Connected State */}
             <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/20">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Calendário conectado</p>
-                  <p className="text-sm text-muted-foreground">
-                    O agente IA pode agendar consultas automaticamente
-                  </p>
+                  <p className="font-medium text-foreground">Calendário vinculado</p>
+                  {calendarEmail && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Mail className="w-3 h-3" /> {calendarEmail}
+                    </p>
+                  )}
+                  {calendarId && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Link2 className="w-3 h-3" /> {calendarId}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={loadEventsAndSlots}
-                  disabled={loadingEvents}
-                  className="border-border"
-                >
-                  {loadingEvents ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
+                <Button variant="outline" size="sm" onClick={loadEventsAndSlots} disabled={loadingEvents} className="border-border">
+                  {loadingEvents ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDisconnect}
-                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                >
-                  Desconectar
+                <Button variant="outline" size="sm" onClick={() => disconnect()} className="border-destructive/30 text-destructive hover:bg-destructive/10">
+                  Desvincular
                 </Button>
               </div>
             </div>
@@ -199,7 +156,6 @@ const GoogleCalendarSettings = () => {
                 <CalendarDays className="w-4 h-4" />
                 Próximos eventos
               </h4>
-              
               {loadingEvents ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -208,17 +164,10 @@ const GoogleCalendarSettings = () => {
                 <ScrollArea className="h-[200px]">
                   <div className="space-y-2">
                     {events.slice(0, 10).map((event) => (
-                      <div
-                        key={event.id}
-                        className="p-3 bg-muted rounded-lg flex items-center justify-between"
-                      >
+                      <div key={event.id} className="p-3 bg-muted rounded-lg flex items-center justify-between">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">
-                            {event.summary || 'Sem título'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatEventTime(event)}
-                          </p>
+                          <p className="font-medium text-foreground truncate">{event.summary || 'Sem título'}</p>
+                          <p className="text-xs text-muted-foreground">{formatEventTime(event)}</p>
                         </div>
                       </div>
                     ))}
@@ -238,7 +187,6 @@ const GoogleCalendarSettings = () => {
                 <Clock className="w-4 h-4" />
                 Horários disponíveis
               </h4>
-              
               {loadingEvents ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -246,11 +194,7 @@ const GoogleCalendarSettings = () => {
               ) : availableSlots.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {availableSlots.slice(0, 8).map((slot, idx) => (
-                    <Badge
-                      key={idx}
-                      variant="outline"
-                      className="bg-primary/10 text-primary border-primary/30"
-                    >
+                    <Badge key={idx} variant="outline" className="bg-primary/10 text-primary border-primary/30">
                       {format(new Date(slot.start), "dd/MM HH:mm", { locale: ptBR })}
                     </Badge>
                   ))}
@@ -261,71 +205,78 @@ const GoogleCalendarSettings = () => {
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Carregando horários disponíveis...
-                </p>
+                <p className="text-sm text-muted-foreground">Nenhum horário disponível</p>
               )}
             </div>
           </>
         ) : (
-          <>
-            {/* Disconnected State */}
-            <div className="text-center py-8 space-y-4">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-                <Calendar className="w-8 h-8 text-muted-foreground" />
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="settings-calendar-email" className="text-foreground flex items-center gap-2">
+                  <Mail className="w-4 h-4" /> Email
+                </Label>
+                <Input
+                  id="settings-calendar-email"
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                />
               </div>
-              <div>
-                <h3 className="font-medium text-foreground">
-                  Conecte seu Google Calendar
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                  Permita que o agente IA verifique sua disponibilidade e agende consultas automaticamente no seu calendário.
+              <div className="space-y-2">
+                <Label htmlFor="settings-calendar-id" className="text-foreground flex items-center gap-2">
+                  <Link2 className="w-4 h-4" /> ID da Agenda
+                </Label>
+                <Input
+                  id="settings-calendar-id"
+                  value={calendarIdInput}
+                  onChange={(e) => setCalendarIdInput(e.target.value)}
+                  placeholder="exemplo@group.calendar.google.com"
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Google Calendar → Configurações da agenda → ID da agenda
                 </p>
               </div>
               <Button
-                onClick={handleConnect}
-                disabled={connecting}
-                className="bg-primary text-primary-foreground"
+                onClick={handleSaveCalendar}
+                disabled={saving || !emailInput.trim() || !calendarIdInput.trim()}
+                className="w-full bg-primary text-primary-foreground"
               >
-                {connecting ? (
+                {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Conectando...
+                    Vinculando...
                   </>
                 ) : (
                   <>
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Conectar Google Calendar
+                    <CalendarCheck className="w-4 h-4 mr-2" />
+                    Vincular Agenda
                   </>
                 )}
               </Button>
             </div>
 
-            {/* Features */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
               <div className="text-center p-4">
                 <Clock className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-sm font-medium text-foreground">Horários Livres</p>
-                <p className="text-xs text-muted-foreground">
-                  Verifica automaticamente sua disponibilidade
-                </p>
+                <p className="text-xs text-muted-foreground">Verifica automaticamente sua disponibilidade</p>
               </div>
               <div className="text-center p-4">
                 <CalendarDays className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-sm font-medium text-foreground">Agendamento</p>
-                <p className="text-xs text-muted-foreground">
-                  Cria eventos direto no seu calendário
-                </p>
+                <p className="text-xs text-muted-foreground">Cria eventos direto no seu calendário</p>
               </div>
               <div className="text-center p-4">
                 <CheckCircle2 className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-sm font-medium text-foreground">Confirmação</p>
-                <p className="text-xs text-muted-foreground">
-                  Envia convites para os participantes
-                </p>
+                <p className="text-xs text-muted-foreground">Envia convites para os participantes</p>
               </div>
             </div>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>

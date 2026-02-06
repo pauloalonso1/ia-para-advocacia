@@ -3,12 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface CalendarRequest {
-  action: "auth-url" | "callback" | "list-events" | "create-event" | "available-slots" | "status";
-  code?: string;
+  action: "save-calendar-id" | "list-events" | "create-event" | "available-slots" | "status" | "disconnect";
+  email?: string;
+  calendarId?: string;
   startDate?: string;
   endDate?: string;
   event?: {
@@ -20,10 +21,10 @@ interface CalendarRequest {
   };
 }
 
-const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
-const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
+const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -31,7 +32,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get the authorization header to identify the user
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(
@@ -41,8 +41,6 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Get user from token
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
@@ -56,110 +54,86 @@ serve(async (req) => {
     const body: CalendarRequest = await req.json();
     const { action } = body;
 
-    // Get the redirect URI from the request origin or use a default
-    const origin = req.headers.get("origin") || "https://pure-project-muse.lovable.app";
-    const REDIRECT_URI = `${origin}/settings?tab=calendar`;
-
     switch (action) {
-      case "auth-url": {
-        // Generate OAuth URL for user to authorize
-        const scopes = [
-          "https://www.googleapis.com/auth/calendar.readonly",
-          "https://www.googleapis.com/auth/calendar.events",
-        ];
-
-        const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-        authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
-        authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
-        authUrl.searchParams.set("response_type", "code");
-        authUrl.searchParams.set("scope", scopes.join(" "));
-        authUrl.searchParams.set("access_type", "offline");
-        authUrl.searchParams.set("prompt", "consent");
-        authUrl.searchParams.set("state", user.id);
-
-        return new Response(
-          JSON.stringify({ authUrl: authUrl.toString() }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      case "callback": {
-        // Exchange authorization code for tokens
-        const { code } = body;
-        if (!code) {
+      case "save-calendar-id": {
+        const { email, calendarId } = body;
+        if (!email?.trim() || !calendarId?.trim()) {
           return new Response(
-            JSON.stringify({ error: "Authorization code is required" }),
+            JSON.stringify({ error: "Email e Calendar ID são obrigatórios" }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: GOOGLE_CLIENT_ID,
-            client_secret: GOOGLE_CLIENT_SECRET,
-            code,
-            grant_type: "authorization_code",
-            redirect_uri: REDIRECT_URI,
-          }),
-        });
-
-        const tokenData = await tokenResponse.json();
-        console.log("Token response:", JSON.stringify(tokenData));
-
-        if (!tokenResponse.ok || tokenData.error) {
-          return new Response(
-            JSON.stringify({ error: "Failed to exchange code", details: tokenData }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        // Calculate expiration time
-        const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
-
-        // Store tokens in database
+        // Save calendar_id to the tokens table (reusing existing table structure)
         const { error: upsertError } = await supabase
           .from("google_calendar_tokens")
           .upsert({
             user_id: user.id,
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token,
-            expires_at: expiresAt.toISOString(),
+            calendar_id: calendarId.trim(),
+            access_token: email.trim(), // Store email in access_token field for reference
+            refresh_token: "calendar-id-mode", // Marker for this mode
+            expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
           }, { onConflict: "user_id" });
 
         if (upsertError) {
           console.error("Upsert error:", upsertError);
           return new Response(
-            JSON.stringify({ error: "Failed to save tokens", details: upsertError.message }),
+            JSON.stringify({ error: "Erro ao salvar configuração", details: upsertError.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
         return new Response(
-          JSON.stringify({ success: true, message: "Google Calendar connected successfully" }),
+          JSON.stringify({ success: true, message: "Agenda vinculada com sucesso" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       case "status": {
-        // Check if user has connected their calendar
         const { data: tokenData } = await supabase
           .from("google_calendar_tokens")
-          .select("*")
+          .select("calendar_id, access_token")
           .eq("user_id", user.id)
           .maybeSingle();
 
         return new Response(
-          JSON.stringify({ 
-            connected: !!tokenData,
-            expiresAt: tokenData?.expires_at 
+          JSON.stringify({
+            connected: !!tokenData?.calendar_id,
+            calendarId: tokenData?.calendar_id || null,
+            email: tokenData?.refresh_token === "calendar-id-mode" ? tokenData?.access_token : null,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
+      case "disconnect": {
+        const { error } = await supabase
+          .from("google_calendar_tokens")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (error) {
+          return new Response(
+            JSON.stringify({ error: "Erro ao desconectar" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       case "list-events": {
+        const calendarId = await getCalendarId(supabase, user.id);
+        if (!calendarId) {
+          return new Response(
+            JSON.stringify({ error: "Calendar not connected", code: "NOT_CONNECTED" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const accessToken = await getValidAccessToken(supabase, user.id);
         if (!accessToken) {
           return new Response(
@@ -173,14 +147,11 @@ serve(async (req) => {
         const timeMax = endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
         const eventsResponse = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
 
         const eventsData = await eventsResponse.json();
-
         if (!eventsResponse.ok) {
           return new Response(
             JSON.stringify({ error: "Failed to fetch events", details: eventsData }),
@@ -195,6 +166,14 @@ serve(async (req) => {
       }
 
       case "create-event": {
+        const calendarId = await getCalendarId(supabase, user.id);
+        if (!calendarId) {
+          return new Response(
+            JSON.stringify({ error: "Calendar not connected", code: "NOT_CONNECTED" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const accessToken = await getValidAccessToken(supabase, user.id);
         if (!accessToken) {
           return new Response(
@@ -214,24 +193,14 @@ serve(async (req) => {
         const calendarEvent: any = {
           summary: event.summary,
           description: event.description || "",
-          start: {
-            dateTime: event.startDateTime,
-            timeZone: "America/Sao_Paulo",
-          },
-          end: {
-            dateTime: event.endDateTime,
-            timeZone: "America/Sao_Paulo",
-          },
-          // Add Google Meet conference link
+          start: { dateTime: event.startDateTime, timeZone: "America/Sao_Paulo" },
+          end: { dateTime: event.endDateTime, timeZone: "America/Sao_Paulo" },
           conferenceData: {
             createRequest: {
               requestId: crypto.randomUUID(),
-              conferenceSolutionKey: {
-                type: "hangoutsMeet"
-              }
+              conferenceSolutionKey: { type: "hangoutsMeet" }
             }
           },
-          // Send notifications to attendees
           reminders: {
             useDefault: false,
             overrides: [
@@ -243,15 +212,13 @@ serve(async (req) => {
 
         if (event.attendeeEmail) {
           calendarEvent.attendees = [{ email: event.attendeeEmail }];
-          // Guest settings
           calendarEvent.guestsCanModify = false;
           calendarEvent.guestsCanInviteOthers = false;
           calendarEvent.guestsCanSeeOtherGuests = true;
         }
 
-        // conferenceDataVersion=1 enables creating Google Meet links
         const createResponse = await fetch(
-          "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all",
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1&sendUpdates=all`,
           {
             method: "POST",
             headers: {
@@ -263,7 +230,6 @@ serve(async (req) => {
         );
 
         const createdEvent = await createResponse.json();
-
         if (!createResponse.ok) {
           return new Response(
             JSON.stringify({ error: "Failed to create event", details: createdEvent }),
@@ -278,6 +244,14 @@ serve(async (req) => {
       }
 
       case "available-slots": {
+        const calendarId = await getCalendarId(supabase, user.id);
+        if (!calendarId) {
+          return new Response(
+            JSON.stringify({ error: "Calendar not connected", code: "NOT_CONNECTED" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const accessToken = await getValidAccessToken(supabase, user.id);
         if (!accessToken) {
           return new Response(
@@ -304,12 +278,9 @@ serve(async (req) => {
         const start = startDate ? new Date(startDate) : new Date();
         const end = endDate ? new Date(endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-        // Get existing events
         const eventsResponse = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
 
         const eventsData = await eventsResponse.json();
@@ -318,18 +289,13 @@ serve(async (req) => {
           end: event.end?.dateTime || event.end?.date,
         }));
 
-        // São Paulo timezone offset (UTC-3)
         const SP_OFFSET_HOURS = 3;
-
-        // Generate available slots using São Paulo timezone
         const availableSlots: { start: string; end: string }[] = [];
         const currentDate = new Date(start);
         currentDate.setUTCHours(0, 0, 0, 0);
-
         const slotDurationMs = appointmentDuration * 60 * 1000;
 
         while (currentDate <= end) {
-          // Get day of week in São Paulo time
           const spDate = new Date(currentDate.getTime() - SP_OFFSET_HOURS * 3600000);
           const dayOfWeek = spDate.getUTCDay();
 
@@ -342,7 +308,6 @@ serve(async (req) => {
                 currentHour >= lunchStartHour && currentHour < lunchEndHour;
 
               if (!isLunchTime) {
-                // Create slot in São Paulo time by adding offset to UTC
                 const slotStart = new Date(currentDate);
                 slotStart.setUTCHours(currentHour + SP_OFFSET_HOURS, currentMinute, 0, 0);
                 const slotEnd = new Date(slotStart.getTime() + slotDurationMs);
@@ -394,7 +359,16 @@ serve(async (req) => {
   }
 });
 
-// Helper function to get valid access token (refresh if needed)
+async function getCalendarId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("google_calendar_tokens")
+    .select("calendar_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return data?.calendar_id || null;
+}
+
 async function getValidAccessToken(supabase: any, userId: string): Promise<string | null> {
   const { data: tokenData } = await supabase
     .from("google_calendar_tokens")
@@ -404,15 +378,21 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
 
   if (!tokenData) return null;
 
+  // If using calendar-id-mode (no OAuth), we can't make API calls with user tokens
+  // Return null to indicate no direct API access
+  if (tokenData.refresh_token === "calendar-id-mode") {
+    // For calendar-id mode, we'll use a service approach
+    // For now, return null - the calendar ID is stored for agent reference
+    return null;
+  }
+
   const expiresAt = new Date(tokenData.expires_at);
   const now = new Date();
 
-  // If token is still valid (with 5 minute buffer)
   if (expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
     return tokenData.access_token;
   }
 
-  // Refresh the token
   console.log("Refreshing access token...");
   const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -426,13 +406,11 @@ async function getValidAccessToken(supabase: any, userId: string): Promise<strin
   });
 
   const refreshData = await refreshResponse.json();
-
   if (!refreshResponse.ok || refreshData.error) {
     console.error("Failed to refresh token:", refreshData);
     return null;
   }
 
-  // Update tokens in database
   const newExpiresAt = new Date(Date.now() + refreshData.expires_in * 1000);
   await supabase
     .from("google_calendar_tokens")

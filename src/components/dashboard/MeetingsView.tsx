@@ -1,65 +1,44 @@
 import { useState, useEffect } from 'react';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
 import {
   Calendar,
   Loader2,
   CheckCircle2,
-  
-  ExternalLink,
   RefreshCw,
   Clock,
   CalendarDays,
   Video,
   User,
-  CalendarCheck
+  CalendarCheck,
+  Mail,
+  Link2,
 } from 'lucide-react';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const MeetingsView = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const {
     isConnected,
     loading,
-    connecting,
+    saving,
     events,
     availableSlots,
-    getAuthUrl,
-    handleCallback,
+    calendarEmail,
+    calendarId,
+    saveCalendarId,
     listEvents,
     getAvailableSlots,
     disconnect,
   } = useGoogleCalendar();
 
   const [loadingEvents, setLoadingEvents] = useState(false);
-
-  // Handle OAuth callback
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-
-    if (error) {
-      console.error('OAuth error:', error, searchParams.get('error_description'));
-      searchParams.delete('error');
-      searchParams.delete('error_description');
-      setSearchParams(searchParams);
-      return;
-    }
-
-    if (code && !isConnected && !connecting) {
-      handleCallback(code).then(() => {
-        searchParams.delete('code');
-        searchParams.delete('state');
-        searchParams.delete('scope');
-        setSearchParams(searchParams);
-      });
-    }
-  }, [searchParams, isConnected, connecting, handleCallback, setSearchParams]);
+  const [emailInput, setEmailInput] = useState('');
+  const [calendarIdInput, setCalendarIdInput] = useState('');
 
   // Load events when connected
   useEffect(() => {
@@ -74,11 +53,9 @@ const MeetingsView = () => {
     setLoadingEvents(false);
   };
 
-  const handleConnect = async () => {
-    const authUrl = await getAuthUrl();
-    if (authUrl) {
-      window.location.href = authUrl;
-    }
+  const handleSaveCalendar = async () => {
+    if (!emailInput.trim() || !calendarIdInput.trim()) return;
+    await saveCalendarId(emailInput.trim(), calendarIdInput.trim());
   };
 
   const formatEventTime = (event: any) => {
@@ -105,7 +82,6 @@ const MeetingsView = () => {
     return format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
   };
 
-  // Group events by date
   const groupedEvents = events.reduce((acc: Record<string, any[]>, event) => {
     const dateKey = formatEventDate(event);
     if (!acc[dateKey]) acc[dateKey] = [];
@@ -249,12 +225,7 @@ const MeetingsView = () => {
                                 </div>
                               </div>
                               {event.hangoutLink && (
-                                <a
-                                  href={event.hangoutLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="shrink-0"
-                                >
+                                <a href={event.hangoutLink} target="_blank" rel="noopener noreferrer" className="shrink-0">
                                   <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 cursor-pointer hover:bg-blue-500/30">
                                     <Video className="w-3 h-3 mr-1" />
                                     Meet
@@ -278,27 +249,39 @@ const MeetingsView = () => {
             </Card>
           </div>
 
-          {/* Sidebar - Slots & Config */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Connection Status */}
+            {/* Connection Info */}
             <Card className="bg-card border-border">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3 mb-4">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
                     <CheckCircle2 className="w-5 h-5 text-green-500" />
                   </div>
                   <div>
                     <p className="font-medium text-foreground text-sm">Google Calendar</p>
-                    <p className="text-xs text-green-500">Conectado</p>
+                    <p className="text-xs text-green-500">Vinculado</p>
                   </div>
                 </div>
+                {calendarEmail && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Mail className="w-3 h-3" />
+                    {calendarEmail}
+                  </div>
+                )}
+                {calendarId && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 break-all">
+                    <Link2 className="w-3 h-3 shrink-0" />
+                    {calendarId}
+                  </div>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => disconnect()}
                   className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
-                  Desconectar
+                  Desvincular
                 </Button>
               </CardContent>
             </Card>
@@ -343,39 +326,73 @@ const MeetingsView = () => {
           </div>
         </div>
       ) : (
-        /* Disconnected State */
+        /* Disconnected - Email + Calendar ID Form */
         <Card className="bg-card border-border">
-          <CardContent className="py-16">
-            <div className="text-center space-y-6 max-w-md mx-auto">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
-                <Calendar className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <div>
+          <CardContent className="py-12">
+            <div className="max-w-md mx-auto space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+                  <Calendar className="w-8 h-8 text-muted-foreground" />
+                </div>
                 <h3 className="text-xl font-semibold text-foreground">
-                  Conecte seu Google Calendar
+                  Vincule seu Google Calendar
                 </h3>
-                <p className="text-muted-foreground mt-2">
-                  Permita que o agente IA verifique sua disponibilidade e agende consultas automaticamente no seu calendário.
+                <p className="text-sm text-muted-foreground">
+                  Informe seu email e o ID da agenda para que o agente IA possa gerenciar seus agendamentos.
                 </p>
               </div>
-              <Button
-                onClick={handleConnect}
-                disabled={connecting}
-                size="lg"
-                className="bg-primary text-primary-foreground"
-              >
-                {connecting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Conectando...
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Conectar Google Calendar
-                  </>
-                )}
-              </Button>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="calendar-email" className="text-foreground flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </Label>
+                  <Input
+                    id="calendar-email"
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="calendar-id" className="text-foreground flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    ID da Agenda (Calendar ID)
+                  </Label>
+                  <Input
+                    id="calendar-id"
+                    value={calendarIdInput}
+                    onChange={(e) => setCalendarIdInput(e.target.value)}
+                    placeholder="exemplo@group.calendar.google.com"
+                    className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Encontre em: Google Calendar → Configurações da agenda → ID da agenda
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSaveCalendar}
+                  disabled={saving || !emailInput.trim() || !calendarIdInput.trim()}
+                  className="w-full bg-primary text-primary-foreground"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Vinculando...
+                    </>
+                  ) : (
+                    <>
+                      <CalendarCheck className="w-4 h-4 mr-2" />
+                      Vincular Agenda
+                    </>
+                  )}
+                </Button>
+              </div>
 
               <div className="grid grid-cols-3 gap-4 pt-6 border-t border-border">
                 <div className="text-center p-3">
