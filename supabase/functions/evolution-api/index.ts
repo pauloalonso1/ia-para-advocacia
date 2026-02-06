@@ -119,12 +119,38 @@ serve(async (req) => {
         // If instance exists but not connected, get QR code via connect endpoint
         if (checkResponse.ok || checkResult.instance) {
           console.log("Instance exists, fetching QR code via connect...");
+          
+          // If state is "close", restart first to reset the instance
+          const instanceState = checkResult.state || checkResult.instance?.state;
+          if (instanceState === 'close') {
+            console.log("Instance state is 'close', restarting first...");
+            const restartResp = await fetch(`${EVOLUTION_API_URL}/instance/restart/${finalInstanceName}`, {
+              method: "PUT",
+              headers: baseHeaders,
+            });
+            console.log("Restart response status:", restartResp.status);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
+          
           const connectResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
             method: "GET",
             headers: baseHeaders,
           });
           result = await connectResponse.json();
           console.log("Connect response:", JSON.stringify(result));
+          
+          // If connect returned no QR code data, try one more time after a brief wait
+          const hasQr = result?.base64 || result?.qrcode?.base64 || result?.qrcode?.code || result?.code;
+          if (connectResponse.ok && !hasQr && result?.count === 0) {
+            console.log("Connect returned no QR data, retrying after delay...");
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const retryResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${finalInstanceName}`, {
+              method: "GET",
+              headers: baseHeaders,
+            });
+            result = await retryResponse.json();
+            console.log("Retry connect response:", JSON.stringify(result));
+          }
           
           if (connectResponse.ok) {
             return new Response(JSON.stringify(result), {
