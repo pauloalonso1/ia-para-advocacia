@@ -55,7 +55,7 @@ serve(async (req) => {
 
     // Format conversation for AI
     const conversationText = messages
-      .map((msg) => `${msg.role === "user" ? "Cliente" : "Atendente"}: ${msg.content}`)
+      .map((msg) => `${msg.role === "client" ? "Cliente" : "Atendente"}: ${msg.content}`)
       .join("\n");
 
     const clientName = caseData.client_name || "o cliente";
