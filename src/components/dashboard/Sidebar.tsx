@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Users,
   TrendingUp,
+  CalendarCheck,
   Sun,
   Moon
 } from 'lucide-react';
@@ -34,6 +35,7 @@ const menuItems = [
   { id: 'agents', label: 'Agentes IA', icon: Bot },
   { id: 'contacts', label: 'Contatos', icon: Contact },
   { id: 'crm', label: 'CRM Kanban', icon: LayoutGrid },
+  { id: 'meetings', label: 'Reuniões', icon: CalendarCheck },
   { id: 'team', label: 'Equipe', icon: Users },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
   { id: 'settings', label: 'Configurações', icon: Settings },
