@@ -1143,12 +1143,14 @@ O documento será enviado automaticamente para o WhatsApp do cliente.`,
   // Add calendar tools if connected
   if (hasCalendarConnected) {
     // Check if conversation history suggests we already showed slots
-    // Only check assistant messages for the explicit date pattern (YYYY-MM-DD) to avoid false positives
+    // Check for date patterns in various formats that indicate slots were displayed
     const alreadyShowedSlots = history.some(
       (h) =>
         h.role === "assistant" &&
-        /hor[aá]rios?\s*(?:disponíveis|:)/i.test(String(h.content || "")) &&
-        /\(20\d{2}-\d{2}-\d{2}\)/.test(String(h.content || ""))
+        /hor[aá]rios?\s*(?:disponíveis|que temos|:)/i.test(String(h.content || "")) &&
+        (/\(20\d{2}-\d{2}-\d{2}\)/.test(String(h.content || "")) ||
+         /\d{2}\/\d{2}\/20\d{2}/.test(String(h.content || "")) ||
+         /\d{1,2}:\d{2}/.test(String(h.content || "")))
     );
     
     // Check if we have an email in the conversation OR current message
