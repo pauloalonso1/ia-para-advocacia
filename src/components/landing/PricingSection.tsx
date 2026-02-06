@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Users, CheckCircle2, XCircle, Crown, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { RainbowButton } from '@/components/ui/rainbow-button';
 import * as PricingCard from '@/components/ui/pricing-card';
 
 type PlanData = {
@@ -121,17 +120,9 @@ const PlanCard = ({ plan }: { plan: PlanData }) => (
         )}
       </PricingCard.Price>
 
-      {plan.highlighted ? (
-        <Link to="/auth" className="block w-full">
-          <RainbowButton className="w-full text-sm font-semibold h-10">
-            {plan.ctaLabel}
-          </RainbowButton>
-        </Link>
-      ) : (
-        <Button asChild className="w-full font-semibold">
-          <Link to="/auth">{plan.ctaLabel}</Link>
-        </Button>
-      )}
+      <Button asChild className="w-full font-semibold">
+        <Link to="/auth">{plan.ctaLabel}</Link>
+      </Button>
     </PricingCard.Header>
 
     <PricingCard.Body>
