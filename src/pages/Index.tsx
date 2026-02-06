@@ -14,6 +14,7 @@ import { Footer } from '@/components/ui/footer-section';
 import { RainbowButton } from '@/components/ui/rainbow-button';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
+import platformPreview from '@/assets/platform-preview.png';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -205,6 +206,17 @@ const Index = () => {
                   <span className="flex items-center gap-1.5"><Clock className="size-4 text-primary" /> Setup em 5 minutos</span>
                   <span className="flex items-center gap-1.5"><Shield className="size-4 text-primary" /> Dados protegidos</span>
                 </AnimatedGroup>
+
+                {/* Platform preview */}
+                <AnimatedContainer delay={0.5} className="relative mt-16 mx-auto max-w-5xl">
+                  <img
+                    src={platformPreview}
+                    alt="Visão geral da plataforma Advocacia IA"
+                    className="w-full rounded-xl border border-border shadow-2xl"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                </AnimatedContainer>
               </div>
             </div>
           </div>
