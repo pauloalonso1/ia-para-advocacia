@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '@/components/dashboard/Sidebar';
 import AgentsView from '@/components/dashboard/AgentsView';
 import ContactsView from '@/components/dashboard/ContactsView';
@@ -17,11 +18,17 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ initialTab = 'agents' }: DashboardProps) => {
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabFromUrl || initialTab);
 
   useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    } else {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, tabFromUrl]);
 
   const renderContent = () => {
     switch (activeTab) {
