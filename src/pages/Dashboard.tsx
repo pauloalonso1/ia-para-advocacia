@@ -17,7 +17,7 @@ interface DashboardProps {
   initialTab?: string;
 }
 
-const Dashboard = ({ initialTab = 'agents' }: DashboardProps) => {
+const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl || initialTab);

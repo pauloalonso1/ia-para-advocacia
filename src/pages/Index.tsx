@@ -327,7 +327,7 @@ const Index = () => {
               Pronto para transformar seu escritório?
             </h2>
             <p className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto">
-              Crie sua conta gratuitamente e comece a automatizar atendimentos, agendamentos e contratos em minutos.
+              Comece a automatizar atendimentos, agendamentos e contratos em minutos.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link to="/auth">
