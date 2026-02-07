@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AnimatedCharacters } from "./AnimatedCharacters";
 import lexiaLogo from "@/assets/lexia-logo.svg";
+import lawyerImg from "@/assets/lawyer-notebook.jpg";
 
 interface LoginFormProps {
   isLoading: boolean;
@@ -19,7 +19,6 @@ export const LoginForm = ({ isLoading, onSignIn, onResetPassword, onCreateAccoun
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,33 +27,30 @@ export const LoginForm = ({ isLoading, onSignIn, onResetPassword, onCreateAccoun
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left - Characters */}
-      <div className="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-primary/90 via-primary to-primary/80 p-12 text-primary-foreground">
+      {/* Left - Hero Image */}
+      <div className="relative hidden lg:flex flex-col justify-between p-12 overflow-hidden">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${lawyerImg})` }}
+        />
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20" />
+
         <div className="relative z-20">
           <img src={lexiaLogo} alt="Lexia" className="h-10" />
         </div>
 
-        <div className="relative z-20">
-          <AnimatedCharacters
-            isTyping={isTyping}
-            showPassword={showPassword}
-            hasPassword={password.length > 0}
-          />
-        </div>
+        <div className="relative z-20" />
 
-        <div className="relative z-20 flex items-center gap-8 text-sm text-primary-foreground/60">
-          <Link to="/privacy" className="hover:text-primary-foreground transition-colors">
+        <div className="relative z-20 flex items-center gap-8 text-sm text-white/60">
+          <Link to="/privacy" className="hover:text-white transition-colors">
             Política de Privacidade
           </Link>
-          <Link to="/terms" className="hover:text-primary-foreground transition-colors">
+          <Link to="/terms" className="hover:text-white transition-colors">
             Termos de Serviço
           </Link>
         </div>
-
-        {/* Decorative */}
-        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-        <div className="absolute top-1/4 right-1/4 size-64 bg-primary-foreground/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/4 size-96 bg-primary-foreground/5 rounded-full blur-3xl" />
       </div>
 
       {/* Right - Form */}
@@ -80,8 +76,6 @@ export const LoginForm = ({ isLoading, onSignIn, onResetPassword, onCreateAccoun
                 value={email}
                 autoComplete="off"
                 onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setIsTyping(true)}
-                onBlur={() => setIsTyping(false)}
                 required
                 className="h-12 bg-background border-border/60 focus:border-primary"
               />
