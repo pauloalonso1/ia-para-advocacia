@@ -2,7 +2,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
-import { Scale, MessageSquare, Instagram, Linkedin } from 'lucide-react';
+import { Instagram, Linkedin } from 'lucide-react';
+import lexiaLogo from '@/assets/lexia-logo.svg';
 import type { ComponentProps, ReactNode } from 'react';
 
 interface FooterLink {
@@ -56,14 +57,13 @@ export function Footer() {
       <div className="grid w-full gap-8 xl:grid-cols-3 xl:gap-8">
         <AnimatedContainer className="space-y-4">
           <div className="flex items-center gap-2">
-            <Scale className="size-6 text-primary" />
-            <span className="text-lg font-bold text-foreground">Advocacia IA</span>
+            <img src={lexiaLogo} alt="Lexia" className="h-7" />
           </div>
           <p className="text-muted-foreground text-sm max-w-xs leading-relaxed">
             Plataforma de automação inteligente para escritórios de advocacia. Do primeiro contato à assinatura do contrato.
           </p>
           <p className="text-muted-foreground mt-8 text-xs md:mt-0">
-            © {new Date().getFullYear()} Advocacia IA. Todos os direitos reservados.
+            © {new Date().getFullYear()} Lexia. Todos os direitos reservados.
           </p>
         </AnimatedContainer>
 
