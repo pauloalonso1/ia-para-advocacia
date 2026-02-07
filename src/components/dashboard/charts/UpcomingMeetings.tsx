@@ -1,5 +1,6 @@
 import { Calendar, Clock, User, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface Meeting {
   id: string;
@@ -14,6 +15,8 @@ interface UpcomingMeetingsProps {
 }
 
 const UpcomingMeetings = ({ meetings = [] }: UpcomingMeetingsProps) => {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-card border border-border rounded-lg p-4 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
@@ -21,7 +24,12 @@ const UpcomingMeetings = ({ meetings = [] }: UpcomingMeetingsProps) => {
           <Calendar className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-medium text-foreground">Próximas Reuniões</h3>
         </div>
-        <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs text-primary hover:text-primary/80"
+          onClick={() => navigate('/dashboard?tab=meetings')}
+        >
           Ver todas
           <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
