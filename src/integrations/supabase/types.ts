@@ -275,6 +275,53 @@ export type Database = {
           },
         ]
       }
+      contact_memories: {
+        Row: {
+          agent_id: string | null
+          contact_phone: string
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          memory_type: string
+          metadata: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          contact_phone: string
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          memory_type?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          contact_phone?: string
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          memory_type?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_memories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           company: string | null
@@ -803,6 +850,23 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_contact_memories: {
+        Args: {
+          match_agent_id?: string
+          match_count?: number
+          match_phone: string
+          match_threshold?: number
+          match_user_id: string
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          memory_type: string
+          metadata: Json
+          similarity: number
+        }[]
       }
       match_knowledge_chunks: {
         Args: {

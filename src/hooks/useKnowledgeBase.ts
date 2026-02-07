@@ -12,7 +12,17 @@ interface KnowledgeDocument {
   agent_id: string | null;
   created_at: string;
   updated_at: string;
+  metadata?: any;
 }
+
+const SUPPORTED_FILE_TYPES: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+  'application/msword': 'DOC',
+  'text/plain': 'TXT',
+  'text/markdown': 'MD',
+  'text/csv': 'CSV',
+};
 
 export const useKnowledgeBase = (agentId?: string | null) => {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -31,8 +41,6 @@ export const useKnowledgeBase = (agentId?: string | null) => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      // If agentId is provided, get agent-specific + global docs
-      // If agentId is 'global', get only global docs (agent_id is null)
       if (agentId === 'global') {
         query = query.is('agent_id', null);
       } else if (agentId) {
@@ -53,6 +61,7 @@ export const useKnowledgeBase = (agentId?: string | null) => {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  // Ingest plain text document
   const ingestDocument = async (
     title: string,
     content: string,
@@ -94,6 +103,74 @@ export const useKnowledgeBase = (agentId?: string | null) => {
     }
   };
 
+  // Ingest file (PDF, DOCX, etc.) via storage
+  const ingestFile = async (
+    file: File,
+    targetAgentId?: string | null,
+  ) => {
+    if (!user) return null;
+
+    const mimeType = file.type;
+    if (!SUPPORTED_FILE_TYPES[mimeType] && !mimeType.startsWith('text/')) {
+      toast({
+        title: 'Tipo de arquivo não suportado',
+        description: `Formatos aceitos: ${Object.values(SUPPORTED_FILE_TYPES).join(', ')}`,
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    setIngesting(true);
+    try {
+      // For text files, read directly
+      if (mimeType.startsWith('text/')) {
+        const text = await file.text();
+        const title = file.name.replace(/\.[^/.]+$/, '');
+        return await ingestDocument(title, text, targetAgentId, 'upload', file.name);
+      }
+
+      // For binary files (PDF, DOCX), upload to storage first
+      const storagePath = `${user.id}/${Date.now()}-${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('knowledge-files')
+        .upload(storagePath, file, { contentType: mimeType });
+
+      if (uploadError) throw uploadError;
+
+      // Call edge function to extract text and ingest
+      const { data, error } = await supabase.functions.invoke('rag-ingest', {
+        body: {
+          action: 'ingest-file',
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          storagePath,
+          agentId: targetAgentId || null,
+          fileName: file.name,
+          mimeType,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Arquivo processado!',
+        description: `"${file.name}" extraído (${data.extractedChars} caracteres) e indexado com ${data.chunksCreated} fragmentos.`,
+      });
+
+      await fetchDocuments();
+      return data;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao processar arquivo',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIngesting(false);
+    }
+  };
+
   const deleteDocument = async (documentId: string) => {
     try {
       const { error } = await supabase.functions.invoke('rag-ingest', {
@@ -113,7 +190,7 @@ export const useKnowledgeBase = (agentId?: string | null) => {
     }
   };
 
-  const searchKnowledge = async (query: string, targetAgentId?: string | null) => {
+  const searchKnowledge = async (query: string, targetAgentId?: string | null, rerank = false) => {
     try {
       const { data, error } = await supabase.functions.invoke('rag-ingest', {
         body: {
@@ -122,6 +199,7 @@ export const useKnowledgeBase = (agentId?: string | null) => {
           agentId: targetAgentId || null,
           threshold: 0.5,
           limit: 5,
+          rerank,
         },
       });
 
@@ -138,8 +216,10 @@ export const useKnowledgeBase = (agentId?: string | null) => {
     loading,
     ingesting,
     ingestDocument,
+    ingestFile,
     deleteDocument,
     searchKnowledge,
     refetch: fetchDocuments,
+    supportedFileTypes: SUPPORTED_FILE_TYPES,
   };
 };
