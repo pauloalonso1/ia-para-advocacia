@@ -120,7 +120,13 @@ const SendDocumentModal = ({
       });
       if (error) throw error;
       const templateList = data?.results || data || [];
-      setTemplates(Array.isArray(templateList) ? templateList : []);
+      const parsed = Array.isArray(templateList) ? templateList : [];
+      setTemplates(parsed);
+      // Auto-select if only one template
+      if (parsed.length === 1) {
+        setSelectedTemplate(parsed[0].token);
+        setSelectedTemplateName(parsed[0].name);
+      }
     } catch (err) {
       console.error('Error loading templates:', err);
       toast({ title: 'Erro', description: 'Erro ao carregar templates da ZapSign', variant: 'destructive' });
@@ -130,9 +136,13 @@ const SendDocumentModal = ({
   };
 
   const handleSend = async () => {
-    if (!selectedTemplate || !signerName.trim() || !user) return;
+    if (!selectedTemplate || !signerName.trim() || !user) {
+      console.log('Send blocked:', { selectedTemplate, signerName: signerName.trim(), user: !!user });
+      return;
+    }
     setSending(true);
     try {
+      console.log('Sending document with template:', selectedTemplate);
       const { data, error } = await supabase.functions.invoke('zapsign', {
         body: {
           action: 'create-from-template',
@@ -143,7 +153,9 @@ const SendDocumentModal = ({
           fields: { nome: signerName.trim() },
         },
       });
+      console.log('ZapSign response:', data, error);
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       // Save document to tracking table
       const docToken = data?.token || data?.doc_token || data?.open_id;
