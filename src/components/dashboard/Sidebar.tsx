@@ -16,7 +16,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
-import lexiaLogo from '@/assets/lexia-logo.svg';
+import lexiaLogo from '@/assets/logo-dashboard.svg';
 import { motion } from 'framer-motion';
 import {
   AnimatedSidebar,
