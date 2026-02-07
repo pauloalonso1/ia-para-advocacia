@@ -209,6 +209,7 @@ export type Database = {
           case_description: string | null
           client_name: string | null
           client_phone: string
+          contract_value: number | null
           created_at: string
           current_step_id: string | null
           id: string
@@ -226,6 +227,7 @@ export type Database = {
           case_description?: string | null
           client_name?: string | null
           client_phone: string
+          contract_value?: number | null
           created_at?: string
           current_step_id?: string | null
           id?: string
@@ -243,6 +245,7 @@ export type Database = {
           case_description?: string | null
           client_name?: string | null
           client_phone?: string
+          contract_value?: number | null
           created_at?: string
           current_step_id?: string | null
           id?: string
@@ -467,6 +470,65 @@ export type Database = {
           webhook_url?: string | null
         }
         Relationships: []
+      }
+      financial_transactions: {
+        Row: {
+          amount: number
+          case_id: string | null
+          category: string
+          created_at: string
+          date: string
+          description: string
+          due_date: string | null
+          id: string
+          is_paid: boolean
+          notes: string | null
+          payment_method: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          case_id?: string | null
+          category: string
+          created_at?: string
+          date?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          is_paid?: boolean
+          notes?: string | null
+          payment_method?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          case_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          is_paid?: boolean
+          notes?: string | null
+          payment_method?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       followup_settings: {
         Row: {

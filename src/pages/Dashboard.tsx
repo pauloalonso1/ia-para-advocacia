@@ -11,6 +11,7 @@ import TeamMembersView from '@/components/dashboard/TeamMembersView';
 import PerformanceView from '@/components/dashboard/PerformanceView';
 import MeetingsView from '@/components/dashboard/MeetingsView';
 import KnowledgeBaseView from '@/components/dashboard/KnowledgeBaseView';
+import FinancialView from '@/components/dashboard/FinancialView';
 import { cn } from '@/lib/utils';
 
 interface DashboardProps {
@@ -50,6 +51,8 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
         return <ConversationsView />;
       case 'meetings':
         return <MeetingsView />;
+      case 'financial':
+        return <FinancialView />;
       case 'knowledge':
         return <KnowledgeBaseView />;
       case 'team':
