@@ -501,9 +501,15 @@ serve(async (req) => {
     // Process with AI
     const currentStep = existingCase.current_step;
     const currentStepIndex = steps.findIndex((s: any) => s.id === currentStep?.id);
-    const nextStep = currentStepIndex >= 0 ? steps[currentStepIndex + 1] : steps[0];
+    
+    // CRITICAL: Distinguish "script completed" (current_step_id is null but steps exist)
+    // from "script not started" (no steps at all)
+    const isScriptCompleted = !currentStep && steps.length > 0;
+    const nextStep = isScriptCompleted 
+      ? undefined  // Script already done — do NOT restart from step 0
+      : (currentStepIndex >= 0 ? steps[currentStepIndex + 1] : steps[0]);
 
-    console.log(`📍 Current step: ${currentStepIndex + 1}/${steps.length}`);
+    console.log(`📍 Current step: ${currentStepIndex + 1}/${steps.length}, scriptCompleted: ${isScriptCompleted}`);
 
     // Check if user has Google Calendar connected
     const { data: calendarToken } = await supabase
@@ -529,7 +535,8 @@ serve(async (req) => {
       clientPhone,
       hasCalendarConnected,
       userId,
-      agentId
+      agentId,
+      isScriptCompleted
     );
 
     console.log(`🤖 AI Response action: ${aiResponse.action}, new_status: ${aiResponse.new_status || 'none'}`);
@@ -617,9 +624,15 @@ serve(async (req) => {
         external_message_id: proceedMsgId,
         message_status: "sent",
       });
-    } else if (aiResponse.action === "PROCEED" && !nextStep) {
+    } else if (aiResponse.action === "PROCEED" && !nextStep && !isScriptCompleted) {
       // ===== SCRIPT COMPLETED — AUTO-ADVANCE FUNNEL =====
-      console.log(`🏁 Script completed for agent ${agentId}. Attempting funnel auto-advance...`);
+      console.log(`🏁 Script completed for agent ${agentId}. Marking as done and attempting funnel auto-advance...`);
+
+      // CRITICAL: Set current_step_id to null to mark script as COMPLETED
+      await supabase
+        .from("cases")
+        .update({ current_step_id: null })
+        .eq("id", existingCase.id);
 
       // Send the AI's closing response first
       const closingMsgId = await sendWhatsAppMessage(
@@ -987,7 +1000,8 @@ async function processWithAI(
   clientPhone: string,
   hasCalendarConnected: boolean,
   userId: string,
-  agentId: string
+  agentId: string,
+  isScriptCompleted: boolean = false
 ): Promise<{ response_text: string; action: "PROCEED" | "STAY"; new_status?: string }> {
   
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -1218,18 +1232,27 @@ async function processWithAI(
     `Etapa ${i + 1}: "${s.situation || 'Sem descrição'}" - Mensagem: "${s.message_to_send}"`
   ).join("\n");
 
-  const currentStepInfo = currentStep 
-    ? `\n\n📍 ETAPA ATUAL (${currentStep.step_order}/${allSteps.length}):
+  const currentStepInfo = isScriptCompleted
+    ? `\n\n✅ ROTEIRO CONCLUÍDO:
+- Todas as etapas do roteiro já foram finalizadas.
+- NÃO repita nenhuma pergunta do roteiro.
+- Converse de forma natural e livre com o cliente.
+- Se o cliente fizer uma nova pergunta, responda diretamente.
+- Se o cliente se despedir, despeça-se de forma profissional.`
+    : currentStep 
+      ? `\n\n📍 ETAPA ATUAL (${currentStep.step_order}/${allSteps.length}):
 - Situação: "${currentStep.situation || 'Sem descrição'}"  
 - Mensagem que você enviou: "${currentStep.message_to_send}"
 - Objetivo: Coletar a informação desta etapa antes de avançar`
-    : "\n\nVocê está no início do atendimento.";
+      : "\n\nVocê está no início do atendimento.";
 
-  const nextStepInfo = nextStep
-    ? `\n\n➡️ PRÓXIMA ETAPA (${nextStep.step_order}/${allSteps.length}):
+  const nextStepInfo = isScriptCompleted
+    ? "" // No next step info when script is completed
+    : nextStep
+      ? `\n\n➡️ PRÓXIMA ETAPA (${nextStep.step_order}/${allSteps.length}):
 - Situação: "${nextStep.situation || 'Sem descrição'}"
 - Mensagem a enviar: "${nextStep.message_to_send}"`
-    : "\n\n⚠️ Esta é a ÚLTIMA etapa do roteiro.";
+      : "\n\n⚠️ Esta é a ÚLTIMA etapa do roteiro.";
 
   // Build conversation memory - use last 30 messages for context
   const recentHistory = history.slice(-30);
