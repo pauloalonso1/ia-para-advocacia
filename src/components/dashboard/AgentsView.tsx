@@ -31,12 +31,19 @@ const AgentsView = () => {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
 
-  const filteredAgents = agents.filter((agent) => {
-    const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (agent.description?.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = categoryFilter === 'Todos' || agent.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredAgents = agents
+    .filter((agent) => {
+      const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (agent.description?.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesCategory = categoryFilter === 'Todos' || agent.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      // Active agents first, then by default status, then by name
+      if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+      if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
     await updateAgent(id, { is_active: isActive });
