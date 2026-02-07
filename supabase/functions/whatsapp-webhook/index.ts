@@ -932,11 +932,15 @@ async function processWithAI(
     const formatWeekdaySP = (d: Date) =>
       new Intl.DateTimeFormat("pt-BR", { timeZone: TZ, weekday: "long" }).format(d).toLowerCase();
 
-    const hasPresentedSlots = history.some(
+    // Only check recent messages (last 10) for slot presentation to allow re-scheduling
+    const recentForSlots = history.slice(-10);
+    const hasPresentedSlots = recentForSlots.some(
       (h) =>
         h.role !== "client" &&
         /hor[aá]rios\s*:/i.test(String(h.content || "")) &&
-        /\(20\d{2}-\d{2}-\d{2}\)/.test(String(h.content || ""))
+        (/\(20\d{2}-\d{2}-\d{2}\)/.test(String(h.content || "")) ||
+         /\d{2}\/\d{2}\/20\d{2}/.test(String(h.content || "")) ||
+         /\d{1,2}:\d{2}/.test(String(h.content || "")))
     );
 
     const emailInMessage = extractEmail(clientMessage);
@@ -1174,6 +1178,7 @@ ${rules?.forbidden_actions || "- Não forneça informações falsas\n- Não faç
 - NUNCA peça uma informação que já foi fornecida (consulte DADOS COLETADOS e HISTÓRICO)
 - NUNCA repita a mesma pergunta, mesmo com palavras diferentes
 - NUNCA diga "como posso ajudá-lo?" se o cliente já explicou o que quer
+- NUNCA INVENTE horários disponíveis! Quando o cliente pedir para agendar, SEMPRE use a ferramenta check_calendar_availability para buscar os horários REAIS do Google Calendar. Se você não tem a ferramenta disponível, diga que vai verificar a agenda.
 - Se o cliente disser "já te mandei/já falei/já informei", PROCURE a informação no histórico e use-a
 - Se não encontrar a informação, peça desculpas UMA VEZ e peça para confirmar
 
@@ -1281,9 +1286,10 @@ O documento será enviado automaticamente para o WhatsApp do cliente.`,
 
   // Add calendar tools if connected
   if (hasCalendarConnected) {
-    // Check if conversation history suggests we already showed slots
-    // Check for date patterns in various formats that indicate slots were displayed
-    const alreadyShowedSlots = history.some(
+    // Check if conversation history suggests we already showed slots RECENTLY
+    // Only check last 10 messages to allow re-scheduling in long conversations
+    const recentMessages = history.slice(-10);
+    const alreadyShowedSlots = recentMessages.some(
       (h) =>
         h.role === "assistant" &&
         /hor[aá]rios?\s*(?:disponíveis|que temos|:)/i.test(String(h.content || "")) &&
