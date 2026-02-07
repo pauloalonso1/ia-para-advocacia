@@ -169,10 +169,10 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
           </div>
 
           <NeonButton
-            variant="ghost"
+            variant="default"
             size="sm"
             onClick={() => onEdit(agent)}
-            className="text-primary hover:text-primary/80"
+            className="text-primary hover:text-primary/80 ml-auto bg-primary/10 border-primary/30"
           >
             <Settings className="w-4 h-4 mr-1.5 inline" />
             Detalhes
