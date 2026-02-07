@@ -254,6 +254,7 @@ const LeadDetailModal = ({
         onOpenChange={setShowDocModal}
         clientName={selectedCase.client_name || ''}
         clientPhone={selectedCase.client_phone}
+        caseId={selectedCase.id}
       />
     </Dialog>
   );

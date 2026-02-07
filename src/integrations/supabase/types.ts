@@ -846,6 +846,59 @@ export type Database = {
         }
         Relationships: []
       }
+      signed_documents: {
+        Row: {
+          case_id: string | null
+          client_name: string | null
+          client_phone: string | null
+          created_at: string
+          doc_token: string
+          id: string
+          signed_at: string | null
+          status: string
+          template_name: string | null
+          updated_at: string
+          user_id: string
+          zapsign_data: Json | null
+        }
+        Insert: {
+          case_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          doc_token: string
+          id?: string
+          signed_at?: string | null
+          status?: string
+          template_name?: string | null
+          updated_at?: string
+          user_id: string
+          zapsign_data?: Json | null
+        }
+        Update: {
+          case_id?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          doc_token?: string
+          id?: string
+          signed_at?: string | null
+          status?: string
+          template_name?: string | null
+          updated_at?: string
+          user_id?: string
+          zapsign_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signed_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string
