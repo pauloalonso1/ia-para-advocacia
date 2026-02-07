@@ -110,14 +110,14 @@ const AgentsView = () => {
           </div>
         </div>
         
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-primary/80 text-sm">Agentes Ativos</p>
-              <p className="text-3xl font-bold text-primary mt-1">{activeAgents}</p>
+              <p className="text-muted-foreground text-sm">Agentes Ativos</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{activeAgents}</p>
             </div>
-            <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-muted-foreground" />
             </div>
           </div>
         </div>
