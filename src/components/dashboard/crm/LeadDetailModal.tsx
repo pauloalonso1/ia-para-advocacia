@@ -137,6 +137,24 @@ const LeadDetailModal = ({
             </div>
           </div>
 
+          {/* Case Description */}
+          {selectedCase.case_description && (
+            <>
+              <Separator className="bg-border" />
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <FileSignature className="w-3 h-3" />
+                  Descrição do Caso
+                </label>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {selectedCase.case_description}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator className="bg-border" />
 
           {/* Status */}

@@ -661,6 +661,13 @@ serve(async (req) => {
 
       console.log(`📊 Status changed: ${previousStatus} -> ${aiResponse.new_status}`);
 
+      // Generate case description when qualified
+      if (aiResponse.new_status === "Qualificado" || aiResponse.new_status === "Convertido") {
+        generateCaseDescription(
+          supabase, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history
+        ).catch(e => console.error("Case description generation error:", e));
+      }
+
       // Send notification for status change
       await sendStatusNotification(
         supabase,
@@ -833,6 +840,13 @@ serve(async (req) => {
           clientPhone,
           nextFunnelStage
         );
+
+        // Generate case description when qualified via funnel auto-advance
+        if (nextFunnelStage === "Qualificado" || nextFunnelStage === "Convertido") {
+          generateCaseDescription(
+            supabase, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history
+          ).catch(e => console.error("Case description generation error:", e));
+        }
       }
     } else {
       // Only send AI response when staying on current step
@@ -1063,6 +1077,74 @@ Different texts with similar meaning should produce similar vectors.`
   } catch (e) {
     console.error("RAG search error:", e);
     return "";
+  }
+}
+
+// Generate AI case description when lead is qualified
+async function generateCaseDescription(
+  supabase: any,
+  apiKey: string,
+  caseId: string,
+  clientName: string,
+  history: any[]
+) {
+  try {
+    console.log(`📝 Generating case description for case ${caseId}...`);
+
+    const conversationText = history
+      .slice(-30)
+      .map((m: any) => `${m.role === "user" ? "Cliente" : "Assistente"}: ${m.content}`)
+      .join("\n");
+
+    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        temperature: 0.3,
+        max_tokens: 500,
+        messages: [
+          {
+            role: "system",
+            content: `Você é um assistente jurídico. Gere uma descrição concisa do caso com base na conversa abaixo.
+
+FORMATO OBRIGATÓRIO:
+- Máximo 3 parágrafos curtos
+- Parágrafo 1: Tipo de caso e demanda principal do cliente
+- Parágrafo 2: Dados relevantes coletados (valores, datas, documentos mencionados)
+- Parágrafo 3: Status atual e próximos passos recomendados
+
+Seja objetivo e profissional. Use linguagem jurídica quando apropriado.`
+          },
+          {
+            role: "user",
+            content: `Cliente: ${clientName}\n\nConversa:\n${conversationText}\n\nGere a descrição do caso.`
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`Case description API error: ${response.status}`);
+      return;
+    }
+
+    const data = await response.json();
+    const description = data.choices?.[0]?.message?.content;
+
+    if (description) {
+      await supabase
+        .from("cases")
+        .update({ case_description: description })
+        .eq("id", caseId);
+
+      console.log(`✅ Case description saved for case ${caseId}`);
+    }
+  } catch (error) {
+    console.error("Error generating case description:", error);
   }
 }
 

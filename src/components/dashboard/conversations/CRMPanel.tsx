@@ -480,11 +480,26 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
 
             <Separator className="bg-border" />
 
+            {/* Descrição do Caso */}
+            {selectedCase.case_description && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  Descrição do caso
+                </Label>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{selectedCase.case_description}</p>
+                </div>
+              </div>
+            )}
+
+            <Separator className="bg-border" />
+
             {/* Resumo do Atendimento */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
+                  <Sparkles className="w-3 h-3" />
                   Resumo do atendimento
                 </Label>
                 <Button

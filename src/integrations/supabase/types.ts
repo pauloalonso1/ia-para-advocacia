@@ -206,6 +206,7 @@ export type Database = {
         Row: {
           active_agent_id: string | null
           assigned_to: string | null
+          case_description: string | null
           client_name: string | null
           client_phone: string
           created_at: string
@@ -222,6 +223,7 @@ export type Database = {
         Insert: {
           active_agent_id?: string | null
           assigned_to?: string | null
+          case_description?: string | null
           client_name?: string | null
           client_phone: string
           created_at?: string
@@ -238,6 +240,7 @@ export type Database = {
         Update: {
           active_agent_id?: string | null
           assigned_to?: string | null
+          case_description?: string | null
           client_name?: string | null
           client_phone?: string
           created_at?: string
