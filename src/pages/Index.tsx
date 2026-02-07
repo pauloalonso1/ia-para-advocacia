@@ -187,7 +187,7 @@ const Index = () => {
                     Seu escritório no piloto automático. <span className="text-primary">Da captação à assinatura.</span>
                   </h1>
                   <p className="mx-auto mt-6 max-w-2xl text-balance text-base md:text-lg text-foreground/70 leading-relaxed">
-                    IA que atende, qualifica, agenda e envia contratos pelo WhatsApp — enquanto você foca na advocacia que importa.
+                    IA que atende, qualifica, agenda e envia contratos pelo WhatsApp enquanto você foca na advocacia que importa.
                   </p>
                 </AnimatedGroup>
 
