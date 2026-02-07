@@ -15,6 +15,7 @@ import { RainbowButton } from '@/components/ui/rainbow-button';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import platformPreview from '@/assets/platform-preview.png';
+import lexiaLogo from '@/assets/lexia-logo.svg';
 import { HeroScene } from '@/components/ui/hero-scene';
 
 const featuresData = [
@@ -91,7 +92,7 @@ const HeroHeader = () => {
           <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
             <div className="flex w-full justify-between lg:w-auto">
               <Link to="/" aria-label="home" className="flex items-center space-x-2">
-                <span className="text-xl font-bold tracking-tight text-foreground">Advocacia IA</span>
+                <img src={lexiaLogo} alt="Lexia" className="h-8" />
               </Link>
               <button
                 onClick={() => setMenuState(!menuState)}
@@ -212,7 +213,7 @@ const Index = () => {
                 <AnimatedContainer delay={0.5} className="relative mt-16 mx-auto max-w-5xl">
                   <img
                     src={platformPreview}
-                    alt="Visão geral da plataforma Advocacia IA"
+                    alt="Visão geral da plataforma Lexia"
                     className="w-full rounded-xl border border-border shadow-2xl"
                     loading="lazy"
                   />
