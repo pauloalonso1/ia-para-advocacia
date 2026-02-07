@@ -183,23 +183,47 @@ serve(async (req) => {
     if (!existingCase) {
       console.log("🆕 Creating new case for:", clientPhone);
       
-      // Find the first active default agent
-      const { data: defaultAgent } = await supabase
-        .from("agents")
-        .select("*")
+      // Check if there's a funnel agent assignment for "Novo Contato"
+      const { data: funnelAgent } = await supabase
+        .from("funnel_agent_assignments")
+        .select("agent_id")
         .eq("user_id", ownerId)
-        .eq("is_active", true)
-        .eq("is_default", true)
-        .limit(1)
+        .eq("stage_name", "Novo Contato")
         .maybeSingle();
 
-      const agent = defaultAgent || (await supabase
-        .from("agents")
-        .select("*")
-        .eq("user_id", ownerId)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle()).data;
+      let agent = null;
+
+      if (funnelAgent?.agent_id) {
+        // Use funnel-assigned agent
+        const { data: fAgent } = await supabase
+          .from("agents")
+          .select("*")
+          .eq("id", funnelAgent.agent_id)
+          .eq("is_active", true)
+          .maybeSingle();
+        agent = fAgent;
+        if (agent) console.log(`🔄 Using funnel agent for Novo Contato: ${agent.name}`);
+      }
+
+      if (!agent) {
+        // Fallback: find default agent
+        const { data: defaultAgent } = await supabase
+          .from("agents")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("is_active", true)
+          .eq("is_default", true)
+          .limit(1)
+          .maybeSingle();
+
+        agent = defaultAgent || (await supabase
+          .from("agents")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle()).data;
+      }
 
       if (!agent) {
         console.log("❌ No active agents found");
@@ -502,9 +526,40 @@ serve(async (req) => {
 
     // Handle status change if detected
     if (aiResponse.new_status && aiResponse.new_status !== previousStatus) {
+      const statusUpdate: Record<string, any> = { status: aiResponse.new_status };
+
+      // Check funnel agent assignment for auto-switch
+      const { data: funnelAssignment } = await supabase
+        .from("funnel_agent_assignments")
+        .select("agent_id")
+        .eq("user_id", userId)
+        .eq("stage_name", aiResponse.new_status)
+        .maybeSingle();
+
+      if (funnelAssignment?.agent_id) {
+        statusUpdate.active_agent_id = funnelAssignment.agent_id;
+        statusUpdate.is_agent_paused = false;
+        statusUpdate.current_step_id = null; // Reset script for new agent
+
+        // Get first step of the new agent's script
+        const { data: newFirstStep } = await supabase
+          .from("agent_script_steps")
+          .select("id")
+          .eq("agent_id", funnelAssignment.agent_id)
+          .order("step_order", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (newFirstStep) {
+          statusUpdate.current_step_id = newFirstStep.id;
+        }
+
+        console.log(`🔄 Funnel auto-switch: agent changed to ${funnelAssignment.agent_id} for stage "${aiResponse.new_status}"`);
+      }
+
       await supabase
         .from("cases")
-        .update({ status: aiResponse.new_status })
+        .update(statusUpdate)
         .eq("id", existingCase.id);
 
       console.log(`📊 Status changed: ${previousStatus} -> ${aiResponse.new_status}`);

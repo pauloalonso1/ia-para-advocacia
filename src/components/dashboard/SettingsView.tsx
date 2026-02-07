@@ -40,7 +40,8 @@ import {
   Clock,
   Zap,
   FileSignature,
-  Users
+  Users,
+  GitBranch
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -48,9 +49,10 @@ import { useToast } from '@/hooks/use-toast';
 import ScheduleSettings from './settings/ScheduleSettings';
 import FollowupSettings from './settings/FollowupSettings';
 import ZapSignSettings from './settings/ZapSignSettings';
+import FunnelAgentsSettings from './settings/FunnelAgentsSettings';
 import TeamMembersView from './TeamMembersView';
 
-type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign' | 'team';
+type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign' | 'funnel' | 'team';
 
 const SettingsView = () => {
   const { user } = useAuth();
@@ -121,6 +123,7 @@ const SettingsView = () => {
     { id: 'schedule', label: 'Horários', icon: Clock, description: 'Expediente e agenda' },
     { id: 'notifications', label: 'Notificações', icon: Bell, description: 'Alertas WhatsApp' },
     { id: 'followup', label: 'Follow-up', icon: Zap, description: 'Automação' },
+    { id: 'funnel', label: 'Funil', icon: GitBranch, description: 'Multi-agente' },
     { id: 'zapsign', label: 'ZapSign', icon: FileSignature, description: 'Assinatura digital' },
   ];
 
@@ -842,6 +845,9 @@ const SettingsView = () => {
 
       case 'followup':
         return <FollowupSettings />;
+
+      case 'funnel':
+        return <FunnelAgentsSettings />;
 
       case 'zapsign':
         return <ZapSignSettings />;

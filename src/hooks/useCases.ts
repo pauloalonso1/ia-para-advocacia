@@ -80,21 +80,44 @@ export const useCases = () => {
   };
 
   const updateCaseStatus = async (caseId: string, status: string) => {
+    if (!user) return;
     try {
+      // Check if there's a funnel agent assignment for the new stage
+      const { data: assignment } = await supabase
+        .from('funnel_agent_assignments')
+        .select('agent_id')
+        .eq('user_id', user.id)
+        .eq('stage_name', status)
+        .maybeSingle();
+
+      const updatePayload: Record<string, any> = {
+        status,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Auto-switch agent if funnel assignment exists
+      if (assignment?.agent_id) {
+        updatePayload.active_agent_id = assignment.agent_id;
+        updatePayload.is_agent_paused = false;
+        updatePayload.current_step_id = null; // Reset script step for new agent
+      }
+
       const { error } = await supabase
         .from('cases')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', caseId);
 
       if (error) throw error;
       
       setCases(prev => prev.map(c => 
-        c.id === caseId ? { ...c, status, updated_at: new Date().toISOString() } : c
+        c.id === caseId ? { ...c, ...updatePayload } : c
       ));
 
       toast({
         title: 'Status atualizado',
-        description: `Status alterado para "${status}"`,
+        description: assignment?.agent_id 
+          ? `Status alterado para "${status}" — agente trocado automaticamente`
+          : `Status alterado para "${status}"`,
       });
     } catch (error: any) {
       toast({
