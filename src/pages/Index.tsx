@@ -15,6 +15,7 @@ import { RainbowButton } from '@/components/ui/rainbow-button';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import platformPreview from '@/assets/platform-preview.png';
+import { HeroScene } from '@/components/ui/hero-scene';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -159,9 +160,13 @@ const Index = () => {
         </div>
 
         {/* ═══ HERO ═══ */}
-        <section>
+        <section className="relative">
           <div className="relative pt-24 md:pt-36">
             <div aria-hidden className="absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,hsl(var(--background))_75%)]" />
+            {/* 3D animated background */}
+            <div className="absolute inset-0 -z-10 opacity-40">
+              <HeroScene />
+            </div>
             <div className="mx-auto max-w-7xl px-6">
               <div className="text-center sm:mx-auto">
                 <AnimatedGroup variants={transitionVariants}>
