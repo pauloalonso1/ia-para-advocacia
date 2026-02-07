@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { NeonButton } from '@/components/ui/neon-button';
 
 interface AgentCardProps {
   agent: Agent;
@@ -170,15 +171,15 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
             </span>
           </div>
 
-          <Button
+          <NeonButton
             variant="ghost"
             size="sm"
             onClick={() => onEdit(agent)}
-            className="text-primary hover:text-primary/80 hover:bg-primary/10"
+            className="text-primary hover:text-primary/80"
           >
-            <Settings className="w-4 h-4 mr-1.5" />
+            <Settings className="w-4 h-4 mr-1.5 inline" />
             Detalhes
-          </Button>
+          </NeonButton>
         </div>
       </CardContent>
     </Card>
