@@ -1052,6 +1052,29 @@ async function processWithAI(
     }
   }
   
+  // ===== EXTRACT COLLECTED DATA FROM HISTORY =====
+  // Parse conversation to find already-collected info so the agent NEVER re-asks
+  const emailRegex2 = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+  const collectedData: Record<string, string> = {};
+  
+  for (const h of history) {
+    const content = String(h.content || "");
+    // Extract emails from client messages
+    if (h.role === "client") {
+      const emailMatch = content.match(emailRegex2);
+      if (emailMatch) collectedData["email"] = emailMatch[0].toLowerCase();
+    }
+    // Extract confirmed data from assistant messages (e.g., "Já anotei seu e-mail (x@y.com)")
+    if (h.role === "assistant") {
+      const confirmedEmail = content.match(/e-?mail[^(]*\(([^)]+@[^)]+)\)/i);
+      if (confirmedEmail) collectedData["email"] = confirmedEmail[1].toLowerCase();
+    }
+  }
+
+  const collectedDataContext = Object.keys(collectedData).length > 0
+    ? `\n\n✅ DADOS JÁ COLETADOS (NUNCA peça novamente!):\n${Object.entries(collectedData).map(([k, v]) => `- ${k}: ${v}`).join('\n')}`
+    : "";
+
   // Build context about the script
   const scriptContext = allSteps.map((s, i) => 
     `Etapa ${i + 1}: "${s.situation || 'Sem descrição'}" - Mensagem: "${s.message_to_send}"`
@@ -1070,10 +1093,11 @@ async function processWithAI(
 - Mensagem a enviar: "${nextStep.message_to_send}"`
     : "\n\n⚠️ Esta é a ÚLTIMA etapa do roteiro.";
 
-  // Build conversation memory summary from history
-  const conversationMemory = history.length > 0
-    ? `\n\n💬 MEMÓRIA DA CONVERSA (informações já coletadas):
-${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${h.content}`).join('\n')}`
+  // Build conversation memory - use last 30 messages for context
+  const recentHistory = history.slice(-30);
+  const conversationMemory = recentHistory.length > 0
+    ? `\n\n💬 HISTÓRICO RECENTE (${recentHistory.length} últimas mensagens):
+${recentHistory.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${h.content}`).join('\n')}`
     : "";
 
   // Calendar context if available - use São Paulo timezone
@@ -1097,8 +1121,8 @@ ${history.map((h) => `${h.role === 'client' ? '👤 Cliente' : '🤖 Você'}: ${
 FLUXO DE AGENDAMENTO (siga em ordem):
 1. Se o cliente quer agendar mas você NÃO MOSTROU os horários ainda: use check_calendar_availability IMEDIATAMENTE (NÃO diga "um momento" ou "vou verificar" antes - chame a ferramenta direto!)
 2. Se você JÁ MOSTROU os horários e o cliente ESCOLHEU um (ex: "10:00", "segunda às 14h", "amanhã de manhã"): 
-   - PRIMEIRO peça o email se ainda não tem
-   - DEPOIS use create_calendar_event com a data YYYY-MM-DD e horário HH:MM
+   - Se já tem email nos DADOS COLETADOS acima, use create_calendar_event DIRETO com o email!
+   - Se NÃO tem email, peça o email UMA ÚNICA VEZ
 3. NUNCA chame check_calendar_availability se já mostrou os horários e o cliente escolheu um!
 
 ⚠️ REGRA CRÍTICA:
@@ -1110,7 +1134,6 @@ IMPORTANTE:
 - Ao criar eventos, use sempre o ano ${currentYear} nas datas
 - Use APENAS datas FUTURAS (a partir de ${currentDateStr}). NUNCA agende em datas passadas!
 - Quando o cliente responde com um horário específico, isso é uma ESCOLHA - use create_calendar_event!
-- Exemplos de escolha: "10:00", "quarta 10h", "amanhã às 9", "prefiro às 14:00"
 - CONFIRA que a data do evento corresponde ao dia da semana correto antes de responder`
     : "";
 
@@ -1132,41 +1155,53 @@ ${ragContext}
 IMPORTANTE: Use as informações acima para fundamentar suas respostas quando relevantes. Cite os dados da base de conhecimento de forma natural na conversa.`
     : "";
 
-  const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional chamado pelo escritório. Seu objetivo é conduzir o cliente através de um roteiro de qualificação de forma natural e empática.
+  const systemPrompt = `Você é um assistente virtual de atendimento jurídico/profissional de ALTO NÍVEL. Você representa um escritório de advocacia e deve se comportar com a excelência, precisão e profissionalismo esperados de um advogado sênior.
 
 ${rules?.system_prompt || "Seja profissional, educado e objetivo nas respostas."}
+
+🏆 PADRÃO DE EXCELÊNCIA:
+- Seja CONCISO e DIRETO. Evite mensagens longas e repetitivas.
+- Transmita confiança e competência em cada resposta.
+- Use linguagem profissional mas acessível (evite juridiquês desnecessário).
+- Demonstre empatia genuína pela situação do cliente.
+- NUNCA use emojis em excesso (máximo 1-2 por mensagem quando apropriado).
 
 📋 REGRAS DO ATENDIMENTO:
 ${rules?.agent_rules || "- Seja cordial e profissional\n- Responda de forma clara e objetiva\n- Mantenha o foco no roteiro"}
 
-🚫 AÇÕES PROIBIDAS:
+🚫 PROIBIÇÕES ABSOLUTAS:
 ${rules?.forbidden_actions || "- Não forneça informações falsas\n- Não faça promessas que não pode cumprir\n- Não seja invasivo"}
+- NUNCA peça uma informação que já foi fornecida (consulte DADOS COLETADOS e HISTÓRICO)
+- NUNCA repita a mesma pergunta, mesmo com palavras diferentes
+- NUNCA diga "como posso ajudá-lo?" se o cliente já explicou o que quer
+- Se o cliente disser "já te mandei/já falei/já informei", PROCURE a informação no histórico e use-a
+- Se não encontrar a informação, peça desculpas UMA VEZ e peça para confirmar
 
 📝 ROTEIRO COMPLETO:
 ${scriptContext}
 ${currentStepInfo}
 ${nextStepInfo}
+${collectedDataContext}
 ${conversationMemory}
 ${calendarContext}
 ${knowledgeBaseContext}
 
 👤 INFORMAÇÕES DO CLIENTE:
 - Nome: ${clientName}
-- IMPORTANTE: Use o nome "${clientName}" para se referir ao cliente sempre que apropriado.
-- IMPORTANTE: Lembre-se de TODAS as informações que o cliente já compartilhou durante a conversa acima.
+- Telefone: ${clientPhone}
 
-🎯 INSTRUÇÕES:
-1. Se o cliente respondeu adequadamente à pergunta da etapa atual, use action "PROCEED"
-2. Se o cliente fez uma pergunta ou deu resposta vaga, use action "STAY"
-3. Se for a última etapa e o cliente concordou, mude new_status para "Qualificado"
-4. Se o cliente demonstrar desinteresse, mude new_status para "Não Qualificado"
-5. SEMPRE use o nome do cliente quando fizer sentido na conversa
-6. NUNCA peça informações que o cliente já forneceu na conversa
-7. Se o cliente pedir para agendar, USE as ferramentas de calendário (check_calendar_availability e create_calendar_event)`;
+🎯 INSTRUÇÕES DE DECISÃO:
+1. Se o cliente respondeu adequadamente à pergunta da etapa atual → action "PROCEED"
+2. Se o cliente fez uma pergunta ou deu resposta vaga → action "STAY"  
+3. Se for a última etapa e o cliente concordou → new_status "Qualificado"
+4. Se o cliente demonstrar desinteresse → new_status "Não Qualificado"
+5. SEMPRE use o nome do cliente de forma natural
+6. Se o cliente pedir para agendar → USE as ferramentas de calendário
+7. Mantenha respostas com no MÁXIMO 3-4 linhas (exceto quando listando horários)`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    ...history.slice(-15).map((h) => ({
+    ...history.slice(-25).map((h) => ({
       role: h.role === "client" ? ("user" as const) : ("assistant" as const),
       content: h.content,
     })),
