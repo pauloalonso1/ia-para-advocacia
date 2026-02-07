@@ -571,6 +571,18 @@ serve(async (req) => {
       });
     }
 
+    // Save contact memory in background (every 5th message to avoid excessive API calls)
+    const messageCount = history.length + 2; // +2 for new client msg + assistant response
+    if (messageCount % 5 === 0) {
+      const recentContext = history.slice(-6).map((m: any) => `${m.role}: ${m.content}`).join("\n");
+      const fullContext = `${recentContext}\nclient: ${messageBody}\nassistant: ${aiResponse.response_text}`;
+      
+      // Fire and forget - don't block the response
+      saveContactMemory(
+        supabase, LOVABLE_API_KEY, userId, clientPhone, agentId, fullContext
+      ).catch(e => console.error("Memory save error:", e));
+    }
+
     return new Response(JSON.stringify({ status: "processed", action: aiResponse.action }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -672,7 +684,8 @@ async function searchRAGContext(
   apiKey: string,
   userId: string,
   agentId: string,
-  query: string
+  query: string,
+  clientPhone?: string
 ): Promise<string> {
   try {
     // Generate embedding for the query using the same method as rag-ingest
@@ -724,26 +737,47 @@ Different texts with similar meaning should produce similar vectors.`
       return "";
     }
 
-    // Search using the match function
-    const { data: results, error } = await supabase.rpc("match_knowledge_chunks", {
-      query_embedding: JSON.stringify(embedding),
-      match_user_id: userId,
-      match_agent_id: agentId,
-      match_threshold: 0.5,
-      match_count: 3,
-    });
+    // Search knowledge base AND contact memories in parallel
+    const [knowledgeResults, memoryResults] = await Promise.all([
+      supabase.rpc("match_knowledge_chunks", {
+        query_embedding: JSON.stringify(embedding),
+        match_user_id: userId,
+        match_agent_id: agentId,
+        match_threshold: 0.5,
+        match_count: 3,
+      }),
+      clientPhone ? supabase.rpc("match_contact_memories", {
+        query_embedding: JSON.stringify(embedding),
+        match_user_id: userId,
+        match_phone: clientPhone,
+        match_agent_id: agentId,
+        match_threshold: 0.5,
+        match_count: 3,
+      }).catch(() => ({ data: null, error: null })) : Promise.resolve({ data: null, error: null }),
+    ]);
 
-    if (error || !results || results.length === 0) {
-      return "";
+    const chunks = knowledgeResults.data || [];
+    const memories = memoryResults.data || [];
+
+    let contextParts: string[] = [];
+
+    if (chunks.length > 0) {
+      console.log(`🧠 RAG found ${chunks.length} relevant knowledge chunks`);
+      const ragContext = chunks
+        .map((r: any, i: number) => `[Doc ${i + 1}] ${r.content}`)
+        .join("\n\n");
+      contextParts.push(`📚 Base de Conhecimento:\n${ragContext}`);
     }
 
-    console.log(`🧠 RAG found ${results.length} relevant chunks`);
-    
-    const ragContext = results
-      .map((r: any, i: number) => `[${i + 1}] ${r.content}`)
-      .join("\n\n");
+    if (memories.length > 0) {
+      console.log(`💭 Found ${memories.length} contact memories`);
+      const memContext = memories
+        .map((r: any, i: number) => `[Mem ${i + 1}] ${r.content}`)
+        .join("\n");
+      contextParts.push(`💭 Memórias do Contato:\n${memContext}`);
+    }
 
-    return ragContext;
+    return contextParts.join("\n\n---\n\n");
   } catch (e) {
     console.error("RAG search error:", e);
     return "";
@@ -1028,7 +1062,7 @@ IMPORTANTE:
   // RAG: Search knowledge base for relevant context
   let ragContext = "";
   try {
-    ragContext = await searchRAGContext(supabase, apiKey, userId, agentId, clientMessage);
+    ragContext = await searchRAGContext(supabase, apiKey, userId, agentId, clientMessage, clientPhone);
     if (ragContext) {
       console.log(`🧠 RAG context injected (${ragContext.length} chars)`);
     }
@@ -1999,5 +2033,100 @@ async function updateContactEmail(
     }
   } catch (e) {
     console.error("Error updating contact email:", e);
+  }
+}
+
+// Save a conversation memory for the contact (runs in background)
+async function saveContactMemory(
+  supabase: any,
+  apiKey: string,
+  userId: string,
+  clientPhone: string,
+  agentId: string,
+  conversationContext: string
+): Promise<void> {
+  try {
+    // Generate a summary of the recent interaction
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: `Resuma a interação abaixo em 1-2 frases objetivas, focando em:
+- Assunto principal discutido
+- Informações importantes do cliente (necessidades, preferências)
+- Status atual do atendimento
+Responda APENAS com o resumo, sem prefixos.`
+          },
+          { role: "user", content: conversationContext }
+        ],
+        temperature: 0.2,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) return;
+    const data = await response.json();
+    const summary = data.choices?.[0]?.message?.content?.trim();
+    if (!summary) return;
+
+    // Generate embedding for the summary
+    const embResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: `You are an embedding generator. Given text, produce a 768-dimensional numerical vector representation.
+Return ONLY a JSON array of 768 floating point numbers between -1 and 1, nothing else.`
+          },
+          { role: "user", content: summary.slice(0, 2000) }
+        ],
+        temperature: 0,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!embResponse.ok) return;
+    const embData = await embResponse.json();
+    const embContent = embData.choices?.[0]?.message?.content?.trim();
+
+    let embedding: number[];
+    try {
+      let jsonStr = embContent;
+      if (embContent.includes("```")) {
+        const match = embContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) jsonStr = match[1].trim();
+      }
+      embedding = JSON.parse(jsonStr);
+      if (!Array.isArray(embedding) || embedding.length !== 768) return;
+    } catch {
+      return;
+    }
+
+    await supabase.from("contact_memories").insert({
+      user_id: userId,
+      contact_phone: clientPhone,
+      agent_id: agentId,
+      memory_type: "conversation_summary",
+      content: summary,
+      embedding: JSON.stringify(embedding),
+      metadata: { created_from: "auto_webhook", timestamp: new Date().toISOString() },
+    });
+
+    console.log(`🧠 Contact memory saved for ${clientPhone}: ${summary.slice(0, 80)}...`);
+  } catch (e) {
+    console.error("Error saving contact memory:", e);
   }
 }
