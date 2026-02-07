@@ -23,7 +23,7 @@ interface WebhookPayload {
   };
 }
 
-// CRM Status progression
+// CRM Status progression — ordered for auto-advance
 const CRM_STATUSES = [
   "Novo Contato",
   "Em Atendimento",
@@ -32,6 +32,16 @@ const CRM_STATUSES = [
   "Convertido",
   "Arquivado"
 ];
+
+// Get the next funnel stage based on current status
+function getNextFunnelStage(currentStatus: string | null): string | null {
+  const progression: Record<string, string> = {
+    "Novo Contato": "Em Atendimento",
+    "Em Atendimento": "Qualificado",
+    "Qualificado": "Convertido",
+  };
+  return progression[currentStatus || "Novo Contato"] || null;
+}
 
 // Status mapping for notifications
 const STATUS_NOTIFICATION_MAP: Record<string, { key: string; emoji: string; label: string }> = {
@@ -607,6 +617,130 @@ serve(async (req) => {
         external_message_id: proceedMsgId,
         message_status: "sent",
       });
+    } else if (aiResponse.action === "PROCEED" && !nextStep) {
+      // ===== SCRIPT COMPLETED — AUTO-ADVANCE FUNNEL =====
+      console.log(`🏁 Script completed for agent ${agentId}. Attempting funnel auto-advance...`);
+
+      // Send the AI's closing response first
+      const closingMsgId = await sendWhatsAppMessage(
+        EVOLUTION_API_URL,
+        EVOLUTION_API_KEY,
+        instanceName,
+        clientPhone,
+        aiResponse.response_text
+      );
+
+      await supabase.from("conversation_history").insert({
+        case_id: existingCase.id,
+        role: "assistant",
+        content: aiResponse.response_text,
+        external_message_id: closingMsgId,
+        message_status: "sent",
+      });
+
+      // Determine the next funnel stage
+      const nextFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
+
+      if (nextFunnelStage && nextFunnelStage !== existingCase.status) {
+        console.log(`📊 Auto-advancing funnel: ${existingCase.status} → ${nextFunnelStage}`);
+
+        // Check if there's a funnel agent assignment for the next stage
+        const { data: nextAssignment } = await supabase
+          .from("funnel_agent_assignments")
+          .select("agent_id")
+          .eq("user_id", userId)
+          .eq("stage_name", nextFunnelStage)
+          .maybeSingle();
+
+        const statusUpdate: Record<string, any> = {
+          status: nextFunnelStage,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (nextAssignment?.agent_id && nextAssignment.agent_id !== agentId) {
+          // Switch to the new agent
+          statusUpdate.active_agent_id = nextAssignment.agent_id;
+          statusUpdate.is_agent_paused = false;
+          statusUpdate.current_step_id = null;
+
+          // Get first step of new agent's script
+          const { data: newFirstStep } = await supabase
+            .from("agent_script_steps")
+            .select("id")
+            .eq("agent_id", nextAssignment.agent_id)
+            .order("step_order", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (newFirstStep) {
+            statusUpdate.current_step_id = newFirstStep.id;
+          }
+
+          console.log(`🔄 Funnel auto-switch: agent changed to ${nextAssignment.agent_id} for stage "${nextFunnelStage}"`);
+
+          // Send first message from new agent after a brief delay
+          const { data: newAgentRules } = await supabase
+            .from("agent_rules")
+            .select("welcome_message")
+            .eq("agent_id", nextAssignment.agent_id)
+            .maybeSingle();
+
+          const { data: newAgentFirstStep } = await supabase
+            .from("agent_script_steps")
+            .select("message_to_send")
+            .eq("agent_id", nextAssignment.agent_id)
+            .order("step_order", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          // Determine what the new agent should say first
+          const newAgentGreeting = newAgentFirstStep?.message_to_send || newAgentRules?.welcome_message;
+
+          if (newAgentGreeting) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            const greetingMsg = newAgentGreeting.replace(
+              /\{nome\}/gi,
+              existingCase.client_name || clientName
+            );
+
+            const greetingMsgId = await sendWhatsAppMessage(
+              EVOLUTION_API_URL,
+              EVOLUTION_API_KEY,
+              instanceName,
+              clientPhone,
+              greetingMsg
+            );
+
+            await supabase.from("conversation_history").insert({
+              case_id: existingCase.id,
+              role: "assistant",
+              content: greetingMsg,
+              external_message_id: greetingMsgId,
+              message_status: "sent",
+            });
+
+            console.log(`✉️ New agent sent first message for stage "${nextFunnelStage}"`);
+          }
+        }
+
+        await supabase
+          .from("cases")
+          .update(statusUpdate)
+          .eq("id", existingCase.id);
+
+        // Send notification for status change
+        await sendStatusNotification(
+          supabase,
+          EVOLUTION_API_URL,
+          EVOLUTION_API_KEY,
+          instanceName,
+          userId,
+          existingCase.client_name || clientName,
+          clientPhone,
+          nextFunnelStage
+        );
+      }
     } else {
       // Only send AI response when staying on current step
       const stayMsgId = await sendWhatsAppMessage(
