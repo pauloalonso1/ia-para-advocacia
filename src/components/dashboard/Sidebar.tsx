@@ -14,7 +14,8 @@ import {
   CalendarCheck,
   Brain,
   Sun,
-  Moon
+  Moon,
+  Wallet
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
@@ -39,6 +40,7 @@ const menuItems = [
   { id: 'contacts', label: 'Contatos', icon: Contact },
   { id: 'crm', label: 'CRM Kanban', icon: LayoutGrid },
   { id: 'meetings', label: 'Reuniões', icon: CalendarCheck },
+  { id: 'financial', label: 'Financeiro', icon: Wallet },
   { id: 'team', label: 'Equipe', icon: Users },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
   { id: 'settings', label: 'Configurações', icon: Settings },
