@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Menu, X, Bot, Calendar, MessageSquare, Shield,
-  FileSignature, Zap, BarChart3, Users, CheckCircle2, Clock,
+  FileSignature, Zap, BarChart3, Users, Clock,
   Send, BrainCircuit, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -206,12 +206,6 @@ const Index = () => {
                   </Button>
                 </AnimatedGroup>
 
-                {/* Social proof mini */}
-                <AnimatedGroup variants={staggeredVariants} className="mt-10 flex items-center justify-center gap-6 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><CheckCircle2 className="size-4 text-primary" /> Planos acessíveis</span>
-                  <span className="flex items-center gap-1.5"><Clock className="size-4 text-primary" /> Setup em 5 minutos</span>
-                  <span className="flex items-center gap-1.5"><Shield className="size-4 text-primary" /> Dados protegidos</span>
-                </AnimatedGroup>
 
                 {/* Platform preview */}
                 <AnimatedContainer delay={0.5} className="relative mt-16 mx-auto max-w-5xl">
