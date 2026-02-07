@@ -6,12 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useAdvancedMetrics } from '@/hooks/useAdvancedMetrics';
 import MetricCards from './charts/MetricCards';
 import ConversationsChart from './charts/ConversationsChart';
 import ConversionFunnel from './charts/ConversionFunnel';
 import UpcomingMeetings from './charts/UpcomingMeetings';
 import TagsDonutChart from './charts/TagsDonutChart';
 import BrazilMap from './charts/BrazilMap';
+import ResponseTimeCard from './charts/ResponseTimeCard';
+import AgentPerformanceChart from './charts/AgentPerformanceChart';
+import SourceAnalysisChart from './charts/SourceAnalysisChart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
@@ -25,6 +29,7 @@ const DashboardOverview = () => {
   });
 
   const { metrics, loading } = useDashboardMetrics(dateRange?.from, dateRange?.to);
+  const { metrics: advMetrics, loading: advLoading } = useAdvancedMetrics(dateRange?.from, dateRange?.to);
 
   const dateLabel = dateRange?.from
     ? dateRange.to
@@ -121,6 +126,33 @@ const DashboardOverview = () => {
           </div>
         </div>
       </div>
+
+      {/* Advanced Analytics Row */}
+      {!advLoading && (
+        <div className="grid grid-cols-12 gap-6">
+          {/* Response Time & Conversion */}
+          <div className="col-span-4">
+            <ResponseTimeCard
+              avgMinutes={advMetrics.avgResponseTimeMinutes}
+              within5Pct={advMetrics.respondedWithin5Min}
+              within30Pct={advMetrics.respondedWithin30Min}
+              after30Pct={advMetrics.respondedAfter30Min}
+              avgDaysToConversion={advMetrics.avgTimeToConversion}
+              overallConversionRate={advMetrics.overallConversionRate}
+            />
+          </div>
+
+          {/* Agent Performance */}
+          <div className="col-span-5">
+            <AgentPerformanceChart data={advMetrics.agentPerformance} />
+          </div>
+
+          {/* Source Analysis */}
+          <div className="col-span-3">
+            <SourceAnalysisChart data={advMetrics.sourceMetrics} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
