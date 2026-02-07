@@ -1,0 +1,651 @@
+{
+  "name": "Lexia - WhatsApp AI Agent + RAG Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entry",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.data.messageType }}",
+              "rightValue": "conversation",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "filter-msg-type",
+      "name": "Filter: Text Messages Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "evolution_api_settings",
+        "matchType": "column",
+        "columns": ["user_id", "api_url", "api_key", "instance_name"],
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "instance_name",
+              "value": "={{ $json.body.instance }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "resolve-tenant",
+      "name": "Resolve Tenant (Multi-Tenant)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [440, 300],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "conversation_history",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "external_message_id",
+              "value": "={{ $json.body.data.key.id }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "dedup-check",
+      "name": "Dedup: Check external_message_id",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [660, 300],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "dedup-filter",
+      "name": "Is New Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": "public",
+        "table": "cases",
+        "columns": "user_id, client_phone, last_message, last_message_at, status",
+        "conflictColumns": "user_id, client_phone",
+        "additionalFields": {}
+      },
+      "id": "upsert-case",
+      "name": "Upsert Case",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "conversation_history",
+        "columns": "case_id, role, content, external_message_id"
+      },
+      "id": "save-client-msg",
+      "name": "Save Client Message",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1320, 300],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "agents",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "={{ $node['upsert-case'].json.active_agent_id }}"
+            }
+          ]
+        }
+      },
+      "id": "load-agent",
+      "name": "Load Active Agent",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 100],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "agent_rules",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "agent_id",
+              "value": "={{ $node['upsert-case'].json.active_agent_id }}"
+            }
+          ]
+        }
+      },
+      "id": "load-rules",
+      "name": "Load Agent Rules",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 300],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "agent_script_steps",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "agent_id",
+              "value": "={{ $node['upsert-case'].json.active_agent_id }}"
+            }
+          ]
+        },
+        "sort": { "values": [{ "column": "step_order", "direction": "ASC" }] }
+      },
+      "id": "load-steps",
+      "name": "Load Script Steps",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 500],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "agent_faqs",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "agent_id",
+              "value": "={{ $node['upsert-case'].json.active_agent_id }}"
+            }
+          ]
+        }
+      },
+      "id": "load-faqs",
+      "name": "Load Agent FAQs",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 700],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "conversation_history",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "case_id",
+              "value": "={{ $node['upsert-case'].json.id }}"
+            }
+          ]
+        },
+        "sort": { "values": [{ "column": "created_at", "direction": "DESC" }] },
+        "limit": 50
+      },
+      "id": "load-history",
+      "name": "Load Chat History (50 msgs)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1760, 100],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['resolve-tenant'].json.api_url }}/rag-ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $credentials.supabaseApi.serviceRoleKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "action", "value": "search" },
+            { "name": "query", "value": "={{ $node['save-client-msg'].json.content }}" },
+            { "name": "agentId", "value": "={{ $node['upsert-case'].json.active_agent_id }}" },
+            { "name": "threshold", "value": "0.5" },
+            { "name": "limit", "value": "5" },
+            { "name": "rerank", "value": "true" }
+          ]
+        }
+      },
+      "id": "rag-search",
+      "name": "RAG: Search Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1760, 400],
+      "notes": "Calls the rag-ingest Edge Function with action=search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['resolve-tenant'].json.api_url }}/rag-ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $credentials.supabaseApi.serviceRoleKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "action", "value": "search-memories" },
+            { "name": "contactPhone", "value": "={{ $json.body.data.key.remoteJid }}" },
+            { "name": "query", "value": "={{ $node['save-client-msg'].json.content }}" },
+            { "name": "agentId", "value": "={{ $node['upsert-case'].json.active_agent_id }}" }
+          ]
+        }
+      },
+      "id": "memory-search",
+      "name": "RAG: Search Contact Memories",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1760, 650],
+      "notes": "Searches contact-specific memories via rag-ingest Edge Function"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all context into a single system prompt\nconst rules = $('Load Agent Rules').first().json;\nconst steps = $('Load Script Steps').all().map(s => s.json);\nconst faqs = $('Load Agent FAQs').all().map(f => f.json);\nconst history = $('Load Chat History (50 msgs)').all().map(h => h.json).reverse();\nconst ragResults = $('RAG: Search Knowledge Base').first().json?.results || [];\nconst memories = $('RAG: Search Contact Memories').first().json?.results || [];\nconst caseData = $('Upsert Case').first().json;\n\nconst now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nlet systemPrompt = rules.system_prompt || 'Você é um assistente jurídico profissional.';\nsystemPrompt += `\\n\\nData e hora atual: ${now}`;\n\nif (rules.agent_rules) systemPrompt += `\\n\\nREGRAS:\\n${rules.agent_rules}`;\nif (rules.forbidden_actions) systemPrompt += `\\n\\nPROIBIDO:\\n${rules.forbidden_actions}`;\n\n// Script steps\nconst currentStep = steps.find(s => s.id === caseData.current_step_id);\nconst isScriptCompleted = !currentStep && steps.length > 0;\nif (isScriptCompleted) {\n  systemPrompt += '\\n\\n✅ ROTEIRO CONCLUÍDO. NÃO repita perguntas anteriores.';\n} else if (currentStep) {\n  systemPrompt += `\\n\\nETAPA ATUAL: ${currentStep.situation}\\nPERGUNTA: ${currentStep.message_to_send}`;\n}\n\n// FAQs\nif (faqs.length > 0) {\n  systemPrompt += '\\n\\nFAQ:\\n' + faqs.map(f => `P: ${f.question}\\nR: ${f.answer}`).join('\\n');\n}\n\n// RAG context\nif (ragResults.length > 0) {\n  systemPrompt += '\\n\\nBASE DE CONHECIMENTO:\\n' + ragResults.map(r => r.content).join('\\n---\\n');\n}\n\n// Contact memories\nif (memories.length > 0) {\n  systemPrompt += '\\n\\nMEMÓRIA DO CONTATO:\\n' + memories.map(m => m.content).join('\\n');\n}\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...history.map(h => ({\n    role: h.role === 'client' ? 'user' : 'assistant',\n    content: h.content\n  }))\n];\n\nreturn [{ json: { messages, currentStep, isScriptCompleted, steps } }];"
+      },
+      "id": "build-prompt",
+      "name": "Build AI Prompt (Merge Context)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ai.gateway.lovable.dev/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.LOVABLE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'google/gemini-3-flash-preview', messages: $json.messages, temperature: 0.7, max_tokens: 1000, tools: [{ type: 'function', function: { name: 'check_calendar_availability', description: 'Verifica horários disponíveis', parameters: { type: 'object', properties: { date: { type: 'string' } }, required: ['date'] } } }, { type: 'function', function: { name: 'create_calendar_event', description: 'Cria um evento no calendário', parameters: { type: 'object', properties: { title: { type: 'string' }, date: { type: 'string' }, time: { type: 'string' }, email: { type: 'string' } }, required: ['title', 'date', 'time'] } } }, { type: 'function', function: { name: 'advance_funnel_stage', description: 'Avança o lead para o próximo estágio do funil', parameters: { type: 'object', properties: { new_status: { type: 'string' } }, required: ['new_status'] } } }] }) }}"
+      },
+      "id": "llm-call",
+      "name": "LLM: Gemini 3 Flash (Tool Calling)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2220, 300],
+      "notes": "Main AI call with tool calling for calendar and funnel operations"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.choices[0].message.tool_calls }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "has-tool-call",
+      "name": "Has Tool Call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Route tool calls to appropriate handlers\nconst toolCalls = $json.choices[0].message.tool_calls;\nconst results = [];\nfor (const tc of toolCalls) {\n  results.push({\n    name: tc.function.name,\n    args: JSON.parse(tc.function.arguments),\n    id: tc.id\n  });\n}\nreturn results.map(r => ({ json: r }));"
+      },
+      "id": "parse-tools",
+      "name": "Parse Tool Calls",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 200],
+      "notes": "Routes to calendar, funnel, or other tool handlers"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "check_calendar_availability",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "route-calendar-check",
+      "name": "Route: Calendar Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2880, 100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://gateway.lovable.dev/google_calendar/calendar/v3/calendars/primary/events",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "timeMin", "value": "={{ $json.args.date }}T00:00:00-03:00" },
+            { "name": "timeMax", "value": "={{ $json.args.date }}T23:59:59-03:00" },
+            { "name": "singleEvents", "value": "true" },
+            { "name": "orderBy", "value": "startTime" }
+          ]
+        }
+      },
+      "id": "google-calendar-check",
+      "name": "Google Calendar: Check Availability",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3100, 0],
+      "notes": "Uses Google Calendar connector gateway"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gateway.lovable.dev/google_calendar/calendar/v3/calendars/primary/events",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ summary: $json.args.title, start: { dateTime: $json.args.date + 'T' + $json.args.time + ':00-03:00' }, end: { dateTime: $json.args.date + 'T' + (parseInt($json.args.time.split(':')[0]) + 1) + ':' + $json.args.time.split(':')[1] + ':00-03:00' }, attendees: $json.args.email ? [{ email: $json.args.email }] : [] }) }}"
+      },
+      "id": "google-calendar-create",
+      "name": "Google Calendar: Create Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3100, 200],
+      "notes": "Creates calendar event via Google Calendar connector"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "cases",
+        "columns": "status, active_agent_id",
+        "filterType": "string",
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "={{ $node['upsert-case'].json.id }}"
+            }
+          ]
+        }
+      },
+      "id": "advance-funnel",
+      "name": "Advance Funnel Stage",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3100, 400],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } },
+      "notes": "Updates case status and switches active agent based on funnel_agent_assignments"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract AI response text\nconst content = $('LLM: Gemini 3 Flash (Tool Calling)').first().json.choices[0].message.content;\nreturn [{ json: { responseText: content || 'Obrigado pelo contato!' } }];"
+      },
+      "id": "extract-response",
+      "name": "Extract AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['resolve-tenant'].json.api_url }}/message/sendText/{{ $node['resolve-tenant'].json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $node['resolve-tenant'].json.api_key }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.body.data.key.remoteJid, text: $json.responseText }) }}"
+      },
+      "id": "send-whatsapp",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3320, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "conversation_history",
+        "columns": "case_id, role, content"
+      },
+      "id": "save-ai-msg",
+      "name": "Save AI Response to DB",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3540, 300],
+      "credentials": { "supabaseApi": { "id": "CONFIGURE_ME", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if we should save a memory summary (every 5 messages)\nconst history = $('Load Chat History (50 msgs)').all();\nif (history.length % 5 === 0 && history.length > 0) {\n  const last5 = history.slice(-5).map(h => `${h.json.role}: ${h.json.content}`).join('\\n');\n  return [{ json: { shouldSummarize: true, content: last5 } }];\n}\nreturn [{ json: { shouldSummarize: false } }];"
+      },
+      "id": "check-memory",
+      "name": "Check: Memory Summary Needed?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['resolve-tenant'].json.api_url }}/rag-ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $credentials.supabaseApi.serviceRoleKey }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "action", "value": "save-memory" },
+            { "name": "contactPhone", "value": "={{ $json.body.data.key.remoteJid }}" },
+            { "name": "content", "value": "={{ $json.content }}" },
+            { "name": "agentId", "value": "={{ $node['upsert-case'].json.active_agent_id }}" }
+          ]
+        }
+      },
+      "id": "save-memory",
+      "name": "Save Contact Memory (RAG)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3760, 500],
+      "notes": "Saves conversation summary as contact memory via rag-ingest"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok' }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3760, 300]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [[{ "node": "Filter: Text Messages Only", "type": "main", "index": 0 }]]
+    },
+    "Filter: Text Messages Only": {
+      "main": [[{ "node": "Resolve Tenant (Multi-Tenant)", "type": "main", "index": 0 }]]
+    },
+    "Resolve Tenant (Multi-Tenant)": {
+      "main": [[{ "node": "Dedup: Check external_message_id", "type": "main", "index": 0 }]]
+    },
+    "Dedup: Check external_message_id": {
+      "main": [[{ "node": "Is New Message?", "type": "main", "index": 0 }]]
+    },
+    "Is New Message?": {
+      "main": [
+        [{ "node": "Upsert Case", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Upsert Case": {
+      "main": [[{ "node": "Save Client Message", "type": "main", "index": 0 }]]
+    },
+    "Save Client Message": {
+      "main": [
+        [
+          { "node": "Load Active Agent", "type": "main", "index": 0 },
+          { "node": "Load Agent Rules", "type": "main", "index": 0 },
+          { "node": "Load Script Steps", "type": "main", "index": 0 },
+          { "node": "Load Agent FAQs", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Active Agent": {
+      "main": [
+        [
+          { "node": "Load Chat History (50 msgs)", "type": "main", "index": 0 },
+          { "node": "RAG: Search Knowledge Base", "type": "main", "index": 0 },
+          { "node": "RAG: Search Contact Memories", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Agent Rules": {
+      "main": [[{ "node": "Build AI Prompt (Merge Context)", "type": "main", "index": 0 }]]
+    },
+    "Load Script Steps": {
+      "main": [[{ "node": "Build AI Prompt (Merge Context)", "type": "main", "index": 0 }]]
+    },
+    "Load Agent FAQs": {
+      "main": [[{ "node": "Build AI Prompt (Merge Context)", "type": "main", "index": 0 }]]
+    },
+    "Load Chat History (50 msgs)": {
+      "main": [[{ "node": "Build AI Prompt (Merge Context)", "type": "main", "index": 0 }]]
+    },
+    "RAG: Search Knowledge Base": {
+      "main": [[{ "node": "Build AI Prompt (Merge Context)", "type": "main", "index": 0 }]]
+    },
+    "RAG: Search Contact Memories": {
+      "main": [[{ "node": "Build AI Prompt (Merge Context)", "type": "main", "index": 0 }]]
+    },
+    "Build AI Prompt (Merge Context)": {
+      "main": [[{ "node": "LLM: Gemini 3 Flash (Tool Calling)", "type": "main", "index": 0 }]]
+    },
+    "LLM: Gemini 3 Flash (Tool Calling)": {
+      "main": [[{ "node": "Has Tool Call?", "type": "main", "index": 0 }]]
+    },
+    "Has Tool Call?": {
+      "main": [
+        [{ "node": "Parse Tool Calls", "type": "main", "index": 0 }],
+        [{ "node": "Extract AI Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Tool Calls": {
+      "main": [
+        [
+          { "node": "Route: Calendar Check", "type": "main", "index": 0 },
+          { "node": "Google Calendar: Create Event", "type": "main", "index": 0 },
+          { "node": "Advance Funnel Stage", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Route: Calendar Check": {
+      "main": [
+        [{ "node": "Google Calendar: Check Availability", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Extract AI Response": {
+      "main": [
+        [
+          { "node": "Send WhatsApp Response", "type": "main", "index": 0 },
+          { "node": "Save AI Response to DB", "type": "main", "index": 0 },
+          { "node": "Check: Memory Summary Needed?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Send WhatsApp Response": {
+      "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]]
+    },
+    "Check: Memory Summary Needed?": {
+      "main": [
+        [{ "node": "Save Contact Memory (RAG)", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "WhatsApp" },
+    { "name": "AI Agent" },
+    { "name": "RAG" },
+    { "name": "Legal" }
+  ]
+}
