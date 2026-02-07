@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -7,6 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useAdvancedMetrics } from '@/hooks/useAdvancedMetrics';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import MetricCards from './charts/MetricCards';
 import ConversationsChart from './charts/ConversationsChart';
 import ConversionFunnel from './charts/ConversionFunnel';
@@ -30,6 +31,35 @@ const DashboardOverview = () => {
 
   const { metrics, loading } = useDashboardMetrics(dateRange?.from, dateRange?.to);
   const { metrics: advMetrics, loading: advLoading } = useAdvancedMetrics(dateRange?.from, dateRange?.to);
+  const { isConnected, events, listEvents } = useGoogleCalendar();
+
+  useEffect(() => {
+    if (isConnected) {
+      listEvents();
+    }
+  }, [isConnected]);
+
+  const calendarMeetings = useMemo(() => {
+    return events.map((evt) => {
+      const startStr = evt.start?.dateTime || evt.start?.date || '';
+      const endStr = evt.end?.dateTime || evt.end?.date || '';
+      const startDate = new Date(startStr);
+      const endDate = endStr ? new Date(endStr) : startDate;
+      const time = evt.start?.dateTime
+        ? `${format(startDate, 'HH:mm')} - ${format(endDate, 'HH:mm')}`
+        : 'Dia inteiro';
+      const attendee = evt.attendees && evt.attendees.length > 0
+        ? evt.attendees[0].email
+        : '';
+      return {
+        id: evt.id,
+        title: evt.summary || 'Sem título',
+        date: startDate,
+        time,
+        attendee,
+      };
+    });
+  }, [events]);
 
   const dateLabel = dateRange?.from
     ? dateRange.to
@@ -120,7 +150,7 @@ const DashboardOverview = () => {
         
         {/* Right Column */}
         <div className="col-span-3 flex flex-col gap-6">
-          <UpcomingMeetings />
+          <UpcomingMeetings meetings={calendarMeetings} />
           <div className="flex-1 min-h-0">
             <TagsDonutChart data={metrics.tagsData.length > 0 ? metrics.tagsData : undefined} />
           </div>
