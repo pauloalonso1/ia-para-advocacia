@@ -1,4 +1,5 @@
 import { Agent } from '@/hooks/useAgents';
+import botIconSvg from '@/assets/bot-icon.svg';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { Button } from '@/components/ui/button';
@@ -70,12 +71,8 @@ const AgentCard = ({ agent, onEdit, onDelete, onToggleActive, onSetDefault }: Ag
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-14 h-14 rounded-2xl flex items-center justify-center",
-              "bg-gradient-to-br from-primary/20 to-primary/10",
-              "border border-primary/20"
-            )}>
-              <Bot className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 flex items-center justify-center">
+              <img src={botIconSvg} alt="Agent" className="w-12 h-12" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-lg leading-tight">{agent.name}</h3>
