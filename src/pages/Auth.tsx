@@ -103,17 +103,10 @@ const Auth = () => {
 
   return (
     <SignInPage
-      title={
-        <span className="font-light tracking-tighter">
-          <span className="text-primary">Legal</span>Agent AI
-        </span>
-      }
-      description="Automação jurídica com inteligência artificial para escritórios de advocacia"
       heroImageSrc="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&q=80"
       testimonials={testimonials}
       isLoading={isLoading}
       onSignIn={handleLogin}
-      onGoogleSignIn={handleGoogleSignIn}
       onResetPassword={handleResetPassword}
       onCreateAccount={() => setView('signup')}
     />

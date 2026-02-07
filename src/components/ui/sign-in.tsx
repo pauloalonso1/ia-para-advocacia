@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Loader2, Scale } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import lexiaLogo from '@/assets/lexia-logo.svg';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -81,19 +82,8 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       <section className="w-full lg:w-[480px] xl:w-[520px] flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12">
         <div className="w-full max-w-sm mx-auto lg:mx-0">
           {/* Logo */}
-          <div className="animate-element animate-delay-100 flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
-              <Scale className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-semibold">
-              <span className="text-primary">Legal</span>Agent
-            </span>
-          </div>
-
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="animate-element animate-delay-100 text-2xl sm:text-3xl font-semibold leading-tight mb-2">{title}</h1>
-            <p className="animate-element animate-delay-200 text-muted-foreground text-sm">{description}</p>
+          <div className="animate-element animate-delay-100 mb-8">
+            <img src={lexiaLogo} alt="Lexia" className="h-12" />
           </div>
 
           {/* Form */}
@@ -165,21 +155,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="animate-element animate-delay-700 relative flex items-center justify-center my-6">
-            <span className="w-full border-t border-border"></span>
-            <span className="px-3 text-xs text-muted-foreground bg-background absolute whitespace-nowrap">ou continue com</span>
-          </div>
-
-          {/* Google button */}
-          <button 
-            onClick={onGoogleSignIn} 
-            disabled={isLoading}
-            className="animate-element animate-delay-800 w-full h-11 flex items-center justify-center gap-2.5 border border-border rounded-xl text-sm font-medium hover:bg-card transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <GoogleIcon />
-            Google
-          </button>
 
           {/* Sign up link */}
           <p className="animate-element animate-delay-900 text-center text-sm text-muted-foreground mt-6">
