@@ -179,10 +179,11 @@ const Index = () => {
                   </Link>
 
                   <h1 className="mt-8 max-w-4xl mx-auto text-balance text-5xl md:text-6xl lg:mt-16 xl:text-[5.25rem] font-bold tracking-tight text-foreground">
-                    Do primeiro contato à assinatura do contrato, sem esforço
+                    Seu escritório no piloto automático.{' '}
+                    <span className="text-primary">Da captação à assinatura.</span>
                   </h1>
                   <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-foreground/80">
-                    Captura de leads, qualificação por IA, agendamento automático, envio de contratos e assinatura digital. Tudo no piloto automático para seu escritório de advocacia.
+                    IA que atende, qualifica, agenda e envia contratos pelo WhatsApp — enquanto você foca na advocacia que importa.
                   </p>
                 </AnimatedGroup>
 
