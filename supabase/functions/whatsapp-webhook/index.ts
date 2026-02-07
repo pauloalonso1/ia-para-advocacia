@@ -12,13 +12,37 @@ interface WebhookPayload {
     key: {
       remoteJid: string;
       fromMe: boolean;
+      id?: string;
     };
     message?: {
       conversation?: string;
       extendedTextMessage?: {
         text: string;
       };
+      audioMessage?: {
+        mimetype?: string;
+        seconds?: number;
+      };
+      imageMessage?: {
+        mimetype?: string;
+        caption?: string;
+      };
+      documentMessage?: {
+        mimetype?: string;
+        fileName?: string;
+        caption?: string;
+      };
+      documentWithCaptionMessage?: {
+        message?: {
+          documentMessage?: {
+            mimetype?: string;
+            fileName?: string;
+            caption?: string;
+          };
+        };
+      };
     };
+    messageType?: string;
     pushName?: string;
   };
 }
@@ -128,11 +152,18 @@ serve(async (req) => {
     }
 
     // Extract message content (original MESSAGES_UPSERT flow)
-    const messageBody =
+    const textBody =
       payload.data?.message?.conversation ||
       payload.data?.message?.extendedTextMessage?.text;
 
-    if (!messageBody || payload.data?.key?.fromMe) {
+    // Detect media messages
+    const audioMsg = payload.data?.message?.audioMessage;
+    const imageMsg = payload.data?.message?.imageMessage;
+    const docMsg = payload.data?.message?.documentMessage ||
+      payload.data?.message?.documentWithCaptionMessage?.message?.documentMessage;
+    const hasMedia = !!(audioMsg || imageMsg || docMsg);
+
+    if (!textBody && !hasMedia || payload.data?.key?.fromMe) {
       return new Response(JSON.stringify({ status: "ignored" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -143,7 +174,56 @@ serve(async (req) => {
     const instanceName = payload.instance;
     const incomingMessageId = payload.data.key.id || null;
 
-    console.log(`📩 Message from ${clientPhone}: ${messageBody}`);
+    // If media message, download and process with Gemini
+    let messageBody = textBody || "";
+    if (hasMedia && !textBody) {
+      console.log(`📎 Media message detected: audio=${!!audioMsg}, image=${!!imageMsg}, doc=${!!docMsg}`);
+      
+      try {
+        // Resolve tenant first to get Evolution API credentials
+        const { data: mediaInstanceSettings } = await supabase
+          .from("evolution_api_settings")
+          .select("api_url, api_key")
+          .eq("instance_name", instanceName)
+          .maybeSingle();
+
+        if (mediaInstanceSettings) {
+          const mediaBase64 = await downloadMediaFromEvolution(
+            mediaInstanceSettings.api_url,
+            mediaInstanceSettings.api_key,
+            instanceName,
+            payload.data
+          );
+
+          if (mediaBase64) {
+            const mediaMimeType = audioMsg?.mimetype || imageMsg?.mimetype || docMsg?.mimetype || "application/octet-stream";
+            const mediaCaption = imageMsg?.caption || docMsg?.caption || "";
+            
+            messageBody = await processMediaWithGemini(
+              LOVABLE_API_KEY,
+              mediaBase64,
+              mediaMimeType,
+              audioMsg ? "audio" : imageMsg ? "image" : "document",
+              mediaCaption,
+              docMsg?.fileName
+            );
+            
+            console.log(`✅ Media transcribed/described: ${messageBody.slice(0, 100)}...`);
+          } else {
+            messageBody = audioMsg 
+              ? "[Áudio recebido - não foi possível processar]"
+              : imageMsg 
+                ? "[Imagem recebida - não foi possível processar]"
+                : "[Documento recebido - não foi possível processar]";
+          }
+        }
+      } catch (mediaError) {
+        console.error("❌ Media processing error:", mediaError);
+        messageBody = "[Mídia recebida - erro ao processar]";
+      }
+    }
+
+    console.log(`📩 Message from ${clientPhone}: ${messageBody.slice(0, 200)}`);
 
     // Resolve the owner and Evolution API credentials from the database (per-user, multi-tenant)
     const { data: instanceSettings } = await supabase
@@ -2286,6 +2366,149 @@ async function updateContactEmail(
     }
   } catch (e) {
     console.error("Error updating contact email:", e);
+  }
+}
+
+// Download media from Evolution API (base64)
+async function downloadMediaFromEvolution(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  messageData: any
+): Promise<string | null> {
+  try {
+    const url = `${apiUrl}/chat/getBase64FromMediaMessage/${instanceName}`;
+    console.log(`📥 Downloading media from Evolution API...`);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: apiKey,
+      },
+      body: JSON.stringify({
+        message: {
+          key: messageData.key,
+          message: messageData.message,
+        },
+        convertToMp4: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Evolution media download error:", response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const base64 = data?.base64 || data?.data?.base64 || null;
+
+    if (!base64) {
+      console.error("No base64 data in Evolution response");
+      return null;
+    }
+
+    console.log(`📥 Media downloaded: ${base64.length} chars base64`);
+    return base64;
+  } catch (error) {
+    console.error("Error downloading media:", error);
+    return null;
+  }
+}
+
+// Process media (audio/image/document) with Gemini multimodal
+async function processMediaWithGemini(
+  apiKey: string,
+  base64Data: string,
+  mimeType: string,
+  mediaType: "audio" | "image" | "document",
+  caption?: string,
+  fileName?: string
+): Promise<string> {
+  const systemPrompts: Record<string, string> = {
+    audio: `Você é um transcritor de áudio. Transcreva o áudio recebido em texto, exatamente como a pessoa falou.
+Retorne APENAS a transcrição do áudio, sem nenhum comentário adicional.
+Se o áudio estiver inaudível ou vazio, responda: "[áudio inaudível]".`,
+    image: `Você é um analisador de imagens para um sistema de atendimento jurídico via WhatsApp.
+Descreva o conteúdo da imagem de forma objetiva e completa.
+Se for um documento/texto fotografado, transcreva o texto visível.
+Se for uma captura de tela, descreva o conteúdo.
+Se for uma foto comum, descreva o que aparece.
+Retorne APENAS a descrição/transcrição, sem comentários.`,
+    document: `Você é um extrator de texto de documentos para um sistema jurídico.
+Extraia TODO o texto do documento recebido, preservando a estrutura (títulos, parágrafos, listas).
+Se for um PDF ou documento Word, transcreva todo o conteúdo visível.
+Retorne APENAS o texto extraído, sem comentários.${fileName ? `\nNome do arquivo: ${fileName}` : ""}`,
+  };
+
+  const userContent: any[] = [
+    {
+      type: "image_url",
+      image_url: {
+        url: `data:${mimeType};base64,${base64Data}`,
+      },
+    },
+  ];
+
+  if (caption) {
+    userContent.push({
+      type: "text",
+      text: `Legenda enviada pelo cliente: "${caption}"`,
+    });
+  } else {
+    userContent.push({
+      type: "text",
+      text: mediaType === "audio"
+        ? "Transcreva este áudio."
+        : mediaType === "image"
+          ? "Descreva esta imagem."
+          : "Extraia o texto deste documento.",
+    });
+  }
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompts[mediaType] },
+          { role: "user", content: userContent },
+        ],
+        temperature: 0.1,
+        max_tokens: 4000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini ${mediaType} processing error:`, response.status, errorText);
+      return `[${mediaType === "audio" ? "Áudio" : mediaType === "image" ? "Imagem" : "Documento"} recebido - erro ao processar]`;
+    }
+
+    const data = await response.json();
+    const result = data.choices?.[0]?.message?.content?.trim();
+
+    if (!result) {
+      return `[${mediaType === "audio" ? "Áudio" : mediaType === "image" ? "Imagem" : "Documento"} recebido - conteúdo vazio]`;
+    }
+
+    // Prefix transcribed content with media type indicator for context
+    const prefix = mediaType === "audio"
+      ? "🎤 [Transcrição de áudio]: "
+      : mediaType === "image"
+        ? "📷 [Descrição de imagem]: "
+        : `📄 [Texto extraído de ${fileName || "documento"}]: `;
+
+    return prefix + result;
+  } catch (error) {
+    console.error(`Error processing ${mediaType} with Gemini:`, error);
+    return `[${mediaType === "audio" ? "Áudio" : mediaType === "image" ? "Imagem" : "Documento"} recebido - erro técnico]`;
   }
 }
 
