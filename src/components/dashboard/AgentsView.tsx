@@ -8,6 +8,7 @@ import CreateAgentModal from './CreateAgentModal';
 import EditAgentModal from './EditAgentModal';
 import AgentsTutorialModal from './AgentsTutorialModal';
 import { Plus, Search, Bot, Loader2, Sparkles, HelpCircle } from 'lucide-react';
+import { NeonButton } from '@/components/ui/neon-button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,14 +71,14 @@ const AgentsView = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
+          <NeonButton
+            variant="default"
             onClick={() => setTutorialModalOpen(true)}
-            className="border-border text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
-            <HelpCircle className="w-4 h-4 mr-2" />
+            <HelpCircle className="w-4 h-4 mr-2 inline" />
             Tutorial
-          </Button>
+          </NeonButton>
           <Button
             onClick={() => setCreateModalOpen(true)}
             className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
