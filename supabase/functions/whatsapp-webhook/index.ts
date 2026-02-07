@@ -450,14 +450,14 @@ serve(async (req) => {
         .from("conversation_history")
         .select("*")
         .eq("case_id", existingCase.id)
-        .order("created_at", { ascending: true })
-        .limit(30),
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     const rules = rulesResult.data;
     const steps = stepsResult.data || [];
     const faqs = faqsResult.data || [];
-    const history = historyResult.data || [];
+    const history = (historyResult.data || []).reverse(); // Reverse to chronological order (fetched desc for recency)
 
     console.log(`📋 Agent config - Rules: ${!!rules}, Steps: ${steps.length}, FAQs: ${faqs.length}`);
 
