@@ -16,7 +16,8 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
-import lexiaLogo from '@/assets/logo-dashboard.svg';
+import logoDashboard from '@/assets/logo-dashboard.svg';
+import lexiaLogoFull from '@/assets/lexia-logo.svg';
 import { motion } from 'framer-motion';
 import {
   AnimatedSidebar,
@@ -59,19 +60,12 @@ const SidebarContent = ({ activeTab, onTabChange }: SidebarProps) => {
     <AnimatedSidebarBody className="justify-between gap-6">
       <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
         {/* Logo */}
-        <div className="flex items-center gap-3 py-2 px-1 mb-6">
-          <img src={lexiaLogo} alt="Lexia" className="h-8 flex-shrink-0" />
-          <motion.div
-            animate={{
-              display: open ? "flex" : "none",
-              opacity: open ? 1 : 0,
-            }}
-            transition={{ duration: 0.2 }}
-            className="flex-col"
-          >
-            <h1 className="font-bold text-foreground text-sm leading-tight">LegalAgent</h1>
-            <p className="text-[10px] text-muted-foreground">Automação Jurídica</p>
-          </motion.div>
+        <div className="flex items-center py-2 px-1 mb-6">
+          {open ? (
+            <img src={lexiaLogoFull} alt="Lexia" className="h-8" />
+          ) : (
+            <img src={logoDashboard} alt="Lexia" className="h-8 flex-shrink-0" />
+          )}
         </div>
 
         {/* Nav Links */}
