@@ -183,10 +183,10 @@ const Index = () => {
                     </div>
                   </Link>
 
-                  <h1 className="mt-8 max-w-4xl mx-auto text-5xl md:text-6xl lg:mt-16 xl:text-[5.25rem] font-bold tracking-tight text-foreground">
+                  <h1 className="mt-8 max-w-3xl mx-auto text-4xl md:text-5xl lg:mt-16 xl:text-6xl font-bold tracking-tight text-foreground leading-[1.15]">
                     Seu escritório no piloto automático. <span className="text-primary">Da captação à assinatura.</span>
                   </h1>
-                  <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-foreground/80">
+                  <p className="mx-auto mt-6 max-w-2xl text-balance text-base md:text-lg text-foreground/70 leading-relaxed">
                     IA que atende, qualifica, agenda e envia contratos pelo WhatsApp — enquanto você foca na advocacia que importa.
                   </p>
                 </AnimatedGroup>
