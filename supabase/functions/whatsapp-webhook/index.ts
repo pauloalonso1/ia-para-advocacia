@@ -294,6 +294,8 @@ serve(async (req) => {
 
     // If media message, download and process with Gemini
     let messageBody = textBody || "";
+    let incomingMediaUrl: string | null = null;
+    let incomingMediaType: string | null = null;
     if (hasMedia && !textBody) {
       console.log(`📎 Media message detected: audio=${!!audioMsg}, image=${!!imageMsg}, doc=${!!docMsg}`);
       
@@ -317,12 +319,18 @@ serve(async (req) => {
             const mediaMimeType = audioMsg?.mimetype || imageMsg?.mimetype || docMsg?.mimetype || "application/octet-stream";
             const mediaCaption = imageMsg?.caption || docMsg?.caption || "";
             
+            // Build data URL for displaying in chat (only for images to avoid huge DB entries)
+            incomingMediaType = audioMsg ? "audio" : imageMsg ? "image" : "document";
+            if (incomingMediaType === "image") {
+              incomingMediaUrl = `data:${mediaMimeType};base64,${mediaBase64}`;
+            }
+            
             messageBody = await processMediaWithAI(
               OPENAI_API_KEY,
               LOVABLE_API_KEY,
               mediaBase64,
               mediaMimeType,
-              audioMsg ? "audio" : imageMsg ? "image" : "document",
+              incomingMediaType,
               mediaCaption,
               docMsg?.fileName
             );
@@ -568,6 +576,8 @@ serve(async (req) => {
         role: "client",
         content: messageBody,
         external_message_id: incomingMessageId,
+        media_url: incomingMediaUrl,
+        media_type: incomingMediaType,
       });
 
       return new Response(JSON.stringify({ status: "new_case_created" }), {
@@ -585,6 +595,8 @@ serve(async (req) => {
         role: "client",
         content: messageBody,
         external_message_id: incomingMessageId,
+        media_url: incomingMediaUrl,
+        media_type: incomingMediaType,
       });
       
       // Update unread count and last message
@@ -609,6 +621,8 @@ serve(async (req) => {
       role: "client",
       content: messageBody,
       external_message_id: incomingMessageId,
+      media_url: incomingMediaUrl,
+      media_type: incomingMediaType,
     });
     
     // Update last message info and increment unread count

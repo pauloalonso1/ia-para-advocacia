@@ -29,6 +29,8 @@ export interface Message {
   created_at: string;
   message_status?: string;
   external_message_id?: string;
+  media_url?: string | null;
+  media_type?: string | null;
 }
 
 export const useCases = () => {

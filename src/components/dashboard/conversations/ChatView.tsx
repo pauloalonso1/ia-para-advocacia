@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X, Loader2, Check, CheckCheck } from 'lucide-react';
+import MediaMessage from './MediaMessage';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -345,12 +346,21 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
                             ? "bg-primary rounded-tr-sm" 
                             : "bg-muted rounded-tl-sm"
                         )}>
-                          <p className={cn(
-                            "text-sm whitespace-pre-wrap break-words",
-                            isAssistant ? "text-primary-foreground" : "text-foreground"
-                          )}>
-                            {msg.content}
-                          </p>
+                          {msg.media_url && msg.media_type ? (
+                            <MediaMessage
+                              mediaUrl={msg.media_url}
+                              mediaType={msg.media_type}
+                              content={msg.content}
+                              isAssistant={isAssistant}
+                            />
+                          ) : (
+                            <p className={cn(
+                              "text-sm whitespace-pre-wrap break-words",
+                              isAssistant ? "text-primary-foreground" : "text-foreground"
+                            )}>
+                              {msg.content}
+                            </p>
+                          )}
                           <p className={cn(
                             "text-[10px] mt-1 text-right flex items-center justify-end gap-1",
                             isAssistant ? "text-primary-foreground/70" : "text-muted-foreground"

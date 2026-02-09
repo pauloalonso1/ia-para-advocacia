@@ -377,6 +377,8 @@ export type Database = {
           created_at: string
           external_message_id: string | null
           id: string
+          media_type: string | null
+          media_url: string | null
           message_status: string | null
           role: string
         }
@@ -386,6 +388,8 @@ export type Database = {
           created_at?: string
           external_message_id?: string | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message_status?: string | null
           role: string
         }
@@ -395,6 +399,8 @@ export type Database = {
           created_at?: string
           external_message_id?: string | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message_status?: string | null
           role?: string
         }
