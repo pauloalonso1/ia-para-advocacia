@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -131,7 +132,12 @@ const DashboardOverview = () => {
       {/* Main 3-column layout */}
       <div className="grid grid-cols-12 gap-6">
         {/* Left Column */}
-        <div className="col-span-5 space-y-6">
+        <motion.div 
+          className="col-span-5 space-y-6"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           <MetricCards 
             total={metrics.totalLeads}
             totalChange={metrics.contactsChange}
@@ -141,20 +147,30 @@ const DashboardOverview = () => {
           />
           <ConversationsChart data={metrics.conversationsByDay} />
           <BrazilMap total={metrics.totalContacts} />
-        </div>
+        </motion.div>
         
         {/* Center Column */}
-        <div className="col-span-4">
+        <motion.div 
+          className="col-span-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
           <ConversionFunnel steps={metrics.funnelSteps.length > 0 ? metrics.funnelSteps : undefined} />
-        </div>
+        </motion.div>
         
         {/* Right Column */}
-        <div className="col-span-3 flex flex-col gap-6">
+        <motion.div 
+          className="col-span-3 flex flex-col gap-6"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
           <UpcomingMeetings meetings={calendarMeetings} />
           <div className="flex-1 min-h-0">
             <TagsDonutChart data={metrics.tagsData.length > 0 ? metrics.tagsData : undefined} />
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Advanced Analytics Row */}

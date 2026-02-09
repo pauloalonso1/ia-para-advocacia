@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import Sidebar from '@/components/dashboard/Sidebar';
 import AgentsView from '@/components/dashboard/AgentsView';
@@ -72,7 +73,18 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
     <div className="min-h-screen h-screen bg-background flex">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <main className={cn("flex-1 overflow-auto", isFullHeightView && "overflow-hidden")}>
-        {renderContent()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="h-full"
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

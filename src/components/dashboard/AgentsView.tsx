@@ -98,7 +98,7 @@ const AgentsView = () => {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5 card-hover">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm">Total de Agentes</p>
@@ -110,7 +110,7 @@ const AgentsView = () => {
           </div>
         </div>
         
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5 card-hover">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm">Agentes Ativos</p>
@@ -122,7 +122,7 @@ const AgentsView = () => {
           </div>
         </div>
         
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5 card-hover">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-sm">Agente Padrão</p>
