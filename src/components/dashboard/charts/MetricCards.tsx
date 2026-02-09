@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import InfoTooltip from '../InfoTooltip';
 
 interface MetricCardProps {
   label: string;
@@ -8,9 +9,10 @@ interface MetricCardProps {
   change?: number;
   changeLabel?: string;
   highlight?: boolean;
+  tooltip?: string;
 }
 
-const MetricCard = ({ label, value, change, changeLabel, highlight }: MetricCardProps) => {
+const MetricCard = ({ label, value, change, changeLabel, highlight, tooltip }: MetricCardProps) => {
   const isPositive = change !== undefined && change >= 0;
   
   return (
@@ -19,7 +21,10 @@ const MetricCard = ({ label, value, change, changeLabel, highlight }: MetricCard
       highlight && "border-accent"
     )}>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
+        <span className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+          {label}
+          {tooltip && <InfoTooltip content={tooltip} />}
+        </span>
         {change !== undefined && (
           <div className={cn(
             "flex items-center gap-0.5 text-xs",
@@ -48,9 +53,9 @@ interface MetricCardsProps {
 
 const MetricCards = ({ total, totalChange, average, peak, peakDate }: MetricCardsProps) => {
   const cards = [
-    { label: "TOTAL", value: total, change: totalChange, changeLabel: totalChange !== undefined ? "vs ant." : undefined },
-    { label: "MÉDIA", value: average.toFixed(1), changeLabel: "Contatos/dia" },
-    { label: "⬆ PICO", value: peak, changeLabel: peakDate, highlight: true },
+    { label: "TOTAL", value: total, change: totalChange, changeLabel: totalChange !== undefined ? "vs ant." : undefined, tooltip: "Total de leads/contatos no período selecionado" },
+    { label: "MÉDIA", value: average.toFixed(1), changeLabel: "Contatos/dia", tooltip: "Média diária de novos contatos no período" },
+    { label: "⬆ PICO", value: peak, changeLabel: peakDate, highlight: true, tooltip: "Dia com maior número de novos contatos" },
   ];
 
   return (

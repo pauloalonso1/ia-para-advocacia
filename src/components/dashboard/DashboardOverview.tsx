@@ -18,11 +18,16 @@ import BrazilMap from './charts/BrazilMap';
 import ResponseTimeCard from './charts/ResponseTimeCard';
 import AgentPerformanceChart from './charts/AgentPerformanceChart';
 import SourceAnalysisChart from './charts/SourceAnalysisChart';
+import SetupChecklist from './SetupChecklist';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
 
-const DashboardOverview = () => {
+interface DashboardOverviewProps {
+  onNavigate?: (tab: string) => void;
+}
+
+const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const to = new Date();
     const from = new Date();
@@ -128,6 +133,9 @@ const DashboardOverview = () => {
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Setup Checklist */}
+      {onNavigate && <SetupChecklist onNavigate={onNavigate} />}
 
       {/* Main 3-column layout */}
       <div className="grid grid-cols-12 gap-6">

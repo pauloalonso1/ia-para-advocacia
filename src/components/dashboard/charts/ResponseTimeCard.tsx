@@ -1,5 +1,6 @@
 import { Clock, Zap, Timer, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import InfoTooltip from '../InfoTooltip';
 
 interface ResponseTimeCardProps {
   avgMinutes: number;
@@ -37,6 +38,7 @@ const ResponseTimeCard = ({
       <div className="flex items-center gap-2 mb-4">
         <Clock className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-foreground">Tempo de Resposta & Conversão</h3>
+        <InfoTooltip content="Métricas de velocidade de resposta e taxa de conversão dos seus leads no período selecionado." />
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-4">
