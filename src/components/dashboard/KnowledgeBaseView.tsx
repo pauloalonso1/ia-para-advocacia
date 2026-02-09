@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import EmptyState from './EmptyState';
 import { useKnowledgeBase } from '@/hooks/useKnowledgeBase';
 import { useAgents } from '@/hooks/useAgents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -329,15 +330,19 @@ const KnowledgeBaseView = () => {
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : documents.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <BookOpen className="w-12 h-12 text-muted-foreground/50 mb-4" />
-            <h3 className="font-semibold text-foreground mb-1">Nenhum documento ainda</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md">
-              Adicione documentos (texto, PDF ou DOCX) à base de conhecimento para que seus agentes consultem informações relevantes.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={BookOpen}
+          title="Sua base de conhecimento está vazia"
+          description="Adicione documentos (PDF, DOCX ou texto) para que seus agentes de IA consultem informações relevantes durante os atendimentos."
+          actionLabel="Adicionar Primeiro Documento"
+          actionIcon={Plus}
+          onAction={() => setIsAddOpen(true)}
+          nextSteps={[
+            { icon: FileText, label: 'Adicionar texto', description: 'Cole informações importantes' },
+            { icon: FileUp, label: 'Upload de arquivo', description: 'PDF, DOCX ou TXT' },
+            { icon: Sparkles, label: 'Busca semântica', description: 'Pesquise com IA vetorial' },
+          ]}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {documents.map((doc) => (

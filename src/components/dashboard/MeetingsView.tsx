@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import EmptyState from './EmptyState';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -256,11 +257,16 @@ const MeetingsView = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="font-medium">Nenhuma reunião agendada</p>
-                    <p className="text-sm mt-1">Suas próximas reuniões aparecerão aqui</p>
-                  </div>
+                  <EmptyState
+                    icon={CalendarDays}
+                    title="Nenhuma reunião agendada"
+                    description="Suas próximas reuniões e compromissos do Google Calendar aparecerão aqui. Agende um novo evento ou aguarde o agente IA criar agendamentos automaticamente."
+                    nextSteps={[
+                      { icon: Calendar, label: 'Criar evento', description: 'Agende pelo Google Calendar' },
+                      { icon: Clock, label: 'Horários livres', description: 'Consulte disponibilidade' },
+                      { icon: Video, label: 'Google Meet', description: 'Links automáticos' },
+                    ]}
+                  />
                 )}
               </CardContent>
             </Card>

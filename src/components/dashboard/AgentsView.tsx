@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import EmptyState from './EmptyState';
 import { useAgents, Agent } from '@/hooks/useAgents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -184,27 +185,23 @@ const AgentsView = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16">
-          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <Bot className="w-10 h-10 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground">Nenhum agente encontrado</h3>
-          <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
-            {searchTerm || categoryFilter !== 'Todos' 
-              ? 'Tente ajustar os filtros de busca'
-              : 'Crie seu primeiro agente para começar a automatizar atendimentos'
-            }
-          </p>
-          {!searchTerm && categoryFilter === 'Todos' && (
-            <Button
-              onClick={() => setCreateModalOpen(true)}
-              className="mt-6 bg-primary hover:bg-primary/90"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Criar Primeiro Agente
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={Bot}
+          title={searchTerm || categoryFilter !== 'Todos' ? 'Nenhum agente encontrado' : 'Crie seu primeiro agente de IA'}
+          description={
+            searchTerm || categoryFilter !== 'Todos'
+              ? 'Tente ajustar os filtros de busca para encontrar seus agentes.'
+              : 'Agentes de IA atendem seus leads no WhatsApp automaticamente, seguindo roteiros, respondendo dúvidas e agendando reuniões.'
+          }
+          actionLabel={!searchTerm && categoryFilter === 'Todos' ? 'Criar Primeiro Agente' : undefined}
+          actionIcon={!searchTerm && categoryFilter === 'Todos' ? Plus : undefined}
+          onAction={!searchTerm && categoryFilter === 'Todos' ? () => setCreateModalOpen(true) : undefined}
+          nextSteps={!searchTerm && categoryFilter === 'Todos' ? [
+            { icon: Sparkles, label: 'Criar agente', description: 'Defina nome e categoria' },
+            { icon: Bot, label: 'Configurar roteiro', description: 'Etapas de atendimento' },
+            { icon: HelpCircle, label: 'Adicionar FAQs', description: 'Respostas automáticas' },
+          ] : undefined}
+        />
       )}
 
       {/* Modals */}
