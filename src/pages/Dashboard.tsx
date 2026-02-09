@@ -23,6 +23,18 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl || initialTab);
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
+
+  const handleNavigate = (tab: string) => {
+    if (tab.startsWith('settings:')) {
+      const section = tab.split(':')[1];
+      setSettingsSection(section);
+      setActiveTab('settings');
+    } else {
+      setSettingsSection(undefined);
+      setActiveTab(tab);
+    }
+  };
 
   useEffect(() => {
     if (tabFromUrl) {
@@ -35,7 +47,7 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardOverview onNavigate={setActiveTab} />;
+        return <DashboardOverview onNavigate={handleNavigate} />;
       case 'agents':
         return <AgentsView />;
       case 'contacts':
@@ -61,7 +73,7 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
       case 'performance':
         return <PerformanceView />;
       case 'settings':
-        return <SettingsView />;
+        return <SettingsView initialSection={settingsSection as any} />;
       default:
         return null;
     }
@@ -71,7 +83,7 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
 
   return (
     <div className="min-h-screen h-screen bg-background flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={(tab) => { setSettingsSection(undefined); setActiveTab(tab); }} />
       <main className={cn("flex-1 overflow-auto", isFullHeightView && "overflow-hidden")}>
         <AnimatePresence mode="wait">
           <motion.div
