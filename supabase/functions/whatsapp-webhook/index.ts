@@ -2324,8 +2324,27 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
       
       // Try to detect action hints in the text
       const textLower = content.toLowerCase();
-      const shouldProceed = textLower.includes('"action":"proceed"') || 
-                           textLower.includes('"action": "proceed"');
+      let shouldProceed = textLower.includes('"action":"proceed"') || 
+                           textLower.includes('"action": "proceed"') ||
+                           textLower.includes("action: proceed") ||
+                           textLower.includes("«proceed»");
+      
+      // Enhanced PROCEED detection for last step / finalization scenarios
+      // When the AI mentions forwarding to specialist, concluding the script, etc.
+      if (!shouldProceed && !nextStep) {
+        const finalizationKeywords = [
+          "encaminhar", "encaminhando", "especialista responsável",
+          "próximo especialista", "vou transferir", "transferindo",
+          "concluímos", "finalizar", "roteiro completo", "roteiro concluído",
+          "próxima etapa", "confirmar o que entendi", "deixe-me confirmar",
+          "resumo do seu caso", "resumo do atendimento"
+        ];
+        const hasFinalizationIntent = finalizationKeywords.some(kw => textLower.includes(kw));
+        if (hasFinalizationIntent) {
+          shouldProceed = true;
+          console.log("🔍 Detected finalization intent in plain text response — forcing PROCEED");
+        }
+      }
       
       // Detect status changes
       let detectedStatus: string | undefined;
