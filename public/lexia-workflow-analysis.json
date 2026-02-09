@@ -1,0 +1,381 @@
+{
+  "name": "Lexia - WhatsApp AI Workflow (Análise Completa)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "lastNode"
+      },
+      "id": "webhook-entry",
+      "name": "1. Webhook Entry (Evolution API)",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "notes": "Recebe eventos: MESSAGES_UPSERT, MESSAGES_UPDATE, PRESENCE_UPDATE"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $json.event }}", "operation": "equal", "value2": "messages.update" },
+            { "value1": "={{ $json.event }}", "operation": "equal", "value2": "presence.update" }
+          ]
+        }
+      },
+      "id": "event-router",
+      "name": "2. Event Router",
+      "type": "n8n-nodes-base.switch",
+      "position": [500, 300],
+      "notes": "Roteia por tipo de evento: message_status_update | presence_update | messages_upsert"
+    },
+    {
+      "parameters": {},
+      "id": "status-update",
+      "name": "2a. Message Status Update",
+      "type": "n8n-nodes-base.noOp",
+      "position": [750, 100],
+      "notes": "Atualiza message_status (pending→sent→delivered→read) na conversation_history via external_message_id"
+    },
+    {
+      "parameters": {},
+      "id": "presence-update",
+      "name": "2b. Typing Indicator",
+      "type": "n8n-nodes-base.noOp",
+      "position": [750, 250],
+      "notes": "Broadcast via Supabase Realtime channel 'typing-indicators' para UI atualizar em tempo real"
+    },
+    {
+      "parameters": {},
+      "id": "extract-message",
+      "name": "3. Extract Message Content",
+      "type": "n8n-nodes-base.noOp",
+      "position": [750, 450],
+      "notes": "Extrai texto, áudio, imagem ou documento. Ignora mensagens fromMe e sem conteúdo."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.hasMedia }}", "value2": true }]
+        }
+      },
+      "id": "media-check",
+      "name": "4. Has Media?",
+      "type": "n8n-nodes-base.if",
+      "position": [1000, 450],
+      "notes": "Verifica se é áudio, imagem ou documento"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.evolutionApiUrl }}/chat/getBase64FromMediaMessage/{{ $json.instanceName }}"
+      },
+      "id": "download-media",
+      "name": "4a. Download Media (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1250, 350],
+      "notes": "Baixa mídia em base64 da Evolution API"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "prompt": "Transcrição/Descrição da mídia"
+      },
+      "id": "process-media-gemini",
+      "name": "4b. Process Media (Gemini Multimodal)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1500, 350],
+      "notes": "Áudio→transcrição, Imagem→descrição, Documento→extração de texto. Usa Gemini 2.5 Flash multimodal."
+    },
+    {
+      "parameters": {},
+      "id": "resolve-tenant",
+      "name": "5. Resolve Tenant (Multi-tenant)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1000, 600],
+      "notes": "Busca evolution_api_settings pelo instance_name para obter user_id (owner), api_url, api_key"
+    },
+    {
+      "parameters": {},
+      "id": "dedup-check",
+      "name": "6. Deduplication Check",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1250, 600],
+      "notes": "Verifica external_message_id na conversation_history. Se já existe, ignora (skip duplicate)."
+    },
+    {
+      "parameters": {},
+      "id": "find-or-create-case",
+      "name": "7. Find or Create Case",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1500, 600],
+      "notes": "Busca case por client_phone + user_id. Se não existe, cria novo case com agente do funil (Novo Contato) ou agente padrão."
+    },
+    {
+      "parameters": {},
+      "id": "new-case-flow",
+      "name": "7a. New Case Flow",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1750, 500],
+      "notes": "1. Busca funnel_agent_assignments para 'Novo Contato'\n2. Fallback: agente padrão (is_default=true)\n3. Cria case com status 'Novo Contato'\n4. Cria contato se não existe\n5. Envia notificação ao dono\n6. Envia welcome_message + primeiro step do roteiro\n7. Salva mensagem do cliente"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{ $json.active_agent_id }}", "value2": null },
+            { "value1": "={{ $json.is_agent_paused }}", "value2": true }
+          ]
+        }
+      },
+      "id": "agent-active-check",
+      "name": "8. Agent Active?",
+      "type": "n8n-nodes-base.if",
+      "position": [1750, 700],
+      "notes": "Se não tem agente ativo OU agente está pausado → modo manual (salva msg, incrementa unread, NÃO responde)"
+    },
+    {
+      "parameters": {},
+      "id": "save-message",
+      "name": "9. Save Incoming Message",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2000, 700],
+      "notes": "Insere na conversation_history (role='client'). Atualiza last_message, last_message_at, unread_count no case."
+    },
+    {
+      "parameters": {},
+      "id": "reset-followup",
+      "name": "10. Reset Follow-up Counter",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2000, 800],
+      "notes": "Quando cliente responde: zera followup_count, limpa next_followup_at. Previne follow-ups desnecessários."
+    },
+    {
+      "parameters": {},
+      "id": "auto-status-update",
+      "name": "11. Auto Status Update",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2250, 700],
+      "notes": "Se status='Novo Contato' → atualiza para 'Em Atendimento' automaticamente na segunda mensagem"
+    },
+    {
+      "parameters": {},
+      "id": "load-agent-config",
+      "name": "12. Load Agent Config (Parallel)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2250, 850],
+      "notes": "Carrega em PARALELO:\n- agent_rules (system_prompt, regras, proibições, welcome_message)\n- agent_script_steps (roteiro ordenado)\n- agent_faqs (perguntas frequentes)\n- conversation_history (últimas 50 msgs, ordem cronológica)"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3-flash-preview"
+      },
+      "id": "faq-check",
+      "name": "13. FAQ Matcher (Gemini)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2500, 750],
+      "notes": "Se há FAQs cadastradas, usa Gemini para verificar se a mensagem do cliente bate com alguma FAQ. Se sim, responde direto e sai. Temperature=0.1."
+    },
+    {
+      "parameters": {},
+      "id": "script-state",
+      "name": "14. Determine Script State",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2500, 900],
+      "notes": "Determina estado do roteiro:\n- current_step_id=null + steps>0 → SCRIPT COMPLETED (conversa livre)\n- current_step_id válido → etapa ativa\n- sem steps → sem roteiro"
+    },
+    {
+      "parameters": {},
+      "id": "calendar-auto-book",
+      "name": "15. Calendar Auto-Book (Deterministic)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2750, 750],
+      "notes": "ANTES da chamada de IA, tenta auto-booking determinístico:\n- Verifica se slots foram apresentados (últimas 10 msgs)\n- Extrai email e seleção de horário da msg ou histórico\n- Se ambos disponíveis → agenda direto SEM chamar IA\n- Inclui parse de: '10:00', 'quinta às 9h', '2025-02-10 14:30'\n- Fallback: se não consegue auto-book, segue para IA"
+    },
+    {
+      "parameters": {},
+      "id": "extract-collected-data",
+      "name": "16. Extract Collected Data",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2750, 900],
+      "notes": "Analisa histórico para extrair dados JÁ coletados (email, etc.) e injeta como '✅ DADOS JÁ COLETADOS' no prompt para evitar re-perguntas"
+    },
+    {
+      "parameters": {},
+      "id": "rag-search",
+      "name": "17. RAG Context Search (Parallel)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [3000, 800],
+      "notes": "Busca paralela em:\n1. knowledge_chunks (base de conhecimento global) via match_knowledge_chunks\n2. contact_memories (memórias do contato) via match_contact_memories\nUsa embeddings 768-dim gerados por Gemini Flash Lite"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3-flash-preview"
+      },
+      "id": "main-ai-call",
+      "name": "18. Main AI Processing (Gemini 3 Flash)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [3250, 800],
+      "notes": "Chamada principal de IA com Tool Calling.\n\nContexto injetado:\n- System prompt customizado do agente\n- Roteiro completo + etapa atual\n- Dados já coletados\n- Histórico recente (25 msgs)\n- Contexto de calendário (data/hora atual em SP)\n- Contexto RAG\n- Info do cliente\n\nTools disponíveis:\n- send_response (SEMPRE)\n- check_calendar_availability (se calendar conectado E não mostrou slots)\n- create_calendar_event (se calendar conectado)\n- send_zapsign_document (se ZapSign configurado)\n\nPrioridade de tools: calendar > zapsign > send_response\nSe tool de calendário presente, send_response é SUPRIMIDO"
+    },
+    {
+      "parameters": {},
+      "id": "tool-handler-calendar-check",
+      "name": "19a. Tool: check_calendar_availability",
+      "type": "n8n-nodes-base.noOp",
+      "position": [3500, 650],
+      "notes": "1. Busca slots disponíveis via Google Calendar API\n2. Filtra por: horário comercial, almoço, dias úteis, eventos ocupados\n3. Agrupa por data em timezone SP\n4. Faz SEGUNDA chamada de IA com os slots para formatar a apresentação ao cliente\n5. Força tool_choice=send_response na segunda chamada"
+    },
+    {
+      "parameters": {},
+      "id": "tool-handler-calendar-create",
+      "name": "19b. Tool: create_calendar_event",
+      "type": "n8n-nodes-base.noOp",
+      "position": [3500, 800],
+      "notes": "1. Cria evento no Google Calendar (timezone SP)\n2. Adiciona attendee com email do cliente\n3. Google envia convite automaticamente\n4. Faz SEGUNDA chamada de IA para confirmar ao cliente\n5. Atualiza status para 'Qualificado'"
+    },
+    {
+      "parameters": {},
+      "id": "tool-handler-zapsign",
+      "name": "19c. Tool: send_zapsign_document",
+      "type": "n8n-nodes-base.noOp",
+      "position": [3500, 950],
+      "notes": "1. Busca templates disponíveis na ZapSign API\n2. Cria documento a partir do template\n3. Configura signatário com phone do cliente\n4. Envia link de assinatura via WhatsApp\n5. Faz segunda chamada de IA para confirmar\n6. Atualiza status para 'Convertido'"
+    },
+    {
+      "parameters": {},
+      "id": "response-handler",
+      "name": "20. Response Handler (PROCEED/STAY)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [3750, 800],
+      "notes": "PROCEED:\n- Avança current_step_id para próximo step\n- Envia mensagem do próximo step (com {nome} substituído)\n- Se último step: marca script como completo (current_step_id=null)\n\nSTAY:\n- Mantém etapa atual\n- Envia resposta da IA"
+    },
+    {
+      "parameters": {},
+      "id": "funnel-auto-advance",
+      "name": "21. Funnel Auto-Advance",
+      "type": "n8n-nodes-base.noOp",
+      "position": [4000, 700],
+      "notes": "Quando roteiro é completado:\n1. Determina próximo estágio do funil (Em Atendimento→Qualificado→Convertido)\n2. Verifica funnel_agent_assignments para novo estágio\n3. Se há agente diferente atribuído:\n   - Troca active_agent_id\n   - Reseta current_step_id para primeiro step do novo agente\n   - Envia welcome/first_step do novo agente (delay 2s)\n4. Atualiza status do case\n5. Envia notificação de mudança de status"
+    },
+    {
+      "parameters": {},
+      "id": "status-notification",
+      "name": "22. Status Change Notification",
+      "type": "n8n-nodes-base.noOp",
+      "position": [4000, 850],
+      "notes": "Envia notificação WhatsApp ao dono do escritório quando status muda:\n- Novo Contato → notify_new_lead\n- Qualificado → notify_qualified_lead\n- Convertido → notify_contract_signed\nRespeita configurações individuais por tipo de evento"
+    },
+    {
+      "parameters": {},
+      "id": "case-description",
+      "name": "23. Auto Generate Case Description",
+      "type": "n8n-nodes-base.noOp",
+      "position": [4250, 700],
+      "notes": "Dispara em background quando status → Qualificado ou Convertido.\nGera descrição do caso via Gemini com:\n- Tipo de caso e demanda\n- Dados coletados\n- Status e próximos passos"
+    },
+    {
+      "parameters": {},
+      "id": "save-memory",
+      "name": "24. Auto Save Contact Memory",
+      "type": "n8n-nodes-base.noOp",
+      "position": [4250, 850],
+      "notes": "A cada 5 mensagens (fire-and-forget):\n1. Gera resumo da interação recente via Gemini Flash Lite\n2. Gera embedding 768-dim do resumo\n3. Salva na contact_memories com tipo 'conversation_summary'\nPermite memória de longo prazo por contato"
+    },
+    {
+      "parameters": {},
+      "id": "send-whatsapp",
+      "name": "25. Send WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [4500, 800],
+      "notes": "Envia mensagem via Evolution API POST /message/sendText/{instance}. Salva external_message_id para tracking de status."
+    },
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "id": "followup-cron",
+      "name": "CRON: Process Follow-ups",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 1100],
+      "notes": "Executado periodicamente (ex: a cada hora).\n\n1. Busca todos users com followup_settings.is_enabled=true\n2. Para cada user:\n   - Verifica horário comercial (schedule_settings)\n   - Verifica WhatsApp conectado\n   - Busca cases inativos (última msg > inactivity_hours)\n   - Apenas se última msg foi do assistant (não do cliente)\n   - Respeita max_followups (até 3)\n3. Envia mensagens de follow-up personalizadas\n4. Atualiza case_followups (count, last_followup_at, next_followup_at)"
+    },
+    {
+      "parameters": {},
+      "id": "rag-ingest",
+      "name": "RAG: Knowledge Ingest",
+      "type": "n8n-nodes-base.noOp",
+      "position": [250, 1250],
+      "notes": "Edge function separada (rag-ingest). Ações:\n- ingest: texto manual → chunking semântico → embedding → knowledge_chunks\n- ingest-file: PDF/DOCX → extração via Gemini → chunking → embedding\n- search: busca vetorial com threshold + reranking opcional por IA\n- save-memory / search-memory: memórias por contato"
+    },
+    {
+      "parameters": {},
+      "id": "generate-summary",
+      "name": "CRM: Generate Summary",
+      "type": "n8n-nodes-base.noOp",
+      "position": [250, 1400],
+      "notes": "Edge function (generate-summary). Gera resumo de atendimento sob demanda via Gemini Flash Lite. Usado no painel CRM."
+    }
+  ],
+  "connections": {
+    "1. Webhook Entry (Evolution API)": { "main": [[{ "node": "2. Event Router", "type": "main", "index": 0 }]] },
+    "2. Event Router": { "main": [
+      [{ "node": "2a. Message Status Update", "type": "main", "index": 0 }],
+      [{ "node": "2b. Typing Indicator", "type": "main", "index": 0 }],
+      [{ "node": "3. Extract Message Content", "type": "main", "index": 0 }]
+    ]},
+    "3. Extract Message Content": { "main": [[{ "node": "4. Has Media?", "type": "main", "index": 0 }]] },
+    "4. Has Media?": { "main": [
+      [{ "node": "4a. Download Media (Evolution API)", "type": "main", "index": 0 }],
+      [{ "node": "5. Resolve Tenant (Multi-tenant)", "type": "main", "index": 0 }]
+    ]},
+    "4a. Download Media (Evolution API)": { "main": [[{ "node": "4b. Process Media (Gemini Multimodal)", "type": "main", "index": 0 }]] },
+    "4b. Process Media (Gemini Multimodal)": { "main": [[{ "node": "5. Resolve Tenant (Multi-tenant)", "type": "main", "index": 0 }]] },
+    "5. Resolve Tenant (Multi-tenant)": { "main": [[{ "node": "6. Deduplication Check", "type": "main", "index": 0 }]] },
+    "6. Deduplication Check": { "main": [[{ "node": "7. Find or Create Case", "type": "main", "index": 0 }]] },
+    "7. Find or Create Case": { "main": [
+      [{ "node": "7a. New Case Flow", "type": "main", "index": 0 }],
+      [{ "node": "8. Agent Active?", "type": "main", "index": 0 }]
+    ]},
+    "8. Agent Active?": { "main": [
+      [{ "node": "9. Save Incoming Message", "type": "main", "index": 0 }],
+      [{ "node": "9. Save Incoming Message", "type": "main", "index": 0 }]
+    ]},
+    "9. Save Incoming Message": { "main": [[{ "node": "10. Reset Follow-up Counter", "type": "main", "index": 0 }]] },
+    "10. Reset Follow-up Counter": { "main": [[{ "node": "11. Auto Status Update", "type": "main", "index": 0 }]] },
+    "11. Auto Status Update": { "main": [[{ "node": "12. Load Agent Config (Parallel)", "type": "main", "index": 0 }]] },
+    "12. Load Agent Config (Parallel)": { "main": [[{ "node": "13. FAQ Matcher (Gemini)", "type": "main", "index": 0 }]] },
+    "13. FAQ Matcher (Gemini)": { "main": [
+      [{ "node": "25. Send WhatsApp (Evolution API)", "type": "main", "index": 0 }],
+      [{ "node": "14. Determine Script State", "type": "main", "index": 0 }]
+    ]},
+    "14. Determine Script State": { "main": [[{ "node": "15. Calendar Auto-Book (Deterministic)", "type": "main", "index": 0 }]] },
+    "15. Calendar Auto-Book (Deterministic)": { "main": [
+      [{ "node": "25. Send WhatsApp (Evolution API)", "type": "main", "index": 0 }],
+      [{ "node": "16. Extract Collected Data", "type": "main", "index": 0 }]
+    ]},
+    "16. Extract Collected Data": { "main": [[{ "node": "17. RAG Context Search (Parallel)", "type": "main", "index": 0 }]] },
+    "17. RAG Context Search (Parallel)": { "main": [[{ "node": "18. Main AI Processing (Gemini 3 Flash)", "type": "main", "index": 0 }]] },
+    "18. Main AI Processing (Gemini 3 Flash)": { "main": [
+      [{ "node": "19a. Tool: check_calendar_availability", "type": "main", "index": 0 }],
+      [{ "node": "19b. Tool: create_calendar_event", "type": "main", "index": 0 }],
+      [{ "node": "19c. Tool: send_zapsign_document", "type": "main", "index": 0 }],
+      [{ "node": "20. Response Handler (PROCEED/STAY)", "type": "main", "index": 0 }]
+    ]},
+    "19a. Tool: check_calendar_availability": { "main": [[{ "node": "20. Response Handler (PROCEED/STAY)", "type": "main", "index": 0 }]] },
+    "19b. Tool: create_calendar_event": { "main": [[{ "node": "20. Response Handler (PROCEED/STAY)", "type": "main", "index": 0 }]] },
+    "19c. Tool: send_zapsign_document": { "main": [[{ "node": "20. Response Handler (PROCEED/STAY)", "type": "main", "index": 0 }]] },
+    "20. Response Handler (PROCEED/STAY)": { "main": [
+      [{ "node": "21. Funnel Auto-Advance", "type": "main", "index": 0 }],
+      [{ "node": "25. Send WhatsApp (Evolution API)", "type": "main", "index": 0 }]
+    ]},
+    "21. Funnel Auto-Advance": { "main": [
+      [{ "node": "22. Status Change Notification", "type": "main", "index": 0 }],
+      [{ "node": "23. Auto Generate Case Description", "type": "main", "index": 0 }],
+      [{ "node": "24. Auto Save Contact Memory", "type": "main", "index": 0 }]
+    ]},
+    "22. Status Change Notification": { "main": [[{ "node": "25. Send WhatsApp (Evolution API)", "type": "main", "index": 0 }]] }
+  },
+  "meta": {
+    "instanceId": "lexia-analysis",
+    "description": "Workflow analítico completo do sistema Lexia AI para WhatsApp"
+  }
+}
