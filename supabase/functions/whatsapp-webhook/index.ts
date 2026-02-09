@@ -858,28 +858,52 @@ serve(async (req) => {
         message_status: "sent",
       });
 
+      // ===== CATEGORY-BASED AGENT SWITCH =====
+      // Identify the client's legal area from conversation and match to a specialist agent
+      let categoryAgentId: string | null = null;
+      try {
+        categoryAgentId = await detectAndMatchCategoryAgent(
+          OPENAI_API_KEY,
+          LOVABLE_API_KEY,
+          supabase,
+          userId,
+          agentId,
+          history,
+          messageBody
+        );
+      } catch (e) {
+        console.error("❌ Category agent detection error:", e);
+      }
+
       // Determine the next funnel stage
       const nextFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
 
       if (nextFunnelStage && nextFunnelStage !== existingCase.status) {
         console.log(`📊 Auto-advancing funnel: ${existingCase.status} → ${nextFunnelStage}`);
 
-        // Check if there's a funnel agent assignment for the next stage
-        const { data: nextAssignment } = await supabase
-          .from("funnel_agent_assignments")
-          .select("agent_id")
-          .eq("user_id", userId)
-          .eq("stage_name", nextFunnelStage)
-          .maybeSingle();
-
         const statusUpdate: Record<string, any> = {
           status: nextFunnelStage,
           updated_at: new Date().toISOString(),
         };
 
-        if (nextAssignment?.agent_id && nextAssignment.agent_id !== agentId) {
+        // Priority: category-based agent > funnel stage assignment
+        let switchAgentId: string | null = categoryAgentId;
+
+        if (!switchAgentId) {
+          // Fallback: check funnel stage assignment
+          const { data: nextAssignment } = await supabase
+            .from("funnel_agent_assignments")
+            .select("agent_id")
+            .eq("user_id", userId)
+            .eq("stage_name", nextFunnelStage)
+            .maybeSingle();
+
+          switchAgentId = nextAssignment?.agent_id || null;
+        }
+
+        if (switchAgentId && switchAgentId !== agentId) {
           // Switch to the new agent
-          statusUpdate.active_agent_id = nextAssignment.agent_id;
+          statusUpdate.active_agent_id = switchAgentId;
           statusUpdate.is_agent_paused = false;
           statusUpdate.current_step_id = null;
 
@@ -887,7 +911,7 @@ serve(async (req) => {
           const { data: newFirstStep } = await supabase
             .from("agent_script_steps")
             .select("id")
-            .eq("agent_id", nextAssignment.agent_id)
+            .eq("agent_id", switchAgentId)
             .order("step_order", { ascending: true })
             .limit(1)
             .maybeSingle();
@@ -896,8 +920,7 @@ serve(async (req) => {
             statusUpdate.current_step_id = newFirstStep.id;
           }
 
-          console.log(`🔄 Funnel auto-switch: agent changed to ${nextAssignment.agent_id} for stage "${nextFunnelStage}"`);
-
+          console.log(`🔄 Auto-switch: agent changed to ${switchAgentId} (category: ${!!categoryAgentId}, funnel: ${!categoryAgentId}) for stage "${nextFunnelStage}"`);
           // Send first message from new agent after a brief delay
           const { data: newAgentRules } = await supabase
             .from("agent_rules")
@@ -1205,6 +1228,81 @@ Seja objetivo e profissional. Use linguagem jurídica quando apropriado.`
   } catch (error) {
     console.error("Error generating case description:", error);
   }
+}
+
+// Detect client's legal area from conversation and find a matching specialist agent by category
+async function detectAndMatchCategoryAgent(
+  apiKey: string | null,
+  lovableApiKey: string | null,
+  supabase: any,
+  userId: string,
+  currentAgentId: string,
+  history: any[],
+  lastMessage: string
+): Promise<string | null> {
+  // Get available agent categories (excluding the current agent)
+  const { data: availableAgents } = await supabase
+    .from("agents")
+    .select("id, name, category")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .neq("id", currentAgentId)
+    .not("category", "is", null);
+
+  if (!availableAgents || availableAgents.length === 0) {
+    console.log("⚠️ No specialist agents with categories found for category-based switch");
+    return null;
+  }
+
+  const categories = [...new Set(availableAgents.map((a: any) => a.category))];
+  console.log(`🔍 Detecting legal area from conversation. Available categories: ${categories.join(", ")}`);
+
+  // Use AI to identify the legal area from the conversation
+  const conversationSnippet = history
+    .slice(-20)
+    .map((m: any) => `${m.role === "client" ? "Cliente" : "Assistente"}: ${m.content}`)
+    .join("\n");
+
+  const data = await callAIChatCompletions(apiKey, lovableApiKey, {
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    max_tokens: 30,
+    messages: [
+      {
+        role: "system",
+        content: `Você é um classificador jurídico. Analise a conversa e identifique a área do direito do caso do cliente.
+
+CATEGORIAS DISPONÍVEIS:
+${categories.join("\n")}
+
+Responda APENAS com o nome EXATO de UMA categoria da lista acima. Se nenhuma se aplicar, responda "NENHUMA".`
+      },
+      {
+        role: "user",
+        content: `Conversa:\n${conversationSnippet}\nÚltima mensagem do cliente: ${lastMessage}\n\nQual a área jurídica deste caso?`
+      }
+    ],
+  });
+
+  const detectedCategory = data.choices?.[0]?.message?.content?.trim();
+  console.log(`🏷️ Detected legal category: "${detectedCategory}"`);
+
+  if (!detectedCategory || detectedCategory === "NENHUMA") {
+    return null;
+  }
+
+  // Find an agent matching the detected category
+  const matchingAgent = availableAgents.find(
+    (a: any) => a.category?.toLowerCase() === detectedCategory.toLowerCase()
+  );
+
+  if (matchingAgent) {
+    console.log(`✅ Found specialist agent: "${matchingAgent.name}" (category: ${matchingAgent.category})`);
+    return matchingAgent.id;
+  }
+
+  console.log(`⚠️ No agent found for category "${detectedCategory}"`);
+  return null;
 }
 
 async function processWithAI(
