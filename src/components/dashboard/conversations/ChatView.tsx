@@ -91,11 +91,10 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
   };
 
   const handleSendMessage = async () => {
-    if (!selectedCase || !messageInput.trim() || sending) return;
+    if (!selectedCase || (!messageInput.trim() && !selectedFile) || sending) return;
 
     setSending(true);
     try {
-      // Get session for auth
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('Sessão expirada', { description: 'Faça login novamente' });
@@ -107,17 +106,53 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
         onPauseAgent(selectedCase.id);
       }
 
-      // Send message via Evolution API edge function
-      const response = await supabase.functions.invoke('evolution-api', {
-        body: {
-          action: 'send-text',
-          phone: selectedCase.client_phone,
-          message: messageInput.trim(),
-        },
-      });
+      let mediaUrl: string | null = null;
+      let mediaType: string | null = null;
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Erro ao enviar mensagem');
+      // Upload file if selected
+      if (selectedFile) {
+        const fileExt = selectedFile.file.name.split('.').pop();
+        const filePath = `${session.user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('chat-media')
+          .upload(filePath, selectedFile.file);
+
+        if (uploadError) {
+          throw new Error('Erro ao fazer upload: ' + uploadError.message);
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-media')
+          .getPublicUrl(filePath);
+
+        mediaUrl = publicUrl;
+        mediaType = selectedFile.type;
+
+        // Send media via Evolution API
+        await supabase.functions.invoke('evolution-api', {
+          body: {
+            action: 'send-media',
+            phone: selectedCase.client_phone,
+            message: messageInput.trim() || '',
+            mediaUrl: publicUrl,
+            mediaType: selectedFile.type,
+            fileName: selectedFile.file.name,
+          },
+        });
+      } else {
+        // Send text message via Evolution API
+        const response = await supabase.functions.invoke('evolution-api', {
+          body: {
+            action: 'send-text',
+            phone: selectedCase.client_phone,
+            message: messageInput.trim(),
+          },
+        });
+
+        if (response.error) {
+          throw new Error(response.error.message || 'Erro ao enviar mensagem');
+        }
       }
 
       // Save message to conversation history
@@ -126,7 +161,9 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
         .insert({
           case_id: selectedCase.id,
           role: 'assistant',
-          content: messageInput.trim(),
+          content: messageInput.trim() || (selectedFile ? `📎 ${selectedFile.file.name}` : ''),
+          ...(mediaUrl && { media_url: mediaUrl }),
+          ...(mediaType && { media_type: mediaType }),
         });
 
       if (historyError) {
