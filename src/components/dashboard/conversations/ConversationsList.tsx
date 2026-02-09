@@ -247,7 +247,7 @@ const ConversationsList = ({
                     )}
                     onClick={() => onSelectCase(caseItem)}
                   >
-                    <div className="flex items-start gap-3 pr-6">
+                    <div className="flex items-start gap-3">
                       {/* Avatar */}
                       <Avatar className="w-10 h-10 shrink-0">
                         <AvatarFallback className={cn(
@@ -325,50 +325,49 @@ const ConversationsList = ({
                           )}
                         </div>
                         
-                        {/* Row 3: Stage badge */}
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            "text-[10px] font-normal px-1.5 py-0 h-4",
-                            statusBadgeColors[caseItem.status || 'Novo Contato'] || statusBadgeColors['Novo Contato']
-                          )}
-                        >
-                          {caseItem.status || 'Recepção - S...'}
-                        </Badge>
+                        {/* Row 3: Stage badge + 3-dot menu */}
+                        <div className="flex items-center justify-between">
+                          <Badge 
+                            variant="secondary" 
+                            className={cn(
+                              "text-[10px] font-normal px-1.5 py-0 h-4",
+                              statusBadgeColors[caseItem.status || 'Novo Contato'] || statusBadgeColors['Novo Contato']
+                            )}
+                          >
+                            {caseItem.status || 'Recepção - S...'}
+                          </Badge>
+                          
+                          {/* Menu 3 dots */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-card border-border z-50">
+                              <DropdownMenuItem
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-foreground focus:bg-accent"
+                              >
+                                <Pin className="w-4 h-4 mr-2" />
+                                Fixar conversa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => handleDeleteClick(e, caseItem)}
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Excluir conversa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-
-                    </div>
-                    
-                    {/* Menu 3 dots - bottom right */}
-                    <div className="absolute bottom-2 right-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-card border-border z-50">
-                          <DropdownMenuItem
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-foreground focus:bg-accent"
-                          >
-                            <Pin className="w-4 h-4 mr-2" />
-                            Fixar conversa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => handleDeleteClick(e, caseItem)}
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Excluir conversa
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
                   </div>
                 );
