@@ -189,13 +189,20 @@ export const useCases = () => {
 
   const deleteCase = async (caseId: string) => {
     try {
-      // First delete related conversation history
-      const { error: historyError } = await supabase
-        .from('conversation_history')
-        .delete()
-        .eq('case_id', caseId);
-
-      if (historyError) throw historyError;
+      // Delete all related records that reference this case (foreign keys)
+      const deletions = [
+        supabase.from('conversation_history').delete().eq('case_id', caseId),
+        supabase.from('case_followups').delete().eq('case_id', caseId),
+        supabase.from('signed_documents').delete().eq('case_id', caseId),
+        supabase.from('financial_transactions').delete().eq('case_id', caseId),
+      ];
+      
+      const results = await Promise.all(deletions);
+      for (const result of results) {
+        if (result.error) {
+          console.warn('Warning deleting related record:', result.error.message);
+        }
+      }
 
       // Then delete the case
       const { error } = await supabase
