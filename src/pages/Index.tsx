@@ -17,6 +17,7 @@ import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import platformPreview from '@/assets/platform-preview.png';
 import lexiaLogo from '@/assets/lexia-logo.svg';
 import { HeroScene } from '@/components/ui/hero-scene';
+import { ShineBorder } from '@/components/ui/shine-border';
 
 const featuresData = [
   { title: 'Agentes de IA', icon: Bot, description: 'Agentes inteligentes que atendem, qualificam e encaminham clientes automaticamente via WhatsApp.' },
@@ -211,13 +212,21 @@ const Index = () => {
 
                 {/* Platform preview */}
                 <AnimatedContainer delay={0.5} className="relative mt-16 mx-auto max-w-5xl">
-                  <img
-                    src={platformPreview}
-                    alt="Visão geral da plataforma Lexia"
-                    className="w-full rounded-xl border border-border shadow-2xl"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                  <ShineBorder
+                    borderRadius={12}
+                    borderWidth={2}
+                    duration={10}
+                    color={["#3b82f6", "#8b5cf6", "#06b6d4"]}
+                    className="p-0"
+                  >
+                    <img
+                      src={platformPreview}
+                      alt="Visão geral da plataforma Lexia"
+                      className="w-full rounded-xl shadow-2xl"
+                      loading="lazy"
+                    />
+                  </ShineBorder>
+                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none z-10" />
                 </AnimatedContainer>
               </div>
             </div>
