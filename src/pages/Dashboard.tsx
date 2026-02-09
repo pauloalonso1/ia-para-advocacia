@@ -35,7 +35,7 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardOverview />;
+        return <DashboardOverview onNavigate={setActiveTab} />;
       case 'agents':
         return <AgentsView />;
       case 'contacts':
