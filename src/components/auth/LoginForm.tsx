@@ -12,10 +12,9 @@ interface LoginFormProps {
   isLoading: boolean;
   onSignIn: (email: string, password: string) => void;
   onResetPassword: () => void;
-  onCreateAccount: () => void;
 }
 
-export const LoginForm = ({ isLoading, onSignIn, onResetPassword, onCreateAccount }: LoginFormProps) => {
+export const LoginForm = ({ isLoading, onSignIn, onResetPassword }: LoginFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -124,12 +123,6 @@ export const LoginForm = ({ isLoading, onSignIn, onResetPassword, onCreateAccoun
             </Button>
           </form>
 
-          <div className="text-center text-sm text-muted-foreground mt-8">
-            Não tem uma conta?{" "}
-            <button type="button" onClick={onCreateAccount} className="text-foreground font-medium hover:underline">
-              Criar conta
-            </button>
-          </div>
         </div>
       </div>
     </div>
