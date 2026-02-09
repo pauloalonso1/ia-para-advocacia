@@ -267,7 +267,7 @@ const Index = () => {
             <div className="mt-14 text-center">
               <Link to="/auth">
                 <RainbowButton className="px-8 text-base">
-                  Criar minha conta
+                  Contratar agora
                   <ChevronRight className="ml-1 size-4" />
                 </RainbowButton>
               </Link>
