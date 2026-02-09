@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
-import {} from 'framer-motion';
+
 import {
   AnimatedSidebar,
   AnimatedSidebarBody,
