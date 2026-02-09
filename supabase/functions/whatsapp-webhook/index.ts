@@ -83,13 +83,13 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase configuration missing");
     }
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY not configured");
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -199,8 +199,8 @@ serve(async (req) => {
             const mediaMimeType = audioMsg?.mimetype || imageMsg?.mimetype || docMsg?.mimetype || "application/octet-stream";
             const mediaCaption = imageMsg?.caption || docMsg?.caption || "";
             
-            messageBody = await processMediaWithGemini(
-              LOVABLE_API_KEY,
+            messageBody = await processMediaWithAI(
+              OPENAI_API_KEY,
               mediaBase64,
               mediaMimeType,
               audioMsg ? "audio" : imageMsg ? "image" : "document",
@@ -553,7 +553,7 @@ serve(async (req) => {
 
     // First check if it's an FAQ
     if (faqs.length > 0) {
-      const faqMatch = await checkFAQ(LOVABLE_API_KEY, messageBody, faqs);
+      const faqMatch = await checkFAQ(OPENAI_API_KEY, messageBody, faqs);
       if (faqMatch) {
         console.log("📖 FAQ matched");
         const faqMsgId = await sendWhatsAppMessage(
@@ -602,7 +602,7 @@ serve(async (req) => {
     console.log(`📅 Calendar connected: ${hasCalendarConnected}`);
 
     const aiResponse = await processWithAI(
-      LOVABLE_API_KEY,
+      OPENAI_API_KEY,
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
       rules,
@@ -664,7 +664,7 @@ serve(async (req) => {
       // Generate case description when qualified
       if (aiResponse.new_status === "Qualificado" || aiResponse.new_status === "Convertido") {
         generateCaseDescription(
-          supabase, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history
+          supabase, OPENAI_API_KEY, existingCase.id, existingCase.client_name || clientName, history
         ).catch(e => console.error("Case description generation error:", e));
       }
 
@@ -844,7 +844,7 @@ serve(async (req) => {
         // Generate case description when qualified via funnel auto-advance
         if (nextFunnelStage === "Qualificado" || nextFunnelStage === "Convertido") {
           generateCaseDescription(
-            supabase, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history
+            supabase, OPENAI_API_KEY, existingCase.id, existingCase.client_name || clientName, history
           ).catch(e => console.error("Case description generation error:", e));
         }
       }
@@ -875,7 +875,7 @@ serve(async (req) => {
       
       // Fire and forget - don't block the response
       saveContactMemory(
-        supabase, LOVABLE_API_KEY, userId, clientPhone, agentId, fullContext
+        supabase, OPENAI_API_KEY, userId, clientPhone, agentId, fullContext
       ).catch(e => console.error("Memory save error:", e));
     }
 
@@ -934,14 +934,14 @@ async function checkFAQ(
 ): Promise<string | null> {
   const faqList = faqs.map((f, i) => `${i + 1}. Pergunta: "${f.question}"`).join("\n");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -984,27 +984,17 @@ async function searchRAGContext(
   clientPhone?: string
 ): Promise<string> {
   try {
-    // Generate embedding for the query using the same method as rag-ingest
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Generate embedding using OpenAI
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content: `You are an embedding generator. Given text, produce a 768-dimensional numerical vector representation.
-Return ONLY a JSON array of 768 floating point numbers between -1 and 1, nothing else.
-The vector should capture the semantic meaning of the text.
-Different texts with similar meaning should produce similar vectors.`
-          },
-          { role: "user", content: query.slice(0, 2000) }
-        ],
-        temperature: 0,
-        max_tokens: 8000,
+        model: "text-embedding-3-small",
+        input: query.slice(0, 8000),
+        dimensions: 768,
       }),
     });
 
@@ -1014,22 +1004,9 @@ Different texts with similar meaning should produce similar vectors.`
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
-    
-    let embedding: number[];
-    try {
-      let jsonStr = content;
-      if (content.includes("```")) {
-        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (match) jsonStr = match[1].trim();
-      }
-      embedding = JSON.parse(jsonStr);
-      if (!Array.isArray(embedding) || embedding.length !== 768) {
-        console.error("Invalid embedding size from RAG search");
-        return "";
-      }
-    } catch {
-      console.error("Failed to parse RAG search embedding");
+    const embedding = data.data?.[0]?.embedding;
+    if (!Array.isArray(embedding) || embedding.length !== 768) {
+      console.error("Invalid embedding from OpenAI");
       return "";
     }
 
@@ -1096,14 +1073,14 @@ async function generateCaseDescription(
       .map((m: any) => `${m.role === "user" ? "Cliente" : "Assistente"}: ${m.content}`)
       .join("\n");
 
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         temperature: 0.3,
         max_tokens: 500,
         messages: [
@@ -1695,14 +1672,14 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
   }
 
   // First AI call
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "gpt-4o-mini",
       messages,
       temperature: 0.7,
       max_tokens: 500,
@@ -1814,14 +1791,14 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
           }
         ];
         
-        const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "gpt-4o-mini",
             messages: followUpMessages,
             temperature: 0.7,
             max_tokens: 500,
@@ -1904,14 +1881,14 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
             }
           ];
           
-          const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
+              model: "gpt-4o-mini",
               messages: followUpMessages,
               temperature: 0.7,
               max_tokens: 500,
@@ -2038,14 +2015,14 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
           },
         ];
 
-        const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "gpt-4o-mini",
             messages: followUpMessages,
             temperature: 0.7,
             max_tokens: 300,
@@ -2499,8 +2476,8 @@ async function downloadMediaFromEvolution(
   }
 }
 
-// Process media (audio/image/document) with Gemini multimodal
-async function processMediaWithGemini(
+// Process media (audio/image/document) with OpenAI
+async function processMediaWithAI(
   apiKey: string,
   base64Data: string,
   mimeType: string,
@@ -2508,10 +2485,47 @@ async function processMediaWithGemini(
   caption?: string,
   fileName?: string
 ): Promise<string> {
+  // For audio, use OpenAI Whisper API
+  if (mediaType === "audio") {
+    try {
+      const binaryStr = atob(base64Data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+
+      const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
+      const blob = new Blob([bytes], { type: mimeType });
+      const formData = new FormData();
+      formData.append("file", blob, `audio.${extension}`);
+      formData.append("model", "whisper-1");
+      formData.append("language", "pt");
+
+      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Whisper error:", response.status, errorText);
+        return "[Áudio recebido - erro ao processar]";
+      }
+
+      const data = await response.json();
+      const transcription = data.text || "[áudio inaudível]";
+      return `🎤 [Transcrição de áudio]: ${transcription}`;
+    } catch (error) {
+      console.error("Audio processing error:", error);
+      return "[Áudio recebido - erro técnico]";
+    }
+  }
+
+  // For images and documents, use GPT-4o vision
   const systemPrompts: Record<string, string> = {
-    audio: `Você é um transcritor de áudio. Transcreva o áudio recebido em texto, exatamente como a pessoa falou.
-Retorne APENAS a transcrição do áudio, sem nenhum comentário adicional.
-Se o áudio estiver inaudível ou vazio, responda: "[áudio inaudível]".`,
     image: `Você é um analisador de imagens para um sistema de atendimento jurídico via WhatsApp.
 Descreva o conteúdo da imagem de forma objetiva e completa.
 Se for um documento/texto fotografado, transcreva o texto visível.
@@ -2541,23 +2555,21 @@ Retorne APENAS o texto extraído, sem comentários.${fileName ? `\nNome do arqui
   } else {
     userContent.push({
       type: "text",
-      text: mediaType === "audio"
-        ? "Transcreva este áudio."
-        : mediaType === "image"
-          ? "Descreva esta imagem."
-          : "Extraia o texto deste documento.",
+      text: mediaType === "image"
+        ? "Descreva esta imagem."
+        : "Extraia o texto deste documento.",
     });
   }
 
   try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompts[mediaType] },
           { role: "user", content: userContent },
@@ -2569,28 +2581,25 @@ Retorne APENAS o texto extraído, sem comentários.${fileName ? `\nNome do arqui
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Gemini ${mediaType} processing error:`, response.status, errorText);
-      return `[${mediaType === "audio" ? "Áudio" : mediaType === "image" ? "Imagem" : "Documento"} recebido - erro ao processar]`;
+      console.error(`OpenAI ${mediaType} processing error:`, response.status, errorText);
+      return `[${mediaType === "image" ? "Imagem" : "Documento"} recebido - erro ao processar]`;
     }
 
     const data = await response.json();
     const result = data.choices?.[0]?.message?.content?.trim();
 
     if (!result) {
-      return `[${mediaType === "audio" ? "Áudio" : mediaType === "image" ? "Imagem" : "Documento"} recebido - conteúdo vazio]`;
+      return `[${mediaType === "image" ? "Imagem" : "Documento"} recebido - conteúdo vazio]`;
     }
 
-    // Prefix transcribed content with media type indicator for context
-    const prefix = mediaType === "audio"
-      ? "🎤 [Transcrição de áudio]: "
-      : mediaType === "image"
-        ? "📷 [Descrição de imagem]: "
-        : `📄 [Texto extraído de ${fileName || "documento"}]: `;
+    const prefix = mediaType === "image"
+      ? "📷 [Descrição de imagem]: "
+      : `📄 [Texto extraído de ${fileName || "documento"}]: `;
 
     return prefix + result;
   } catch (error) {
-    console.error(`Error processing ${mediaType} with Gemini:`, error);
-    return `[${mediaType === "audio" ? "Áudio" : mediaType === "image" ? "Imagem" : "Documento"} recebido - erro técnico]`;
+    console.error(`Error processing ${mediaType} with OpenAI:`, error);
+    return `[${mediaType === "image" ? "Imagem" : "Documento"} recebido - erro técnico]`;
   }
 }
 
@@ -2604,15 +2613,15 @@ async function saveContactMemory(
   conversationContext: string
 ): Promise<void> {
   try {
-    // Generate a summary of the recent interaction
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Generate a summary of the recent interaction using OpenAI
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -2634,44 +2643,24 @@ Responda APENAS com o resumo, sem prefixos.`
     const summary = data.choices?.[0]?.message?.content?.trim();
     if (!summary) return;
 
-    // Generate embedding for the summary
-    const embResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Generate real embedding using OpenAI
+    const embResponse = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content: `You are an embedding generator. Given text, produce a 768-dimensional numerical vector representation.
-Return ONLY a JSON array of 768 floating point numbers between -1 and 1, nothing else.`
-          },
-          { role: "user", content: summary.slice(0, 2000) }
-        ],
-        temperature: 0,
-        max_tokens: 8000,
+        model: "text-embedding-3-small",
+        input: summary.slice(0, 8000),
+        dimensions: 768,
       }),
     });
 
     if (!embResponse.ok) return;
     const embData = await embResponse.json();
-    const embContent = embData.choices?.[0]?.message?.content?.trim();
-
-    let embedding: number[];
-    try {
-      let jsonStr = embContent;
-      if (embContent.includes("```")) {
-        const match = embContent.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (match) jsonStr = match[1].trim();
-      }
-      embedding = JSON.parse(jsonStr);
-      if (!Array.isArray(embedding) || embedding.length !== 768) return;
-    } catch {
-      return;
-    }
+    const embedding = embData.data?.[0]?.embedding;
+    if (!Array.isArray(embedding) || embedding.length !== 768) return;
 
     await supabase.from("contact_memories").insert({
       user_id: userId,

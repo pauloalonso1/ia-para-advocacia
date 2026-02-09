@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,12 +19,10 @@ serve(async (req) => {
       throw new Error("caseId is required");
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get case details
     const { data: caseData, error: caseError } = await supabase
       .from("cases")
       .select("*")
@@ -34,7 +31,6 @@ serve(async (req) => {
 
     if (caseError) throw caseError;
 
-    // Get conversation history
     const { data: messages, error: messagesError } = await supabase
       .from("conversation_history")
       .select("*")
@@ -43,7 +39,6 @@ serve(async (req) => {
 
     if (messagesError) throw messagesError;
 
-    // If no messages, return early
     if (!messages || messages.length === 0) {
       return new Response(
         JSON.stringify({ 
@@ -53,7 +48,6 @@ serve(async (req) => {
       );
     }
 
-    // Format conversation for AI
     const conversationText = messages
       .map((msg) => `${msg.role === "client" ? "Cliente" : "Atendente"}: ${msg.content}`)
       .join("\n");
@@ -61,20 +55,19 @@ serve(async (req) => {
     const clientName = caseData.client_name || "o cliente";
     const status = caseData.status || "Em Atendimento";
 
-    // Call Lovable AI Gateway
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiApiKey) {
+      throw new Error("OPENAI_API_KEY not configured");
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${lovableApiKey}`,
+        "Authorization": `Bearer ${openaiApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -103,8 +96,8 @@ ${conversationText}`
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("AI Gateway error:", errorText);
-      throw new Error(`AI Gateway error: ${aiResponse.status}`);
+      console.error("OpenAI API error:", errorText);
+      throw new Error(`OpenAI API error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
