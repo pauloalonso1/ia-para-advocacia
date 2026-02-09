@@ -75,6 +75,123 @@ const STATUS_NOTIFICATION_MAP: Record<string, { key: string; emoji: string; labe
   "Convertido": { key: "notify_contract_signed", emoji: "✅", label: "Convertido" },
 };
 
+// Helper: call AI chat completions with automatic fallback from OpenAI to Lovable AI Gateway
+async function callAIChatCompletions(
+  openaiApiKey: string | null,
+  lovableApiKey: string | null,
+  body: Record<string, any>
+): Promise<any> {
+  // Try OpenAI first if key is available
+  if (openaiApiKey) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+
+      const errorText = await response.text();
+      console.warn(`⚠️ OpenAI API error ${response.status}: ${errorText.slice(0, 200)}`);
+      // If 429 or 5xx, fall through to Lovable AI
+      if (response.status !== 429 && response.status < 500) {
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText.slice(0, 200)}`);
+      }
+      console.log("🔄 Falling back to Lovable AI Gateway...");
+    } catch (e: any) {
+      if (e.message?.startsWith("OpenAI API error:")) throw e;
+      console.warn("⚠️ OpenAI request failed, trying Lovable AI:", e.message);
+    }
+  }
+
+  // Fallback to Lovable AI Gateway (Gemini)
+  if (!lovableApiKey) {
+    throw new Error("No AI API key available (OpenAI failed and LOVABLE_API_KEY not configured)");
+  }
+
+  // Map OpenAI model to Gemini equivalent
+  const modelMap: Record<string, string> = {
+    "gpt-4o-mini": "google/gemini-2.5-flash",
+    "gpt-4o": "google/gemini-2.5-flash",
+  };
+  const lovableModel = modelMap[body.model] || "google/gemini-2.5-flash";
+
+  const lovableBody = { ...body, model: lovableModel };
+  
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(lovableBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`❌ Lovable AI Gateway error ${response.status}: ${errorText.slice(0, 200)}`);
+    throw new Error(`Lovable AI Gateway error: ${response.status}`);
+  }
+
+  console.log("✅ Lovable AI Gateway response received");
+  return await response.json();
+}
+
+// Helper: call AI embeddings with fallback
+async function callAIEmbeddings(
+  openaiApiKey: string | null,
+  lovableApiKey: string | null,
+  input: string,
+  dimensions: number = 768
+): Promise<number[] | null> {
+  // Try OpenAI first
+  if (openaiApiKey) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "text-embedding-3-small",
+          input: input.slice(0, 8000),
+          dimensions,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const embedding = data.data?.[0]?.embedding;
+        if (Array.isArray(embedding) && embedding.length === dimensions) return embedding;
+      } else {
+        console.warn(`⚠️ OpenAI embeddings error ${response.status}`);
+      }
+    } catch (e: any) {
+      console.warn("⚠️ OpenAI embeddings failed:", e.message);
+    }
+  }
+
+  // Fallback: Lovable AI Gateway with Gemini embedding
+  if (!lovableApiKey) return null;
+
+  try {
+    // Use Gemini chat to generate a pseudo-embedding via Lovable AI
+    // Since Lovable AI Gateway doesn't expose embeddings endpoint directly,
+    // we skip embeddings when OpenAI fails (RAG will be unavailable but chat continues)
+    console.warn("⚠️ Embeddings not available via Lovable AI Gateway, skipping RAG search");
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -83,13 +200,14 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || null;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || null;
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase configuration missing");
     }
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY not configured");
+    if (!OPENAI_API_KEY && !LOVABLE_API_KEY) {
+      throw new Error("No AI API key configured (need OPENAI_API_KEY or LOVABLE_API_KEY)");
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -201,6 +319,7 @@ serve(async (req) => {
             
             messageBody = await processMediaWithAI(
               OPENAI_API_KEY,
+              LOVABLE_API_KEY,
               mediaBase64,
               mediaMimeType,
               audioMsg ? "audio" : imageMsg ? "image" : "document",
@@ -553,7 +672,7 @@ serve(async (req) => {
 
     // First check if it's an FAQ
     if (faqs.length > 0) {
-      const faqMatch = await checkFAQ(OPENAI_API_KEY, messageBody, faqs);
+      const faqMatch = await checkFAQ(OPENAI_API_KEY, LOVABLE_API_KEY, messageBody, faqs);
       if (faqMatch) {
         console.log("📖 FAQ matched");
         const faqMsgId = await sendWhatsAppMessage(
@@ -603,6 +722,7 @@ serve(async (req) => {
 
     const aiResponse = await processWithAI(
       OPENAI_API_KEY,
+      LOVABLE_API_KEY,
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
       rules,
@@ -664,7 +784,7 @@ serve(async (req) => {
       // Generate case description when qualified
       if (aiResponse.new_status === "Qualificado" || aiResponse.new_status === "Convertido") {
         generateCaseDescription(
-          supabase, OPENAI_API_KEY, existingCase.id, existingCase.client_name || clientName, history
+          supabase, OPENAI_API_KEY, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history
         ).catch(e => console.error("Case description generation error:", e));
       }
 
@@ -875,7 +995,7 @@ serve(async (req) => {
       
       // Fire and forget - don't block the response
       saveContactMemory(
-        supabase, OPENAI_API_KEY, userId, clientPhone, agentId, fullContext
+        supabase, OPENAI_API_KEY, LOVABLE_API_KEY, userId, clientPhone, agentId, fullContext
       ).catch(e => console.error("Memory save error:", e));
     }
 
@@ -928,19 +1048,15 @@ async function sendStatusNotification(
 }
 
 async function checkFAQ(
-  apiKey: string,
+  apiKey: string | null,
+  lovableApiKey: string | null,
   message: string,
   faqs: { question: string; answer: string }[]
 ): Promise<string | null> {
   const faqList = faqs.map((f, i) => `${i + 1}. Pergunta: "${f.question}"`).join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  try {
+    const data = await callAIChatCompletions(apiKey, lovableApiKey, {
       model: "gpt-4o-mini",
       messages: [
         {
@@ -955,20 +1071,16 @@ Responda APENAS com o número da FAQ correspondente ou "0" se nenhuma correspond
       ],
       temperature: 0.1,
       max_tokens: 10,
-    }),
-  });
+    });
 
-  if (!response.ok) {
-    console.error("FAQ check failed:", response.status);
-    return null;
-  }
+    const answer = data.choices?.[0]?.message?.content?.trim();
+    const faqIndex = parseInt(answer) - 1;
 
-  const data = await response.json();
-  const answer = data.choices?.[0]?.message?.content?.trim();
-  const faqIndex = parseInt(answer) - 1;
-
-  if (faqIndex >= 0 && faqIndex < faqs.length) {
-    return faqs[faqIndex].answer;
+    if (faqIndex >= 0 && faqIndex < faqs.length) {
+      return faqs[faqIndex].answer;
+    }
+  } catch (e) {
+    console.error("FAQ check failed:", e);
   }
 
   return null;
@@ -977,36 +1089,18 @@ Responda APENAS com o número da FAQ correspondente ou "0" se nenhuma correspond
 // Helper: search RAG knowledge base for relevant context
 async function searchRAGContext(
   supabase: any,
-  apiKey: string,
+  apiKey: string | null,
+  lovableApiKey: string | null,
   userId: string,
   agentId: string,
   query: string,
   clientPhone?: string
 ): Promise<string> {
   try {
-    // Generate embedding using OpenAI
-    const response = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: query.slice(0, 8000),
-        dimensions: 768,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("RAG embedding error:", response.status);
-      return "";
-    }
-
-    const data = await response.json();
-    const embedding = data.data?.[0]?.embedding;
-    if (!Array.isArray(embedding) || embedding.length !== 768) {
-      console.error("Invalid embedding from OpenAI");
+    // Generate embedding
+    const embedding = await callAIEmbeddings(apiKey, lovableApiKey, query, 768);
+    if (!embedding) {
+      console.warn("⚠️ Could not generate embedding for RAG search, skipping");
       return "";
     }
 
@@ -1060,7 +1154,8 @@ async function searchRAGContext(
 // Generate AI case description when lead is qualified
 async function generateCaseDescription(
   supabase: any,
-  apiKey: string,
+  apiKey: string | null,
+  lovableApiKey: string | null,
   caseId: string,
   clientName: string,
   history: any[]
@@ -1073,20 +1168,14 @@ async function generateCaseDescription(
       .map((m: any) => `${m.role === "user" ? "Cliente" : "Assistente"}: ${m.content}`)
       .join("\n");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
-        max_tokens: 500,
-        messages: [
-          {
-            role: "system",
-            content: `Você é um assistente jurídico. Gere uma descrição concisa do caso com base na conversa abaixo.
+    const data = await callAIChatCompletions(apiKey, lovableApiKey, {
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      max_tokens: 500,
+      messages: [
+        {
+          role: "system",
+          content: `Você é um assistente jurídico. Gere uma descrição concisa do caso com base na conversa abaixo.
 
 FORMATO OBRIGATÓRIO:
 - Máximo 3 parágrafos curtos
@@ -1095,21 +1184,14 @@ FORMATO OBRIGATÓRIO:
 - Parágrafo 3: Status atual e próximos passos recomendados
 
 Seja objetivo e profissional. Use linguagem jurídica quando apropriado.`
-          },
-          {
-            role: "user",
-            content: `Cliente: ${clientName}\n\nConversa:\n${conversationText}\n\nGere a descrição do caso.`
-          }
-        ],
-      }),
+        },
+        {
+          role: "user",
+          content: `Cliente: ${clientName}\n\nConversa:\n${conversationText}\n\nGere a descrição do caso.`
+        }
+      ],
     });
 
-    if (!response.ok) {
-      console.error(`Case description API error: ${response.status}`);
-      return;
-    }
-
-    const data = await response.json();
     const description = data.choices?.[0]?.message?.content;
 
     if (description) {
@@ -1126,7 +1208,8 @@ Seja objetivo e profissional. Use linguagem jurídica quando apropriado.`
 }
 
 async function processWithAI(
-  apiKey: string,
+  apiKey: string | null,
+  lovableApiKey: string | null,
   supabaseUrl: string,
   supabaseServiceKey: string,
   rules: any,
@@ -1440,7 +1523,7 @@ IMPORTANTE:
   // RAG: Search knowledge base for relevant context
   let ragContext = "";
   try {
-    ragContext = await searchRAGContext(supabase, apiKey, userId, agentId, clientMessage, clientPhone);
+    ragContext = await searchRAGContext(supabase, apiKey, lovableApiKey, userId, agentId, clientMessage, clientPhone);
     if (ragContext) {
       console.log(`🧠 RAG context injected (${ragContext.length} chars)`);
     }
@@ -1672,29 +1755,14 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
   }
 
   // First AI call
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages,
-      temperature: 0.7,
-      max_tokens: 500,
-      tools,
-      tool_choice: "auto"
-    }),
+  const data = await callAIChatCompletions(apiKey, lovableApiKey, {
+    model: "gpt-4o-mini",
+    messages,
+    temperature: 0.7,
+    max_tokens: 500,
+    tools,
+    tool_choice: "auto"
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("AI API error:", response.status, errorText);
-    throw new Error(`AI API error: ${response.status}`);
-  }
-
-  const data = await response.json();
   
   // Handle tool calls
   const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
@@ -1791,13 +1859,7 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
           }
         ];
         
-        const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        const followUpData = await callAIChatCompletions(apiKey, lovableApiKey, {
             model: "gpt-4o-mini",
             messages: followUpMessages,
             temperature: 0.7,
@@ -1820,11 +1882,9 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
               }
             }],
             tool_choice: { type: "function", function: { name: "send_response" } }
-          }),
-        });
+          });
         
-        if (followUpResponse.ok) {
-          const followUpData = await followUpResponse.json();
+        {
           const finalToolCall = followUpData.choices?.[0]?.message?.tool_calls?.[0];
           if (finalToolCall?.function?.arguments) {
             const parsed = JSON.parse(finalToolCall.function.arguments);
@@ -1881,24 +1941,16 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
             }
           ];
           
-          const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          const followUpData = await callAIChatCompletions(apiKey, lovableApiKey, {
               model: "gpt-4o-mini",
               messages: followUpMessages,
               temperature: 0.7,
               max_tokens: 500,
               tools: [tools[0]],
               tool_choice: { type: "function", function: { name: "send_response" } }
-            }),
-          });
+            });
           
-          if (followUpResponse.ok) {
-            const followUpData = await followUpResponse.json();
+          {
             const finalToolCall = followUpData.choices?.[0]?.message?.tool_calls?.[0];
             if (finalToolCall?.function?.arguments) {
               const parsed = JSON.parse(finalToolCall.function.arguments);
@@ -2015,24 +2067,16 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
           },
         ];
 
-        const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        const followUpData = await callAIChatCompletions(apiKey, lovableApiKey, {
             model: "gpt-4o-mini",
             messages: followUpMessages,
             temperature: 0.7,
             max_tokens: 300,
             tools: [tools[0]],
             tool_choice: { type: "function", function: { name: "send_response" } },
-          }),
-        });
+          });
 
-        if (followUpResponse.ok) {
-          const followUpData = await followUpResponse.json();
+        {
           const finalToolCall = followUpData.choices?.[0]?.message?.tool_calls?.[0];
           if (finalToolCall?.function?.arguments) {
             const parsed = JSON.parse(finalToolCall.function.arguments);
@@ -2478,7 +2522,8 @@ async function downloadMediaFromEvolution(
 
 // Process media (audio/image/document) with OpenAI
 async function processMediaWithAI(
-  apiKey: string,
+  apiKey: string | null,
+  lovableApiKey: string | null,
   base64Data: string,
   mimeType: string,
   mediaType: "audio" | "image" | "document",
@@ -2562,30 +2607,16 @@ Retorne APENAS o texto extraído, sem comentários.${fileName ? `\nNome do arqui
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompts[mediaType] },
-          { role: "user", content: userContent },
-        ],
-        temperature: 0.1,
-        max_tokens: 4000,
-      }),
+    const data = await callAIChatCompletions(apiKey, lovableApiKey, {
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompts[mediaType] },
+        { role: "user", content: userContent },
+      ],
+      temperature: 0.1,
+      max_tokens: 4000,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OpenAI ${mediaType} processing error:`, response.status, errorText);
-      return `[${mediaType === "image" ? "Imagem" : "Documento"} recebido - erro ao processar]`;
-    }
-
-    const data = await response.json();
     const result = data.choices?.[0]?.message?.content?.trim();
 
     if (!result) {
@@ -2598,7 +2629,7 @@ Retorne APENAS o texto extraído, sem comentários.${fileName ? `\nNome do arqui
 
     return prefix + result;
   } catch (error) {
-    console.error(`Error processing ${mediaType} with OpenAI:`, error);
+    console.error(`Error processing ${mediaType}:`, error);
     return `[${mediaType === "image" ? "Imagem" : "Documento"} recebido - erro técnico]`;
   }
 }
@@ -2606,61 +2637,50 @@ Retorne APENAS o texto extraído, sem comentários.${fileName ? `\nNome do arqui
 // Save a conversation memory for the contact (runs in background)
 async function saveContactMemory(
   supabase: any,
-  apiKey: string,
+  apiKey: string | null,
+  lovableApiKey: string | null,
   userId: string,
   clientPhone: string,
   agentId: string,
   conversationContext: string
 ): Promise<void> {
   try {
-    // Generate a summary of the recent interaction using OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `Resuma a interação abaixo em 1-2 frases objetivas, focando em:
+    // Generate a summary of the recent interaction
+    const data = await callAIChatCompletions(apiKey, lovableApiKey, {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Resuma a interação abaixo em 1-2 frases objetivas, focando em:
 - Assunto principal discutido
 - Informações importantes do cliente (necessidades, preferências)
 - Status atual do atendimento
 Responda APENAS com o resumo, sem prefixos.`
-          },
-          { role: "user", content: conversationContext }
-        ],
-        temperature: 0.2,
-        max_tokens: 200,
-      }),
+        },
+        { role: "user", content: conversationContext }
+      ],
+      temperature: 0.2,
+      max_tokens: 200,
     });
 
-    if (!response.ok) return;
-    const data = await response.json();
     const summary = data.choices?.[0]?.message?.content?.trim();
     if (!summary) return;
 
-    // Generate real embedding using OpenAI
-    const embResponse = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: summary.slice(0, 8000),
-        dimensions: 768,
-      }),
-    });
-
-    if (!embResponse.ok) return;
-    const embData = await embResponse.json();
-    const embedding = embData.data?.[0]?.embedding;
-    if (!Array.isArray(embedding) || embedding.length !== 768) return;
+    // Generate embedding
+    const embedding = await callAIEmbeddings(apiKey, lovableApiKey, summary, 768);
+    if (!embedding) {
+      // Save memory without embedding (won't be searchable but still useful)
+      await supabase.from("contact_memories").insert({
+        user_id: userId,
+        contact_phone: clientPhone,
+        agent_id: agentId,
+        memory_type: "conversation_summary",
+        content: summary,
+        metadata: { created_from: "auto_webhook", timestamp: new Date().toISOString() },
+      });
+      console.log(`🧠 Contact memory saved (no embedding) for ${clientPhone}`);
+      return;
+    }
 
     await supabase.from("contact_memories").insert({
       user_id: userId,
