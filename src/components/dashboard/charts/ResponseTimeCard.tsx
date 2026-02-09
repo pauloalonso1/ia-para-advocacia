@@ -34,7 +34,7 @@ const ResponseTimeCard = ({
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 overflow-hidden">
+    <div className="bg-card border border-border rounded-lg p-4 overflow-hidden h-full flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <Clock className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-medium text-foreground">Tempo de Resposta & Conversão</h3>
@@ -69,7 +69,7 @@ const ResponseTimeCard = ({
       </div>
 
       {/* Response time distribution */}
-      <div className="space-y-2">
+      <div className="space-y-2 mt-auto">
         <p className="text-xs text-muted-foreground font-medium">Distribuição de resposta</p>
         <div className="flex h-2 rounded-full overflow-hidden bg-muted">
           {within5Pct > 0 && (

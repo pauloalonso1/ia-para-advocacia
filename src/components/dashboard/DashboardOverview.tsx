@@ -181,7 +181,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
 
       {/* Advanced Analytics Row */}
       {!advLoading && (
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-6 items-stretch">
           {/* Response Time & Conversion */}
           <div className="col-span-4">
             <ResponseTimeCard
