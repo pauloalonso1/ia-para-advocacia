@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, MessageSquare, MoreVertical, Trash2, Bot, Filter, RefreshCw, Plus, Volume2, CheckCheck } from 'lucide-react';
+import { Search, MessageSquare, MoreVertical, Trash2, Bot, RefreshCw, Plus, Volume2, CheckCheck, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ConversationsListProps {
@@ -150,15 +150,11 @@ const ConversationsList = ({
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Pesquisar..."
-                className="pl-9 h-9 bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
+                placeholder="Pesquisar conversas..."
+                className="pl-9 h-10 bg-background border-border text-foreground placeholder:text-muted-foreground text-sm"
               />
             </div>
-            <Button variant="outline" size="sm" className="h-9 px-3 text-xs gap-1.5">
-              <Filter className="w-3.5 h-3.5" />
-              Filtros
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 px-3 text-xs gap-1.5">
+            <Button variant="outline" size="sm" className="h-10 px-3 text-xs gap-1.5">
               <RefreshCw className="w-3.5 h-3.5" />
               Follow-up
             </Button>
@@ -251,7 +247,7 @@ const ConversationsList = ({
                     )}
                     onClick={() => onSelectCase(caseItem)}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 pr-6">
                       {/* Avatar */}
                       <Avatar className="w-10 h-10 shrink-0">
                         <AvatarFallback className={cn(
@@ -341,19 +337,29 @@ const ConversationsList = ({
                         </Badge>
                       </div>
 
-                      {/* Menu button */}
+                    </div>
+                    
+                    {/* Menu 3 dots - bottom right */}
+                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                            className="h-6 w-6"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-card border-border">
+                        <DropdownMenuContent align="end" className="bg-card border-border z-50">
+                          <DropdownMenuItem
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-foreground focus:bg-accent"
+                          >
+                            <Pin className="w-4 h-4 mr-2" />
+                            Fixar conversa
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={(e) => handleDeleteClick(e, caseItem)}
                             className="text-destructive focus:text-destructive focus:bg-destructive/10"
