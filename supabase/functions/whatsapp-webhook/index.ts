@@ -710,6 +710,85 @@ serve(async (req) => {
 
     console.log(`📍 Current step: ${currentStepIndex + 1}/${steps.length}, scriptCompleted: ${isScriptCompleted}`);
 
+    // ===== RETROACTIVE CATEGORY-BASED AGENT SWITCH =====
+    // If the script is already completed but we're still on the same (reception) agent,
+    // try to detect the legal area and switch to the specialist agent NOW
+    if (isScriptCompleted) {
+      try {
+        const categoryAgentId = await detectAndMatchCategoryAgent(
+          OPENAI_API_KEY,
+          LOVABLE_API_KEY,
+          supabase,
+          userId,
+          agentId,
+          history,
+          messageBody
+        );
+
+        if (categoryAgentId && categoryAgentId !== agentId) {
+          console.log(`🔄 Retroactive category switch: switching from ${agentId} to ${categoryAgentId}`);
+
+          const switchUpdate: Record<string, any> = {
+            active_agent_id: categoryAgentId,
+            is_agent_paused: false,
+            current_step_id: null,
+          };
+
+          // Get first step of new agent's script
+          const { data: newFirstStep } = await supabase
+            .from("agent_script_steps")
+            .select("id")
+            .eq("agent_id", categoryAgentId)
+            .order("step_order", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (newFirstStep) {
+            switchUpdate.current_step_id = newFirstStep.id;
+          }
+
+          // Advance funnel stage
+          const nextStage = getNextFunnelStage(existingCase.status);
+          if (nextStage) {
+            switchUpdate.status = nextStage;
+          }
+
+          await supabase
+            .from("cases")
+            .update(switchUpdate)
+            .eq("id", existingCase.id);
+
+          // Send the new agent's welcome/first step message
+          const [newAgentRulesRes, newAgentFirstStepRes] = await Promise.all([
+            supabase.from("agent_rules").select("welcome_message").eq("agent_id", categoryAgentId).maybeSingle(),
+            supabase.from("agent_script_steps").select("message_to_send").eq("agent_id", categoryAgentId).order("step_order", { ascending: true }).limit(1).maybeSingle(),
+          ]);
+
+          const greeting = newAgentFirstStepRes.data?.message_to_send || newAgentRulesRes.data?.welcome_message;
+          if (greeting) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            const greetingText = greeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
+            const greetingMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, greetingText);
+            await supabase.from("conversation_history").insert({
+              case_id: existingCase.id,
+              role: "assistant",
+              content: greetingText,
+              external_message_id: greetingMsgId,
+              message_status: "sent",
+            });
+            console.log(`✉️ New specialist agent sent first message`);
+          }
+
+          return new Response(JSON.stringify({ status: "agent_switched_by_category" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (e) {
+        console.error("❌ Retroactive category switch error:", e);
+        // Continue with normal flow if switch fails
+      }
+    }
+
     // Check if user has Google Calendar connected
     const { data: calendarToken } = await supabase
       .from("google_calendar_tokens")
