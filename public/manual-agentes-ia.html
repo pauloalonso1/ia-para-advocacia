@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lexia AI - Manual dos Agentes de IA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    color: #1a1a2e;
+    line-height: 1.7;
+    background: #fff;
+    font-size: 14px;
+  }
+
+  @media print {
+    body { font-size: 12px; }
+    .page-break { page-break-before: always; }
+    .no-print { display: none; }
+  }
+
+  .container { max-width: 800px; margin: 0 auto; padding: 40px 32px; }
+
+  /* Cover */
+  .cover {
+    text-align: center;
+    padding: 80px 20px;
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d1b69 100%);
+    color: white;
+    border-radius: 16px;
+    margin-bottom: 48px;
+  }
+  .cover h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+  .cover .subtitle { font-size: 18px; font-weight: 300; opacity: 0.85; margin-bottom: 8px; }
+  .cover .version { font-size: 13px; opacity: 0.6; margin-top: 24px; }
+
+  /* Headings */
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 40px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 3px solid #6c3ce9;
+    display: inline-block;
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #2d1b69;
+    margin: 28px 0 12px;
+  }
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #444;
+    margin: 20px 0 8px;
+  }
+
+  p { margin-bottom: 12px; }
+
+  /* Info boxes */
+  .info-box {
+    background: #f0ecff;
+    border-left: 4px solid #6c3ce9;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .info-box.warning {
+    background: #fff8e6;
+    border-left-color: #f0a500;
+  }
+  .info-box.success {
+    background: #e8faf0;
+    border-left-color: #22c55e;
+  }
+  .info-box strong { display: block; margin-bottom: 4px; }
+
+  /* Lists */
+  ul, ol { margin: 8px 0 16px 24px; }
+  li { margin-bottom: 6px; }
+
+  /* Flowchart */
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .flow-step {
+    background: #f0ecff;
+    border: 1px solid #d4c8f9;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    min-width: 120px;
+  }
+  .flow-arrow { font-size: 18px; color: #6c3ce9; font-weight: 700; }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  th {
+    background: #1a1a2e;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  /* Emoji icon */
+  .icon { font-size: 20px; margin-right: 8px; vertical-align: middle; }
+
+  /* Numbered steps */
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #6c3ce9;
+    color: white;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+  .step-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .step-content { flex: 1; }
+
+  .toc a {
+    color: #6c3ce9;
+    text-decoration: none;
+    display: block;
+    padding: 4px 0;
+  }
+  .toc a:hover { text-decoration: underline; }
+
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e5e5;
+    color: #999;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- CAPA -->
+<div class="cover">
+  <div style="font-size:48px; margin-bottom:16px;">🤖</div>
+  <h1>Manual dos Agentes de IA</h1>
+  <div class="subtitle">Lexia — Plataforma de Atendimento Inteligente</div>
+  <div class="subtitle" style="font-size:15px;">Guia completo para configuração e operação</div>
+  <div class="version">Versão 1.0 · Fevereiro 2026</div>
+</div>
+
+<!-- SUMÁRIO -->
+<h2>📋 Sumário</h2>
+<div class="toc">
+  <a href="#visao-geral">1. Visão Geral — Como funciona</a>
+  <a href="#componentes">2. Componentes do Agente</a>
+  <a href="#fluxo">3. Fluxo Completo de Atendimento</a>
+  <a href="#roteiro-vs-ia">4. Roteiro vs IA — Quem decide o quê?</a>
+  <a href="#funil">5. Funil Multi-Agente</a>
+  <a href="#criar-agente">6. Como Criar um Agente (Passo a Passo)</a>
+  <a href="#templates">7. Templates Prontos</a>
+  <a href="#faq-sistema">8. FAQs — Respostas Automáticas</a>
+  <a href="#rag">9. Base de Conhecimento (RAG)</a>
+  <a href="#integracoes">10. Integrações (Calendário & Contratos)</a>
+  <a href="#follow-ups">11. Follow-ups Automáticos</a>
+  <a href="#boas-praticas">12. Boas Práticas</a>
+  <a href="#glossario">13. Glossário</a>
+</div>
+
+<div class="page-break"></div>
+
+<!-- 1. VISÃO GERAL -->
+<h2 id="visao-geral">1. Visão Geral</h2>
+<p>Os agentes de IA da Lexia são assistentes virtuais que atendem seus clientes pelo WhatsApp de forma automatizada, seguindo as regras e roteiros que <strong>você</strong> define na plataforma.</p>
+
+<div class="info-box success">
+  <strong>✅ Ponto-chave</strong>
+  O agente NÃO inventa respostas livremente. Ele segue um roteiro sequencial definido por você e usa a IA apenas para interpretar as respostas do cliente e decidir quando avançar para a próxima etapa.
+</div>
+
+<h3>Como funciona em resumo</h3>
+<div class="flow">
+  <div class="flow-step">📱 Cliente envia mensagem no WhatsApp</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🤖 Agente recebe e processa</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">📋 Verifica FAQs</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">📝 Segue o Roteiro</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">💬 Envia resposta</div>
+</div>
+
+<!-- 2. COMPONENTES -->
+<h2 id="componentes">2. Componentes do Agente</h2>
+<p>Cada agente é composto por quatro elementos configuráveis:</p>
+
+<table>
+  <tr>
+    <th>Componente</th>
+    <th>O que é</th>
+    <th>Para que serve</th>
+  </tr>
+  <tr>
+    <td><strong>⚙️ Regras (System Prompt)</strong></td>
+    <td>Instruções de comportamento e personalidade</td>
+    <td>Define tom, limites e o que o agente pode/não pode fazer</td>
+  </tr>
+  <tr>
+    <td><strong>📝 Roteiro (Script)</strong></td>
+    <td>Sequência de etapas com mensagens prontas</td>
+    <td>Guia a conversa passo a passo (funil de vendas)</td>
+  </tr>
+  <tr>
+    <td><strong>❓ FAQs</strong></td>
+    <td>Perguntas e respostas pré-cadastradas</td>
+    <td>Respostas automáticas para dúvidas frequentes</td>
+  </tr>
+  <tr>
+    <td><strong>📚 Base de Conhecimento</strong></td>
+    <td>Documentos e textos sobre sua área</td>
+    <td>Contexto adicional para respostas mais precisas</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- 3. FLUXO -->
+<h2 id="fluxo">3. Fluxo Completo de Atendimento</h2>
+<p>Quando uma mensagem chega no WhatsApp, o sistema segue esta sequência:</p>
+
+<div class="step-row">
+  <span class="step-num">1</span>
+  <div class="step-content">
+    <strong>Recepção da Mensagem</strong><br>
+    O sistema recebe a mensagem (texto, áudio, imagem ou documento) e identifica o remetente.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">2</span>
+  <div class="step-content">
+    <strong>Processamento de Mídia</strong><br>
+    Se for áudio → transcreve automaticamente. Se for imagem → descreve o conteúdo. Se for documento → extrai o texto.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">3</span>
+  <div class="step-content">
+    <strong>Identificação do Cliente</strong><br>
+    Verifica se o cliente já tem um caso aberto. Se for novo, cria automaticamente um novo caso e envia a mensagem de boas-vindas.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">4</span>
+  <div class="step-content">
+    <strong>Verificação de FAQ</strong><br>
+    Antes de tudo, a IA verifica se a pergunta do cliente combina com alguma FAQ cadastrada. Se sim, responde direto com a resposta pré-definida — sem usar o roteiro.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">5</span>
+  <div class="step-content">
+    <strong>Execução do Roteiro</strong><br>
+    Se não for FAQ, a IA analisa a resposta do cliente dentro do contexto da etapa atual do roteiro e decide: <strong>AVANÇAR</strong> (enviar próxima etapa) ou <strong>PERMANECER</strong> (esclarecer a etapa atual).
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">6</span>
+  <div class="step-content">
+    <strong>Ações Especiais</strong><br>
+    Se aplicável, o agente pode: verificar disponibilidade no calendário, agendar reuniões ou enviar contratos para assinatura.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">7</span>
+  <div class="step-content">
+    <strong>Envio da Resposta</strong><br>
+    A resposta é enviada de volta pelo WhatsApp. Todo o histórico fica salvo na plataforma.
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- 4. ROTEIRO VS IA -->
+<h2 id="roteiro-vs-ia">4. Roteiro vs IA — Quem decide o quê?</h2>
+<p>Esta é a dúvida mais comum. O sistema funciona assim:</p>
+
+<table>
+  <tr>
+    <th>Aspecto</th>
+    <th>Quem controla</th>
+    <th>Como funciona</th>
+  </tr>
+  <tr>
+    <td>Mensagens do roteiro</td>
+    <td><strong>Você (humano)</strong></td>
+    <td>Você escreve as mensagens exatas que o agente envia em cada etapa</td>
+  </tr>
+  <tr>
+    <td>Ordem das etapas</td>
+    <td><strong>Você (humano)</strong></td>
+    <td>Você define a sequência das etapas do funil</td>
+  </tr>
+  <tr>
+    <td>Quando avançar de etapa</td>
+    <td><strong>IA</strong></td>
+    <td>A IA analisa a resposta do cliente e decide se é hora de avançar (PROCEED) ou ficar (STAY)</td>
+  </tr>
+  <tr>
+    <td>Respostas intermediárias</td>
+    <td><strong>IA (guiada por regras)</strong></td>
+    <td>Se o cliente faz uma pergunta fora do roteiro, a IA responde usando suas regras e base de conhecimento</td>
+  </tr>
+  <tr>
+    <td>Respostas de FAQ</td>
+    <td><strong>Você (humano)</strong></td>
+    <td>As respostas são as que você cadastrou, a IA apenas identifica a correspondência</td>
+  </tr>
+  <tr>
+    <td>Conversa livre (pós-roteiro)</td>
+    <td><strong>IA (guiada por regras)</strong></td>
+    <td>Após completar o roteiro, a IA conversa naturalmente seguindo suas regras e proibições</td>
+  </tr>
+</table>
+
+<div class="info-box">
+  <strong>💡 Resumo</strong>
+  O roteiro define O QUE dizer. A IA decide QUANDO avançar e como lidar com situações não previstas, sempre respeitando suas regras.
+</div>
+
+<h3>Exemplo Prático</h3>
+<table>
+  <tr>
+    <th>Etapa</th>
+    <th>Mensagem do Roteiro (definida por você)</th>
+  </tr>
+  <tr>
+    <td>1. Boas-vindas</td>
+    <td>"Olá! Sou a assistente do escritório. Poderia me informar seu nome?"</td>
+  </tr>
+  <tr>
+    <td>2. Identificação</td>
+    <td>"Prazer, {nome}! Qual é a situação jurídica que você precisa resolver?"</td>
+  </tr>
+  <tr>
+    <td>3. Documentação</td>
+    <td>"Você possui documentos relacionados ao seu caso?"</td>
+  </tr>
+  <tr>
+    <td>4. Agendamento</td>
+    <td>"Vamos agendar uma consulta? Qual o melhor horário para você?"</td>
+  </tr>
+</table>
+
+<p><strong>O que a IA faz entre as etapas:</strong></p>
+<ul>
+  <li>Se o cliente responde "Me chamo João" → IA entende que informou o nome → <strong>AVANÇA</strong> para etapa 2</li>
+  <li>Se o cliente responde "Quanto custa?" → IA responde com as regras, sem avançar → <strong>PERMANECE</strong></li>
+  <li>Se o cliente responde algo confuso → IA pede esclarecimento educadamente → <strong>PERMANECE</strong></li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- 5. FUNIL -->
+<h2 id="funil">5. Funil Multi-Agente</h2>
+<p>A Lexia suporta múltiplos agentes especializados em diferentes estágios do funil de vendas. Quando um agente completa seu roteiro, o sistema pode automaticamente trocar para o próximo agente.</p>
+
+<div class="flow">
+  <div class="flow-step">🟢 Novo Contato<br><small>Agente: Recepção</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🔵 Em Atendimento<br><small>Agente: Triagem</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🟡 Qualificado<br><small>Agente: Oferta</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">🟣 Convertido<br><small>Agente: Pós-Venda</small></div>
+</div>
+
+<h4>Como configurar</h4>
+<ol>
+  <li>Crie um agente para cada estágio do funil</li>
+  <li>Em <strong>Configurações → Funil de Agentes</strong>, atribua cada agente ao seu estágio</li>
+  <li>Quando o roteiro de um agente termina, o sistema automaticamente:
+    <ul>
+      <li>Atualiza o status do lead</li>
+      <li>Troca para o agente do próximo estágio</li>
+      <li>Envia a mensagem de boas-vindas do novo agente</li>
+    </ul>
+  </li>
+</ol>
+
+<!-- 6. CRIAR AGENTE -->
+<h2 id="criar-agente">6. Como Criar um Agente (Passo a Passo)</h2>
+
+<div class="step-row">
+  <span class="step-num">1</span>
+  <div class="step-content">
+    <strong>Acesse "Agentes" no menu lateral</strong><br>
+    Clique em <strong>"Novo Agente"</strong>. Escolha criar do zero ou selecionar um template pronto.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">2</span>
+  <div class="step-content">
+    <strong>Configure as Regras</strong><br>
+    Clique no agente criado e preencha:<br>
+    • <strong>Prompt do Sistema:</strong> Define a personalidade e área de atuação<br>
+    • <strong>Mensagem de Boas-vindas:</strong> Primeira mensagem enviada ao novo contato<br>
+    • <strong>Regras:</strong> Instruções específicas de comportamento<br>
+    • <strong>Proibições:</strong> O que o agente NUNCA deve fazer
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">3</span>
+  <div class="step-content">
+    <strong>Crie o Roteiro</strong><br>
+    Na aba "Roteiro", adicione as etapas em ordem. Cada etapa tem:<br>
+    • <strong>Situação:</strong> Descrição da etapa (ex: "Identificação do cliente")<br>
+    • <strong>Mensagem:</strong> O texto exato que será enviado<br>
+    Use <code>{nome}</code> para inserir o nome do cliente automaticamente.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">4</span>
+  <div class="step-content">
+    <strong>Adicione FAQs</strong><br>
+    Na aba "FAQs", cadastre pares de pergunta e resposta. A IA usará estas respostas quando o cliente fizer perguntas que correspondam.
+  </div>
+</div>
+
+<div class="step-row">
+  <span class="step-num">5</span>
+  <div class="step-content">
+    <strong>Ative o Agente</strong><br>
+    Ative o agente e marque-o como <strong>padrão</strong> se quiser que ele atenda novos contatos automaticamente.
+  </div>
+</div>
+
+<div class="info-box warning">
+  <strong>⚠️ Importante</strong>
+  Apenas UM agente pode ser o padrão. Ele será utilizado para atender novos contatos quando não houver um agente específico configurado no funil para o estágio "Novo Contato".
+</div>
+
+<div class="page-break"></div>
+
+<!-- 7. TEMPLATES -->
+<h2 id="templates">7. Templates Prontos</h2>
+<p>A plataforma oferece templates pré-configurados para diversas áreas:</p>
+
+<table>
+  <tr><th>Template</th><th>Área</th><th>Ideal para</th></tr>
+  <tr><td>🏠 Agente Imobiliário</td><td>Direito Imobiliário</td><td>Compra, venda, usucapião, locação</td></tr>
+  <tr><td>👨‍👩‍👧‍👦 Agente de Família</td><td>Direito de Família</td><td>Divórcio, guarda, pensão, inventário</td></tr>
+  <tr><td>⚖️ Agente Trabalhista</td><td>Direito do Trabalho</td><td>Rescisão, horas extras, assédio</td></tr>
+  <tr><td>🔒 Agente Criminal</td><td>Direito Penal</td><td>Defesa, inquéritos, habeas corpus</td></tr>
+  <tr><td>🏢 Agente Empresarial</td><td>Direito Empresarial</td><td>Contratos, societário, compliance</td></tr>
+  <tr><td>📋 Agente Previdenciário</td><td>Direito Previdenciário</td><td>Aposentadoria, benefícios, INSS</td></tr>
+  <tr><td>🛡️ Agente Consumidor</td><td>Direito do Consumidor</td><td>Reclamações, indenizações</td></tr>
+  <tr><td>🏥 Agente de Saúde</td><td>Direito da Saúde</td><td>Planos de saúde, erro médico</td></tr>
+  <tr><td>📱 Recepção Digital</td><td>Funil Multi-Agente</td><td>Primeiro contato e triagem</td></tr>
+  <tr><td>🔍 Análise de Viabilidade</td><td>Funil Multi-Agente</td><td>Avaliação técnica do caso</td></tr>
+  <tr><td>💼 Oferta e Contrato</td><td>Funil Multi-Agente</td><td>Apresentação e fechamento</td></tr>
+</table>
+
+<p>Cada template já vem com: prompt de sistema, mensagem de boas-vindas, roteiro de atendimento, regras, proibições e FAQs.</p>
+
+<!-- 8. FAQ SISTEMA -->
+<h2 id="faq-sistema">8. FAQs — Respostas Automáticas</h2>
+<p>As FAQs são verificadas <strong>antes</strong> do roteiro. Se a mensagem do cliente corresponde a uma FAQ:</p>
+<ol>
+  <li>A IA identifica a correspondência (usando análise semântica, não palavras exatas)</li>
+  <li>A resposta pré-cadastrada é enviada imediatamente</li>
+  <li>O roteiro NÃO avança — a FAQ é tratada como uma interrupção</li>
+  <li>Após a FAQ, o agente retoma o roteiro normalmente</li>
+</ol>
+
+<div class="info-box success">
+  <strong>💡 Dica</strong>
+  Cadastre variações de perguntas. Ex: "Quanto custa?", "Qual o valor?", "Quanto cobram?" — todas podem ter a mesma resposta.
+</div>
+
+<div class="page-break"></div>
+
+<!-- 9. RAG -->
+<h2 id="rag">9. Base de Conhecimento (RAG)</h2>
+<p>A Base de Conhecimento permite alimentar o agente com documentos e informações adicionais. O sistema usa <strong>busca vetorial</strong> para encontrar os trechos mais relevantes.</p>
+
+<h4>Como funciona</h4>
+<ol>
+  <li>Você envia um texto ou arquivo (PDF, DOCX) pela aba "Base de Conhecimento"</li>
+  <li>O sistema divide o conteúdo em pedaços menores (chunks)</li>
+  <li>Cada pedaço recebe um "endereço matemático" (embedding)</li>
+  <li>Quando o cliente faz uma pergunta, o sistema busca os pedaços mais relevantes</li>
+  <li>Esses trechos são injetados no contexto da IA para gerar uma resposta precisa</li>
+</ol>
+
+<div class="info-box">
+  <strong>📖 Exemplo</strong>
+  Se você enviar um documento sobre "Processo de Usucapião", quando um cliente perguntar sobre usucapião, o agente terá acesso aos trechos relevantes desse documento para fundamentar sua resposta.
+</div>
+
+<!-- 10. INTEGRACOES -->
+<h2 id="integracoes">10. Integrações</h2>
+
+<h3>📅 Google Calendar</h3>
+<p>Quando configurado, o agente pode:</p>
+<ul>
+  <li>Verificar horários disponíveis na sua agenda</li>
+  <li>Apresentar opções de horário ao cliente</li>
+  <li>Agendar reuniões automaticamente</li>
+  <li>Enviar convite por e-mail ao cliente</li>
+</ul>
+<p>Configure em <strong>Configurações → Google Calendar</strong>.</p>
+
+<h3>📝 ZapSign (Contratos)</h3>
+<p>Quando configurado, o agente pode:</p>
+<ul>
+  <li>Enviar contratos para assinatura digital pelo WhatsApp</li>
+  <li>Acompanhar o status da assinatura</li>
+  <li>Atualizar o status do lead automaticamente quando assinado</li>
+</ul>
+<p>Configure em <strong>Configurações → ZapSign</strong>.</p>
+
+<!-- 11. FOLLOW-UPS -->
+<h2 id="follow-ups">11. Follow-ups Automáticos</h2>
+<p>O sistema envia mensagens automáticas para clientes que pararam de responder:</p>
+<ul>
+  <li><strong>Quando:</strong> Após X horas de inatividade (configurável)</li>
+  <li><strong>Quantos:</strong> Até 3 follow-ups (configurável)</li>
+  <li><strong>Horário:</strong> Apenas em horário comercial (se configurado)</li>
+  <li><strong>Inteligência:</strong> Só envia se a última mensagem foi do agente (não do cliente)</li>
+</ul>
+<p>Configure em <strong>Configurações → Follow-ups</strong>.</p>
+
+<div class="page-break"></div>
+
+<!-- 12. BOAS PRATICAS -->
+<h2 id="boas-praticas">12. Boas Práticas</h2>
+
+<h4>✅ Faça</h4>
+<ul>
+  <li>Escreva roteiros curtos e objetivos (3-6 etapas é ideal)</li>
+  <li>Use linguagem natural e amigável nas mensagens</li>
+  <li>Cadastre o máximo de FAQs possível</li>
+  <li>Alimente a base de conhecimento com documentos relevantes</li>
+  <li>Revise as conversas regularmente e ajuste o agente</li>
+  <li>Defina claramente as proibições do agente</li>
+  <li>Use o modo manual (pausar agente) para casos complexos</li>
+</ul>
+
+<h4>❌ Não faça</h4>
+<ul>
+  <li>Criar roteiros muito longos (mais de 8 etapas)</li>
+  <li>Deixar o prompt do sistema vago ou genérico</li>
+  <li>Esquecer de definir proibições</li>
+  <li>Ignorar as conversas — supervisão é essencial</li>
+  <li>Esperar que o agente substitua completamente um advogado</li>
+  <li>Usar o agente para dar pareceres jurídicos definitivos</li>
+</ul>
+
+<h3>🔄 Modo Manual vs Automático</h3>
+<p>Você pode pausar o agente a qualquer momento em uma conversa específica:</p>
+<ul>
+  <li><strong>Agente Ativo:</strong> Responde automaticamente às mensagens</li>
+  <li><strong>Agente Pausado:</strong> As mensagens são salvas, mas o agente NÃO responde. Você atende manualmente.</li>
+</ul>
+<p>Use o botão de pausa na tela de conversas para alternar entre os modos.</p>
+
+<!-- 13. GLOSSÁRIO -->
+<h2 id="glossario">13. Glossário</h2>
+<table>
+  <tr><th>Termo</th><th>Significado</th></tr>
+  <tr><td><strong>Agente</strong></td><td>Assistente virtual de IA que atende pelo WhatsApp</td></tr>
+  <tr><td><strong>Roteiro/Script</strong></td><td>Sequência de etapas que o agente segue durante a conversa</td></tr>
+  <tr><td><strong>System Prompt</strong></td><td>Instruções de personalidade e comportamento do agente</td></tr>
+  <tr><td><strong>FAQ</strong></td><td>Perguntas Frequentes com respostas pré-definidas</td></tr>
+  <tr><td><strong>RAG</strong></td><td>Busca inteligente na base de conhecimento para respostas contextuais</td></tr>
+  <tr><td><strong>PROCEED</strong></td><td>Decisão da IA de avançar para a próxima etapa do roteiro</td></tr>
+  <tr><td><strong>STAY</strong></td><td>Decisão da IA de permanecer na etapa atual</td></tr>
+  <tr><td><strong>Funil</strong></td><td>Estágios do lead: Novo Contato → Em Atendimento → Qualificado → Convertido</td></tr>
+  <tr><td><strong>Follow-up</strong></td><td>Mensagem automática para clientes inativos</td></tr>
+  <tr><td><strong>Case/Caso</strong></td><td>Registro de atendimento de um cliente</td></tr>
+  <tr><td><strong>Lead</strong></td><td>Potencial cliente que entrou em contato</td></tr>
+</table>
+
+<div class="footer">
+  <p>© 2026 Lexia — Plataforma de Atendimento Inteligente para Escritórios de Advocacia</p>
+  <p style="margin-top:8px;">Para imprimir como PDF: <strong>Ctrl+P → Salvar como PDF</strong></p>
+</div>
+
+</div>
+</body>
+</html>
