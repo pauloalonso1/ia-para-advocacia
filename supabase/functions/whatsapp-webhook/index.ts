@@ -2119,11 +2119,12 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
     }
   }
 
-  // Fallback: try to parse content as JSON
+  // Fallback: try to parse content as JSON or use as plain text
   const content = data.choices?.[0]?.message?.content?.trim();
   console.log("🤖 Raw AI response:", content);
 
   if (content) {
+    // First try to parse as JSON
     try {
       let jsonContent = content;
       if (content.includes("```")) {
@@ -2140,12 +2141,30 @@ ${looksLikeTimeSelection ? `SELEÇÃO DE HORÁRIO: O cliente parece estar escolh
         new_status: parsed.new_status || undefined,
       };
     } catch (_e) {
-      console.log("⚠️ Failed to parse AI JSON");
+      // Not JSON - use the raw text directly as the response
+      // This handles the case when Gemini/Lovable AI returns plain text instead of tool calls
+      console.log("ℹ️ AI returned plain text (not JSON/tool_call), using directly as response");
+      
+      // Try to detect action hints in the text
+      const textLower = content.toLowerCase();
+      const shouldProceed = textLower.includes('"action":"proceed"') || 
+                           textLower.includes('"action": "proceed"');
+      
+      // Detect status changes
+      let detectedStatus: string | undefined;
+      if (textLower.includes("qualificado")) detectedStatus = "Qualificado";
+      if (textLower.includes("não qualificado")) detectedStatus = "Não Qualificado";
+      
+      return {
+        response_text: content,
+        action: shouldProceed ? "PROCEED" : "STAY",
+        new_status: detectedStatus,
+      };
     }
   }
 
-  // Final fallback - generic response
-  console.log("⚠️ Using fallback response");
+  // Final fallback - generic response (should rarely reach here)
+  console.log("⚠️ Using fallback response - no content from AI");
   return {
     response_text: "Obrigado pela informação! Para dar continuidade ao atendimento, pode me contar mais sobre sua situação?",
     action: "STAY",
