@@ -46,7 +46,7 @@ const SetupChecklist = ({ onNavigate }: SetupChecklistProps) => {
       description: 'Configure a Evolution API para receber e enviar mensagens',
       icon: MessageSquare,
       completed: !!evolutionSettings?.is_connected,
-      action: 'settings',
+      action: 'settings:whatsapp',
     },
     {
       id: 'agent',
@@ -145,7 +145,7 @@ const SetupChecklist = ({ onNavigate }: SetupChecklistProps) => {
                   onClick={() => !step.completed && onNavigate(step.action)}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${
                     step.completed
-                      ? 'bg-primary/5 cursor-default'
+                      ? 'bg-primary/10 border border-primary/20 cursor-default'
                       : 'hover:bg-muted/50 cursor-pointer'
                   }`}
                 >
@@ -155,10 +155,10 @@ const SetupChecklist = ({ onNavigate }: SetupChecklistProps) => {
                     <Circle className="w-5 h-5 text-muted-foreground/40 shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <span className={`text-sm font-medium ${step.completed ? 'text-primary line-through' : 'text-foreground'}`}>
+                    <span className={`text-sm font-medium ${step.completed ? 'text-primary' : 'text-foreground'}`}>
                       {step.label}
                     </span>
-                    <p className="text-[10px] text-muted-foreground truncate">{step.description}</p>
+                    <p className={`text-[10px] truncate ${step.completed ? 'text-primary/60' : 'text-muted-foreground'}`}>{step.description}</p>
                   </div>
                   {!step.completed && (
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />

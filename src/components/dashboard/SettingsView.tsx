@@ -54,10 +54,18 @@ import TeamMembersView from './TeamMembersView';
 
 type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign' | 'funnel' | 'team';
 
-const SettingsView = () => {
+interface SettingsViewProps {
+  initialSection?: SettingsSection;
+}
+
+const SettingsView = ({ initialSection = 'profile' }: SettingsViewProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   const {
     loading: evolutionLoading,
