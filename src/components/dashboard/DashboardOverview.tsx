@@ -181,9 +181,9 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
 
       {/* Advanced Analytics Row */}
       {!advLoading && (
-        <div className="grid grid-cols-12 gap-6 items-stretch">
+        <div className="grid grid-cols-3 gap-6 items-stretch">
           {/* Response Time & Conversion */}
-          <div className="col-span-4">
+          <div>
             <ResponseTimeCard
               avgMinutes={advMetrics.avgResponseTimeMinutes}
               within5Pct={advMetrics.respondedWithin5Min}
@@ -195,12 +195,12 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
           </div>
 
           {/* Agent Performance */}
-          <div className="col-span-5">
+          <div>
             <AgentPerformanceChart data={advMetrics.agentPerformance} />
           </div>
 
           {/* Source Analysis */}
-          <div className="col-span-3">
+          <div>
             <SourceAnalysisChart data={advMetrics.sourceMetrics} />
           </div>
         </div>
