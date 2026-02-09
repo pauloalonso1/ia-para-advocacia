@@ -8,7 +8,6 @@ const corsHeaders = {
 
 // Semantic-aware text chunker: splits by paragraphs first, then merges small ones
 function chunkText(text: string, maxChunkSize = 500, overlap = 50): string[] {
-  // Split by double newlines (paragraphs) or headers
   const paragraphs = text.split(/\n{2,}|\r\n{2,}/);
   const chunks: string[] = [];
   let currentChunk = "";
@@ -19,7 +18,6 @@ function chunkText(text: string, maxChunkSize = 500, overlap = 50): string[] {
 
     const words = trimmed.split(/\s+/);
 
-    // If single paragraph exceeds max, split by sentences
     if (words.length > maxChunkSize) {
       if (currentChunk.trim()) {
         chunks.push(currentChunk.trim());
@@ -51,7 +49,6 @@ function chunkText(text: string, maxChunkSize = 500, overlap = 50): string[] {
 
   if (currentChunk.trim()) chunks.push(currentChunk.trim());
 
-  // Add overlap between chunks
   if (overlap > 0 && chunks.length > 1) {
     const overlappedChunks: string[] = [chunks[0]];
     for (let i = 1; i < chunks.length; i++) {
@@ -65,78 +62,38 @@ function chunkText(text: string, maxChunkSize = 500, overlap = 50): string[] {
   return chunks;
 }
 
-// Generate embedding using Lovable AI Gateway
+// Generate real embedding using OpenAI
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
-      messages: [
-        {
-          role: "system",
-          content: `You are an embedding generator. Given text, produce a 768-dimensional numerical vector representation.
-Return ONLY a JSON array of 768 floating point numbers between -1 and 1, nothing else.
-The vector should capture the semantic meaning of the text.
-Different texts with similar meaning should produce similar vectors.`
-        },
-        { role: "user", content: text.slice(0, 2000) }
-      ],
-      temperature: 0,
-      max_tokens: 8000,
+      model: "text-embedding-3-small",
+      input: text.slice(0, 8000),
+      dimensions: 768,
     }),
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI embedding error:", response.status, errorText);
     throw new Error(`Embedding API error: ${response.status}`);
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim();
+  const embedding = data.data?.[0]?.embedding;
 
-  try {
-    let jsonStr = content;
-    if (content.includes("```")) {
-      const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (match) jsonStr = match[1].trim();
-    }
-    const embedding = JSON.parse(jsonStr);
-    if (Array.isArray(embedding) && embedding.length === 768) {
-      return embedding;
-    }
-    throw new Error(`Invalid embedding size: ${embedding.length}`);
-  } catch (e) {
-    console.error("Failed to parse embedding, generating hash fallback");
-    return generateHashEmbedding(text);
-  }
-}
-
-// Deterministic hash-based embedding fallback
-function generateHashEmbedding(text: string): number[] {
-  const embedding = new Array(768).fill(0);
-  const words = text.toLowerCase().split(/\s+/);
-  
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    let hash = 0;
-    for (let j = 0; j < word.length; j++) {
-      hash = ((hash << 5) - hash) + word.charCodeAt(j);
-      hash |= 0;
-    }
-    for (let d = 0; d < 768; d++) {
-      const seed = hash * (d + 1) * 2654435761;
-      embedding[d] += ((seed & 0xFFFF) / 0xFFFF - 0.5) * 2 / Math.sqrt(words.length);
-    }
+  if (!Array.isArray(embedding) || embedding.length !== 768) {
+    throw new Error(`Invalid embedding: expected 768 dimensions, got ${embedding?.length}`);
   }
 
-  const norm = Math.sqrt(embedding.reduce((s: number, v: number) => s + v * v, 0)) || 1;
-  return embedding.map((v: number) => v / norm);
+  return embedding;
 }
 
-// Extract text from PDF/DOCX using Gemini multimodal
+// Extract text from PDF/DOCX using GPT-4o vision
 async function extractTextFromFile(
   fileBytes: Uint8Array,
   mimeType: string,
@@ -144,14 +101,14 @@ async function extractTextFromFile(
 ): Promise<string> {
   const base64 = btoa(String.fromCharCode(...fileBytes));
   
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -201,14 +158,14 @@ async function rerankChunks(
     .map((c, i) => `[${i}] ${c.content.slice(0, 300)}`)
     .join("\n---\n");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -258,7 +215,11 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY")!;
+
+    if (!openaiApiKey) {
+      throw new Error("OPENAI_API_KEY not configured");
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -303,7 +264,7 @@ serve(async (req) => {
       let successCount = 0;
       for (let i = 0; i < chunks.length; i++) {
         try {
-          const embedding = await generateEmbedding(chunks[i], lovableApiKey);
+          const embedding = await generateEmbedding(chunks[i], openaiApiKey);
 
           const { error: chunkError } = await supabase
             .from("knowledge_chunks")
@@ -350,7 +311,6 @@ serve(async (req) => {
 
       console.log(`📎 Processing file: "${fileName}" (${mimeType})`);
 
-      // Download file from storage
       const { data: fileData, error: downloadError } = await supabase.storage
         .from("knowledge-files")
         .download(storagePath);
@@ -362,8 +322,7 @@ serve(async (req) => {
       const fileBytes = new Uint8Array(await fileData.arrayBuffer());
       console.log(`📦 File size: ${fileBytes.length} bytes`);
 
-      // Extract text using AI
-      const extractedText = await extractTextFromFile(fileBytes, mimeType, lovableApiKey);
+      const extractedText = await extractTextFromFile(fileBytes, mimeType, openaiApiKey);
 
       if (!extractedText || extractedText.length < 10) {
         throw new Error("Could not extract text from file");
@@ -371,7 +330,6 @@ serve(async (req) => {
 
       console.log(`📝 Extracted ${extractedText.length} chars from file`);
 
-      // Create document record
       const { data: doc, error: docError } = await supabase
         .from("knowledge_documents")
         .insert({
@@ -388,14 +346,13 @@ serve(async (req) => {
 
       if (docError) throw docError;
 
-      // Chunk and embed
       const chunks = chunkText(extractedText);
       console.log(`🔪 Split into ${chunks.length} semantic chunks`);
 
       let successCount = 0;
       for (let i = 0; i < chunks.length; i++) {
         try {
-          const embedding = await generateEmbedding(chunks[i], lovableApiKey);
+          const embedding = await generateEmbedding(chunks[i], openaiApiKey);
 
           const { error: chunkError } = await supabase
             .from("knowledge_chunks")
@@ -438,9 +395,8 @@ serve(async (req) => {
 
       console.log(`🔍 Searching: "${query}" for user ${user.id} (rerank: ${rerank})`);
 
-      const queryEmbedding = await generateEmbedding(query, lovableApiKey);
+      const queryEmbedding = await generateEmbedding(query, openaiApiKey);
 
-      // Fetch more results if reranking is enabled
       const fetchLimit = rerank ? Math.min(limit * 3, 20) : limit;
 
       const { data: results, error: searchError } = await supabase.rpc(
@@ -458,10 +414,9 @@ serve(async (req) => {
 
       let finalResults = results || [];
 
-      // Rerank using AI
       if (rerank && finalResults.length > limit) {
         console.log(`🔄 Reranking ${finalResults.length} chunks to top ${limit}`);
-        finalResults = await rerankChunks(query, finalResults, lovableApiKey, limit);
+        finalResults = await rerankChunks(query, finalResults, openaiApiKey, limit);
       }
 
       console.log(`📊 Found ${finalResults.length} matching chunks`);
@@ -482,7 +437,7 @@ serve(async (req) => {
 
       console.log(`🧠 Saving memory for contact ${contactPhone}`);
 
-      const embedding = await generateEmbedding(content, lovableApiKey);
+      const embedding = await generateEmbedding(content, openaiApiKey);
 
       const { data, error } = await supabase
         .from("contact_memories")
@@ -514,7 +469,7 @@ serve(async (req) => {
         throw new Error("contactPhone and query are required");
       }
 
-      const queryEmbedding = await generateEmbedding(query, lovableApiKey);
+      const queryEmbedding = await generateEmbedding(query, openaiApiKey);
 
       const { data: results, error } = await supabase.rpc("match_contact_memories", {
         query_embedding: JSON.stringify(queryEmbedding),
