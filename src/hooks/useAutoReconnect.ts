@@ -86,7 +86,7 @@ export const useAutoReconnect = () => {
   }, [user, isConfigured, instanceName, checkStatus, updateConnectionStatus]);
 
   const runCheck = useCallback(async () => {
-    if (!isConfigured || !settings?.is_connected) {
+    if (!isConfigured) {
       setStatus('idle');
       return;
     }
@@ -98,19 +98,26 @@ export const useAutoReconnect = () => {
     if (currentStatus === 'connected') {
       setStatus('connected');
       consecutiveFailures.current = 0;
-      // Sync DB if needed
-      if (!settings.is_connected) {
+      // Sync DB if not marked as connected
+      if (!settings?.is_connected) {
         await updateConnectionStatus(true);
       }
-    } else if (currentStatus === 'disconnected') {
-      console.log('[AutoReconnect] Detected disconnection, attempting reconnect...');
-      const success = await attemptReconnect();
-      setStatus(success ? 'connected' : 'disconnected');
-      if (!success && settings.is_connected) {
-        await updateConnectionStatus(false);
-      }
-    } else {
+    } else if (currentStatus === 'connecting') {
       setStatus('checking');
+      // Don't change DB status while connecting
+    } else {
+      // Only attempt reconnect if we were supposed to be connected
+      if (settings?.is_connected) {
+        console.log('[AutoReconnect] Detected disconnection, attempting reconnect...');
+        const success = await attemptReconnect();
+        setStatus(success ? 'connected' : 'disconnected');
+        // Only mark as disconnected in DB after max failures exhausted
+        if (!success && consecutiveFailures.current >= MAX_CONSECUTIVE_FAILURES) {
+          await updateConnectionStatus(false);
+        }
+      } else {
+        setStatus('disconnected');
+      }
     }
   }, [isConfigured, settings?.is_connected, checkStatus, attemptReconnect, updateConnectionStatus]);
 
