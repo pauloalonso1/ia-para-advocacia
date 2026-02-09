@@ -1066,7 +1066,7 @@ serve(async (req) => {
         // Generate case description when qualified via funnel auto-advance
         if (nextFunnelStage === "Qualificado" || nextFunnelStage === "Convertido") {
           generateCaseDescription(
-            supabase, OPENAI_API_KEY, existingCase.id, existingCase.client_name || clientName, history
+            supabase, OPENAI_API_KEY, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history
           ).catch(e => console.error("Case description generation error:", e));
         }
       }
