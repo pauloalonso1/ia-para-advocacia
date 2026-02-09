@@ -134,9 +134,6 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
         </Popover>
       </div>
 
-      {/* Setup Checklist */}
-      {onNavigate && <SetupChecklist onNavigate={onNavigate} />}
-
       {/* Main 3-column layout */}
       <div className="grid grid-cols-12 gap-6">
         {/* Left Column */}
@@ -174,6 +171,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
         >
+          {onNavigate && <SetupChecklist onNavigate={onNavigate} />}
           <UpcomingMeetings meetings={calendarMeetings} />
           <div className="flex-1 min-h-0">
             <TagsDonutChart data={metrics.tagsData.length > 0 ? metrics.tagsData : undefined} />
