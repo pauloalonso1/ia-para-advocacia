@@ -135,10 +135,10 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
       </div>
 
       {/* Main 3-column layout */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6">
         {/* Left Column */}
         <motion.div 
-          className="col-span-5 space-y-6"
+          className="md:col-span-1 xl:col-span-5 space-y-6"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -156,7 +156,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
         
         {/* Center Column */}
         <motion.div 
-          className="col-span-4"
+          className="md:col-span-1 xl:col-span-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
@@ -166,7 +166,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
         
         {/* Right Column */}
         <motion.div 
-          className="col-span-3 flex flex-col gap-6"
+          className="md:col-span-2 xl:col-span-3 flex flex-col gap-6"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
@@ -181,7 +181,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
 
       {/* Advanced Analytics Row */}
       {!advLoading && (
-        <div className="grid grid-cols-3 gap-6 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
           {/* Response Time & Conversion */}
           <div>
             <ResponseTimeCard
