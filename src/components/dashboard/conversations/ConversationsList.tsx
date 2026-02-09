@@ -65,6 +65,21 @@ const ConversationsList = ({
   const [caseToDelete, setCaseToDelete] = useState<Case | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('pinned-conversations');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const togglePin = (caseId: string) => {
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(caseId)) next.delete(caseId); else next.add(caseId);
+      localStorage.setItem('pinned-conversations', JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   // Count cases by filter
   const casesWithAI = cases.filter(c => c.active_agent_id);
@@ -81,6 +96,10 @@ const ConversationsList = ({
     if (activeTab === 'unread') matchesTab = (c.unread_count || 0) > 0;
     
     return matchesSearch && matchesTab;
+  }).sort((a, b) => {
+    const aPinned = pinnedIds.has(a.id) ? 0 : 1;
+    const bPinned = pinnedIds.has(b.id) ? 0 : 1;
+    return aPinned - bPinned;
   });
 
   const getInitials = (name: string | null, phone: string) => {
@@ -234,6 +253,7 @@ const ConversationsList = ({
                 const hasUnread = (caseItem.unread_count || 0) > 0;
                 const isSelected = selectedCaseId === caseItem.id;
                 const hasAudio = caseItem.last_message?.includes('[Áudio]');
+                const isPinned = pinnedIds.has(caseItem.id);
                 
                 return (
                   <div
@@ -262,6 +282,7 @@ const ConversationsList = ({
                         {/* Row 1: Name + Phone + Time */}
                         <div className="flex items-center justify-between gap-2 mb-0.5">
                           <div className="flex items-center gap-1.5 min-w-0">
+                            {isPinned && <Pin className="w-3 h-3 text-primary shrink-0 -rotate-45" />}
                             <span className={cn(
                               "truncate text-sm",
                               hasUnread ? "font-semibold text-foreground" : "font-medium text-foreground"
@@ -351,11 +372,11 @@ const ConversationsList = ({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-card border-border z-50">
                               <DropdownMenuItem
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); togglePin(caseItem.id); }}
                                 className="text-foreground focus:bg-accent"
                               >
-                                <Pin className="w-4 h-4 mr-2" />
-                                Fixar conversa
+                                <Pin className={cn("w-4 h-4 mr-2", pinnedIds.has(caseItem.id) && "text-primary")} />
+                                {pinnedIds.has(caseItem.id) ? 'Desafixar conversa' : 'Fixar conversa'}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => handleDeleteClick(e, caseItem)}
