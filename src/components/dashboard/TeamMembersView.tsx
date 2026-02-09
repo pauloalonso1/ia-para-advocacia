@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import EmptyState from './EmptyState';
 import { useTeamMembers, TeamMember, TeamMemberInput } from '@/hooks/useTeamMembers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -262,24 +263,23 @@ const TeamMembersView = () => {
         </CardHeader>
         <CardContent>
           {filteredMembers.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                {searchQuery ? 'Nenhum membro encontrado' : 'Nenhum membro cadastrado'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchQuery 
-                  ? 'Tente buscar por outros termos'
-                  : 'Adicione membros da equipe para atribuir leads'
-                }
-              </p>
-              {!searchQuery && (
-                <Button onClick={handleOpenCreate} variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar Membro
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              icon={Users}
+              title={searchQuery ? 'Nenhum membro encontrado' : 'Monte sua equipe'}
+              description={
+                searchQuery
+                  ? 'Nenhum resultado para essa busca. Tente outros termos como nome, email ou OAB.'
+                  : 'Cadastre advogados e colaboradores para distribuir leads automaticamente e acompanhar a performance de cada membro.'
+              }
+              actionLabel={!searchQuery ? 'Adicionar Primeiro Membro' : undefined}
+              actionIcon={!searchQuery ? Plus : undefined}
+              onAction={!searchQuery ? handleOpenCreate : undefined}
+              nextSteps={!searchQuery ? [
+                { icon: Users, label: 'Cadastrar membro', description: 'Adicione advogados ao time' },
+                { icon: Scale, label: 'Definir OAB', description: 'Registre dados profissionais' },
+                { icon: Briefcase, label: 'Atribuir leads', description: 'Distribua casos no CRM' },
+              ] : undefined}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

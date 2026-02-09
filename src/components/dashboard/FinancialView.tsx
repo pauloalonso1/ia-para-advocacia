@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import EmptyState from './EmptyState';
 import { useFinancial, TransactionInsert } from '@/hooks/useFinancial';
 import { useCases } from '@/hooks/useCases';
 import { Button } from '@/components/ui/button';
@@ -423,8 +424,20 @@ const FinancialView = () => {
                 </TableRow>
               ) : filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Nenhuma transação encontrada
+                  <TableCell colSpan={7} className="p-0">
+                    <EmptyState
+                      icon={Receipt}
+                      title="Nenhuma transação registrada"
+                      description="Registre receitas e despesas para acompanhar a saúde financeira do seu escritório com gráficos e métricas."
+                      actionLabel="Registrar Primeira Transação"
+                      actionIcon={Plus}
+                      onAction={() => setShowAddModal(true)}
+                      nextSteps={[
+                        { icon: TrendingUp, label: 'Registrar receita', description: 'Honorários e contratos' },
+                        { icon: TrendingDown, label: 'Registrar despesa', description: 'Custos operacionais' },
+                        { icon: Download, label: 'Exportar CSV', description: 'Relatórios financeiros' },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ) : (

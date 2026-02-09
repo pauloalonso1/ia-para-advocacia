@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import EmptyState from './EmptyState';
 import { useContacts, Contact, ContactInput } from '@/hooks/useContacts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -235,24 +236,23 @@ const ContactsView = () => {
         </div>
 
         {filteredContacts.length === 0 ? (
-          <div className="text-center py-12">
-            <ContactIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchQuery ? 'Nenhum contato encontrado' : 'Nenhum contato cadastrado'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery 
-                ? 'Tente buscar por outros termos'
-                : 'Adicione seu primeiro contato para começar'
-              }
-            </p>
-            {!searchQuery && (
-              <Button onClick={handleOpenCreate} variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Contato
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={ContactIcon}
+            title={searchQuery ? 'Nenhum contato encontrado' : 'Comece a construir sua base'}
+            description={
+              searchQuery
+                ? 'Nenhum resultado para essa busca. Tente outro nome, telefone ou email.'
+                : 'Seus leads e contatos aparecerão aqui. Adicione manualmente ou conecte o WhatsApp para importar automaticamente.'
+            }
+            actionLabel={!searchQuery ? 'Adicionar Primeiro Contato' : undefined}
+            actionIcon={!searchQuery ? Plus : undefined}
+            onAction={!searchQuery ? handleOpenCreate : undefined}
+            nextSteps={!searchQuery ? [
+              { icon: UserPlus, label: 'Criar contato', description: 'Adicione leads manualmente' },
+              { icon: MessageSquare, label: 'Conectar WhatsApp', description: 'Importação automática' },
+              { icon: ContactIcon, label: 'Organizar CRM', description: 'Gerencie o funil de vendas' },
+            ] : undefined}
+          />
         ) : (
           <div className="w-full">
             {filteredContacts.map((contact) => (
