@@ -7,10 +7,13 @@ const corsHeaders = {
 };
 
 interface EvolutionRequest {
-  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text" | "logout";
+  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text" | "send-media" | "logout";
   instanceName?: string;
   phone?: string;
   message?: string;
+  mediaUrl?: string;
+  mediaType?: string;
+  fileName?: string;
 }
 
 serve(async (req) => {
@@ -437,6 +440,49 @@ serve(async (req) => {
           );
         }
         break;
+
+      case "send-media": {
+        const { phone: mediaPhone, message: mediaCaption, mediaUrl, mediaType, fileName } = body;
+        
+        if (!mediaPhone || !mediaUrl) {
+          return new Response(
+            JSON.stringify({ error: "phone and mediaUrl are required for send-media action" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Determine the Evolution API endpoint based on media type
+        let endpoint = 'sendMedia';
+        const mediaBody: any = {
+          number: mediaPhone,
+          media: mediaUrl,
+          caption: mediaCaption || '',
+          fileName: fileName || 'file',
+        };
+
+        if (mediaType === 'document') {
+          mediaBody.mediatype = 'document';
+        } else {
+          mediaBody.mediatype = 'image';
+        }
+
+        console.log("Sending media to:", mediaPhone, "type:", mediaType);
+        response = await fetch(`${EVOLUTION_API_URL}/message/${endpoint}/${finalInstanceName}`, {
+          method: "POST",
+          headers: baseHeaders,
+          body: JSON.stringify(mediaBody),
+        });
+        result = await response.json();
+        console.log("Send media response:", JSON.stringify(result));
+        
+        if (!response.ok) {
+          return new Response(
+            JSON.stringify({ error: "Failed to send media", details: result }),
+            { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        break;
+      }
 
       default:
         return new Response(
