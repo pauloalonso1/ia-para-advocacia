@@ -1004,13 +1004,13 @@ serve(async (req) => {
           const { data: newAgentRules } = await supabase
             .from("agent_rules")
             .select("welcome_message")
-            .eq("agent_id", nextAssignment.agent_id)
+            .eq("agent_id", switchAgentId)
             .maybeSingle();
 
           const { data: newAgentFirstStep } = await supabase
             .from("agent_script_steps")
             .select("message_to_send")
-            .eq("agent_id", nextAssignment.agent_id)
+            .eq("agent_id", switchAgentId)
             .order("step_order", { ascending: true })
             .limit(1)
             .maybeSingle();
