@@ -13,6 +13,7 @@ import PerformanceView from '@/components/dashboard/PerformanceView';
 import MeetingsView from '@/components/dashboard/MeetingsView';
 import KnowledgeBaseView from '@/components/dashboard/KnowledgeBaseView';
 import FinancialView from '@/components/dashboard/FinancialView';
+import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { cn } from '@/lib/utils';
 
 interface DashboardProps {
@@ -24,6 +25,7 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl || initialTab);
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
+  const { status: whatsappStatus } = useAutoReconnect();
 
   const handleNavigate = (tab: string) => {
     if (tab.startsWith('settings:')) {
@@ -83,7 +85,12 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
 
   return (
     <div className="min-h-screen h-screen bg-background flex">
-      <Sidebar activeTab={activeTab} onTabChange={(tab) => { setSettingsSection(undefined); setActiveTab(tab); }} />
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={(tab) => { setSettingsSection(undefined); setActiveTab(tab); }}
+        whatsappStatus={whatsappStatus}
+        onWhatsappClick={() => handleNavigate('settings:whatsapp')}
+      />
       <main className={cn("flex-1 overflow-auto", isFullHeightView && "overflow-hidden")}>
         <AnimatePresence mode="wait">
           <motion.div

@@ -15,21 +15,29 @@ import {
   Brain,
   Sun,
   Moon,
-  Wallet
+  Wallet,
+  Wifi,
+  WifiOff,
+  Loader2,
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
-import { motion } from 'framer-motion';
+import {} from 'framer-motion';
 import {
   AnimatedSidebar,
   AnimatedSidebarBody,
   AnimatedSidebarLink,
   useAnimatedSidebar,
 } from '@/components/ui/animated-sidebar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+type ConnectionStatus = 'connected' | 'disconnected' | 'reconnecting' | 'checking' | 'idle';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  whatsappStatus?: ConnectionStatus;
+  onWhatsappClick?: () => void;
 }
 
 const menuItems = [
@@ -46,10 +54,20 @@ const menuItems = [
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
-const SidebarContent = ({ activeTab, onTabChange }: SidebarProps) => {
+const SidebarContent = ({ activeTab, onTabChange, whatsappStatus, onWhatsappClick }: SidebarProps) => {
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { open } = useAnimatedSidebar();
+
+  const statusConfig: Record<ConnectionStatus, { color: string; label: string; icon: React.ReactNode }> = {
+    connected: { color: 'bg-green-500', label: 'WhatsApp conectado', icon: <Wifi className="h-3.5 w-3.5 text-green-500" /> },
+    disconnected: { color: 'bg-destructive', label: 'WhatsApp desconectado', icon: <WifiOff className="h-3.5 w-3.5 text-destructive" /> },
+    reconnecting: { color: 'bg-yellow-500', label: 'Reconectando...', icon: <Loader2 className="h-3.5 w-3.5 text-yellow-500 animate-spin" /> },
+    checking: { color: 'bg-yellow-500', label: 'Verificando...', icon: <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" /> },
+    idle: { color: 'bg-muted-foreground', label: 'WhatsApp não configurado', icon: <WifiOff className="h-3.5 w-3.5 text-muted-foreground" /> },
+  };
+
+  const currentStatusConfig = statusConfig[whatsappStatus || 'idle'];
 
   const links = menuItems.map((item) => ({
     label: item.label,
@@ -85,6 +103,32 @@ const SidebarContent = ({ activeTab, onTabChange }: SidebarProps) => {
 
       {/* Footer */}
       <div className="flex flex-col gap-1 border-t border-border pt-4">
+        {/* WhatsApp Status */}
+        {whatsappStatus && whatsappStatus !== 'idle' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onWhatsappClick}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors hover:bg-muted/50"
+              >
+                <span className="relative flex h-2 w-2 shrink-0">
+                  {(whatsappStatus === 'reconnecting' || whatsappStatus === 'checking') && (
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${currentStatusConfig.color}`} />
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${currentStatusConfig.color}`} />
+                </span>
+                {open && (
+                  <span className="text-muted-foreground truncate">
+                    {currentStatusConfig.label}
+                  </span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {currentStatusConfig.label}
+            </TooltipContent>
+          </Tooltip>
+        )}
         <AnimatedSidebarLink
           link={{
             label: theme === 'dark' ? 'Modo Claro' : 'Modo Escuro',
@@ -109,12 +153,12 @@ const SidebarContent = ({ activeTab, onTabChange }: SidebarProps) => {
   );
 };
 
-const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
+const Sidebar = ({ activeTab, onTabChange, whatsappStatus, onWhatsappClick }: SidebarProps) => {
   const [open, setOpen] = useState(false);
 
   return (
     <AnimatedSidebar open={open} setOpen={setOpen}>
-      <SidebarContent activeTab={activeTab} onTabChange={onTabChange} />
+      <SidebarContent activeTab={activeTab} onTabChange={onTabChange} whatsappStatus={whatsappStatus} onWhatsappClick={onWhatsappClick} />
     </AnimatedSidebar>
   );
 };
