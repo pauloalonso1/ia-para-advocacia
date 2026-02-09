@@ -1026,7 +1026,7 @@ async function searchRAGContext(
         match_agent_id: agentId,
         match_threshold: 0.5,
         match_count: 3,
-      }).catch(() => ({ data: null, error: null })) : Promise.resolve({ data: null, error: null }),
+      }).then((res: any) => res, () => ({ data: null, error: null })) : Promise.resolve({ data: null, error: null }),
     ]);
 
     const chunks = knowledgeResults.data || [];
