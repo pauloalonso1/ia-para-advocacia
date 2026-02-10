@@ -55,7 +55,6 @@ const menuItems = [
   { id: 'documents', label: 'Documentos', icon: FileText },
   { id: 'research', label: 'Pesquisa', icon: Search },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
-  { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
 const SidebarContent = ({ activeTab, onTabChange, whatsappStatus, onWhatsappClick }: SidebarProps) => {
@@ -142,6 +141,15 @@ const SidebarContent = ({ activeTab, onTabChange, whatsappStatus, onWhatsappClic
               : <Moon className="h-5 w-5 flex-shrink-0" />,
           }}
           onClick={toggleTheme}
+        />
+        <AnimatedSidebarLink
+          link={{
+            label: 'Configurações',
+            href: '#settings',
+            icon: <Settings className="h-5 w-5 flex-shrink-0" />,
+          }}
+          active={activeTab === 'settings'}
+          onClick={() => onTabChange('settings')}
         />
         <AnimatedSidebarLink
           link={{
