@@ -1,0 +1,298 @@
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileText, ScrollText, Loader2, Copy, Download, Search } from "lucide-react";
+import { useLegalDocuments } from "@/hooks/useLegalDocuments";
+import { toaster } from "@/components/ui/basic-toast";
+
+const petitionTypes = [
+  "Petição Inicial",
+  "Contestação",
+  "Réplica",
+  "Recurso de Apelação",
+  "Agravo de Instrumento",
+  "Embargos de Declaração",
+  "Mandado de Segurança",
+  "Habeas Corpus",
+  "Ação de Indenização",
+  "Ação de Despejo",
+  "Ação Trabalhista",
+  "Ação de Divórcio",
+  "Ação de Alimentos",
+];
+
+const contractTypes = [
+  "Prestação de Serviços",
+  "Honorários Advocatícios",
+  "Compra e Venda",
+  "Locação",
+  "Parceria",
+  "Confidencialidade (NDA)",
+  "Trabalho",
+  "Contrato Social",
+];
+
+export default function LegalDocumentsView() {
+  const { isLoading, result, setResult, generatePetition, analyzePetition, generateContract, analyzeContract } = useLegalDocuments();
+
+  // Petition form
+  const [petType, setPetType] = useState("");
+  const [petCourt, setPetCourt] = useState("");
+  const [petPlaintiff, setPetPlaintiff] = useState("");
+  const [petDefendant, setPetDefendant] = useState("");
+  const [petFacts, setPetFacts] = useState("");
+  const [petLegal, setPetLegal] = useState("");
+  const [petRequests, setPetRequests] = useState("");
+
+  // Contract form
+  const [conType, setConType] = useState("");
+  const [conParties, setConParties] = useState("");
+  const [conClauses, setConClauses] = useState("");
+  const [conValue, setConValue] = useState("");
+  const [conDuration, setConDuration] = useState("");
+
+  // Analysis
+  const [analyzeText, setAnalyzeText] = useState("");
+  const [analyzeMode, setAnalyzeMode] = useState<"petition" | "contract">("petition");
+
+  const handleGeneratePetition = () => {
+    if (!petType || !petFacts) {
+      toaster.create({ title: "Campos obrigatórios", description: "Selecione o tipo e preencha os fatos.", type: "warning" });
+      return;
+    }
+    generatePetition({
+      type: petType,
+      court: petCourt,
+      parties: { plaintiff: petPlaintiff, defendant: petDefendant },
+      facts: petFacts,
+      legalBasis: petLegal,
+      requests: petRequests,
+    });
+  };
+
+  const handleGenerateContract = () => {
+    if (!conType) {
+      toaster.create({ title: "Campo obrigatório", description: "Selecione o tipo de contrato.", type: "warning" });
+      return;
+    }
+    generateContract({ type: conType, partiesInfo: conParties, clauses: conClauses, value: conValue, duration: conDuration });
+  };
+
+  const handleAnalyze = () => {
+    if (!analyzeText.trim()) {
+      toaster.create({ title: "Campo obrigatório", description: "Cole o documento para análise.", type: "warning" });
+      return;
+    }
+    if (analyzeMode === "petition") analyzePetition(analyzeText);
+    else analyzeContract(analyzeText);
+  };
+
+  const copyResult = () => {
+    if (result) {
+      navigator.clipboard.writeText(result);
+      toaster.create({ title: "Copiado!", description: "Documento copiado para a área de transferência.", type: "success" });
+    }
+  };
+
+  const downloadResult = () => {
+    if (!result) return;
+    const blob = new Blob([result], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "documento-juridico.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground">Documentos Jurídicos</h2>
+        <p className="text-muted-foreground">Gere e analise petições e contratos com IA</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Input */}
+        <div>
+          <Tabs defaultValue="petition" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="petition" className="gap-1.5">
+                <FileText className="h-4 w-4" /> Petição
+              </TabsTrigger>
+              <TabsTrigger value="contract" className="gap-1.5">
+                <ScrollText className="h-4 w-4" /> Contrato
+              </TabsTrigger>
+              <TabsTrigger value="analyze" className="gap-1.5">
+                <Search className="h-4 w-4" /> Analisar
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="petition">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Gerar Petição</CardTitle>
+                  <CardDescription>Preencha os dados para gerar uma petição profissional</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Tipo de Petição *</Label>
+                    <Select value={petType} onValueChange={setPetType}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                      <SelectContent>
+                        {petitionTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Juízo/Tribunal</Label>
+                    <Input value={petCourt} onChange={(e) => setPetCourt(e.target.value)} placeholder="Ex: Vara Cível da Comarca de São Paulo" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Requerente</Label>
+                      <Input value={petPlaintiff} onChange={(e) => setPetPlaintiff(e.target.value)} placeholder="Nome do requerente" />
+                    </div>
+                    <div>
+                      <Label>Requerido</Label>
+                      <Input value={petDefendant} onChange={(e) => setPetDefendant(e.target.value)} placeholder="Nome do requerido" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Fatos *</Label>
+                    <Textarea value={petFacts} onChange={(e) => setPetFacts(e.target.value)} placeholder="Descreva os fatos do caso..." rows={4} />
+                  </div>
+                  <div>
+                    <Label>Fundamento Jurídico</Label>
+                    <Textarea value={petLegal} onChange={(e) => setPetLegal(e.target.value)} placeholder="Base legal (opcional)" rows={2} />
+                  </div>
+                  <div>
+                    <Label>Pedidos</Label>
+                    <Textarea value={petRequests} onChange={(e) => setPetRequests(e.target.value)} placeholder="O que se pede ao juízo (opcional)" rows={2} />
+                  </div>
+                  <Button onClick={handleGeneratePetition} disabled={isLoading} className="w-full">
+                    {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><FileText className="h-4 w-4 mr-2" /> Gerar Petição</>}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="contract">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Gerar Contrato</CardTitle>
+                  <CardDescription>Preencha os dados para gerar um contrato profissional</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Tipo de Contrato *</Label>
+                    <Select value={conType} onValueChange={setConType}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                      <SelectContent>
+                        {contractTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Partes Envolvidas</Label>
+                    <Textarea value={conParties} onChange={(e) => setConParties(e.target.value)} placeholder="Descreva as partes..." rows={2} />
+                  </div>
+                  <div>
+                    <Label>Cláusulas Específicas</Label>
+                    <Textarea value={conClauses} onChange={(e) => setConClauses(e.target.value)} placeholder="Cláusulas que deseja incluir (opcional)" rows={3} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Valor</Label>
+                      <Input value={conValue} onChange={(e) => setConValue(e.target.value)} placeholder="Ex: R$ 5.000,00" />
+                    </div>
+                    <div>
+                      <Label>Duração</Label>
+                      <Input value={conDuration} onChange={(e) => setConDuration(e.target.value)} placeholder="Ex: 12 meses" />
+                    </div>
+                  </div>
+                  <Button onClick={handleGenerateContract} disabled={isLoading} className="w-full">
+                    {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><ScrollText className="h-4 w-4 mr-2" /> Gerar Contrato</>}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="analyze">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Analisar Documento</CardTitle>
+                  <CardDescription>Cole um documento para análise detalhada pela IA</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Tipo de Documento</Label>
+                    <Select value={analyzeMode} onValueChange={(v) => setAnalyzeMode(v as "petition" | "contract")}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="petition">Petição</SelectItem>
+                        <SelectItem value="contract">Contrato</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Documento *</Label>
+                    <Textarea value={analyzeText} onChange={(e) => setAnalyzeText(e.target.value)} placeholder="Cole o texto do documento aqui..." rows={10} />
+                  </div>
+                  <Button onClick={handleAnalyze} disabled={isLoading} className="w-full">
+                    {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analisando...</> : <><Search className="h-4 w-4 mr-2" /> Analisar Documento</>}
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Result */}
+        <Card className="h-fit">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Resultado</CardTitle>
+              {result && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={copyResult}>
+                    <Copy className="h-4 w-4 mr-1" /> Copiar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={downloadResult}>
+                    <Download className="h-4 w-4 mr-1" /> Baixar
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin mb-3" />
+                <p>Processando com IA...</p>
+                <p className="text-sm">Isso pode levar alguns segundos</p>
+              </div>
+            ) : result ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap text-sm bg-muted/50 p-4 rounded-lg border overflow-auto max-h-[70vh]">
+                  {result}
+                </pre>
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p>O resultado aparecerá aqui</p>
+                <p className="text-sm">Preencha o formulário e clique em gerar</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
