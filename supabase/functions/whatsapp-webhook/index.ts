@@ -230,6 +230,72 @@ serve(async (req) => {
       }
     }
 
+    // ===== Debounce: acquire processing lock =====
+    // Clean expired locks first
+    await supabase.rpc("cleanup_expired_locks");
+
+    const { error: lockError } = await supabase
+      .from("message_processing_locks")
+      .insert({ client_phone: clientPhone, user_id: instanceSettings?.user_id || "" })
+      .single();
+
+    if (lockError) {
+      // Lock already exists — another message is being processed for this client
+      console.log(`⏳ Message debounced for ${clientPhone} — already processing`);
+      // Wait briefly and re-queue by saving the message for the ongoing process
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Re-check if lock was released
+      const { data: stillLocked } = await supabase
+        .from("message_processing_locks")
+        .select("locked_at")
+        .eq("client_phone", clientPhone)
+        .maybeSingle();
+
+      if (stillLocked) {
+        // Still processing — save message and let the current process handle context
+        console.log(`⏭️ Saving message for ${clientPhone} without AI processing (debounced)`);
+
+        // We still need to find/create the case to save the message
+        const { data: debouncedCase } = await supabase
+          .from("cases")
+          .select("id, unread_count")
+          .eq("client_phone", clientPhone)
+          .eq("user_id", instanceSettings?.user_id || "")
+          .maybeSingle();
+
+        if (debouncedCase) {
+          await supabase.from("conversation_history").insert({
+            case_id: debouncedCase.id,
+            role: "client",
+            content: messageBody,
+            external_message_id: incomingMessageId,
+            media_url: incomingMediaUrl,
+            media_type: incomingMediaType,
+          });
+          await supabase.from("cases").update({
+            unread_count: (debouncedCase.unread_count || 0) + 1,
+            last_message: messageBody,
+            last_message_at: new Date().toISOString(),
+          }).eq("id", debouncedCase.id);
+        }
+
+        return new Response(JSON.stringify({ status: "debounced" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Ensure lock is released at the end (wrapped in try/finally below)
+    const releaseLock = async () => {
+      await supabase
+        .from("message_processing_locks")
+        .delete()
+        .eq("client_phone", clientPhone);
+    };
+
+    try {
+
     // ===== Find or create case =====
     let { data: existingCase } = await supabase
       .from("cases")
@@ -241,11 +307,13 @@ serve(async (req) => {
     const previousStatus = existingCase?.status;
 
     if (!existingCase) {
-      return await handleNewCase(
+      const result = await handleNewCase(
         supabase, ownerId, clientPhone, clientName, instanceName, messageBody,
         incomingMessageId, incomingMediaUrl, incomingMediaType,
         EVOLUTION_API_URL, EVOLUTION_API_KEY
       );
+      await releaseLock();
+      return result;
     }
 
     // ===== Check if agent is active =====
@@ -527,9 +595,15 @@ serve(async (req) => {
       saveContactMemory(supabase, OPENAI_API_KEY, LOVABLE_API_KEY, userId, clientPhone, agentId, fullContext).catch((e) => console.error("Memory save error:", e));
     }
 
+    await releaseLock();
     return new Response(JSON.stringify({ status: "processed", action: aiResponse.action }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
+    } finally {
+      // Safety: always release lock
+      await releaseLock();
+    }
   } catch (error) {
     console.error("❌ Webhook error:", error);
     return new Response(
@@ -636,28 +710,29 @@ async function handleNewCase(
   // Send notification
   await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, agent.user_id, clientName, clientPhone, "Novo Contato");
 
-  // Send welcome + first step
+  // Send welcome + first step (avoid duplicates)
   const { data: rules } = await supabase.from("agent_rules").select("*").eq("agent_id", agent.id).maybeSingle();
 
-  if (rules?.welcome_message) {
+  if (firstStep) {
+    // If step 1 exists, send ONLY the step message (it already serves as greeting)
+    // Skip separate welcome_message to avoid duplicate introductions
+    const stepMsg = firstStep.message_to_send.replace(/\{nome\}/gi, clientName);
+    const stepMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, stepMsg);
+    await supabase.from("conversation_history").insert({
+      case_id: newCase.id,
+      role: "assistant",
+      content: stepMsg,
+      external_message_id: stepMsgId,
+      message_status: "sent",
+    });
+  } else if (rules?.welcome_message) {
+    // No script steps — send welcome message only
     const welcomeMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, rules.welcome_message);
     await supabase.from("conversation_history").insert({
       case_id: newCase.id,
       role: "assistant",
       content: rules.welcome_message,
       external_message_id: welcomeMsgId,
-      message_status: "sent",
-    });
-  }
-
-  if (firstStep) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    const stepMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, firstStep.message_to_send);
-    await supabase.from("conversation_history").insert({
-      case_id: newCase.id,
-      role: "assistant",
-      content: firstStep.message_to_send,
-      external_message_id: stepMsgId,
       message_status: "sent",
     });
   }

@@ -277,12 +277,40 @@ function buildCollectedDataContext(history: any[]): string {
   const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/;
   const collectedData: Record<string, string> = {};
 
-  for (const h of history) {
+  // Track conversation flow to extract data from client responses after assistant questions
+  for (let i = 0; i < history.length; i++) {
+    const h = history[i];
     const content = String(h.content || "");
+
     if (h.role === "client") {
+      // Extract email
       const emailMatch = content.match(emailRegex);
       if (emailMatch) collectedData["email"] = emailMatch[0].toLowerCase();
+
+      // Check what the previous assistant message asked to categorize the response
+      const prevAssistant = i > 0 ? String(history[i - 1]?.content || "") : "";
+
+      // Name detection: response after "nome completo" question
+      if (/nome completo/i.test(prevAssistant) && content.length > 3 && content.length < 100 && !emailRegex.test(content)) {
+        collectedData["nome"] = content.trim();
+      }
+
+      // Legal area detection: response after "necessidade jurídica" or "área" question
+      if (/necessidade jur[ií]dica|qual .* [áa]rea|tipo de caso|questão.*(trabalhista|familiar|imobili)/i.test(prevAssistant) && content.length > 2) {
+        collectedData["área jurídica"] = content.trim();
+      }
+
+      // Urgency detection: response after urgency question
+      if (/urg[êe]ncia|prazo|audi[êe]ncia marcada|situação de risco/i.test(prevAssistant) && content.length > 1) {
+        collectedData["urgência"] = content.trim();
+      }
+
+      // Source detection: response after "como conheceu" question
+      if (/como (você )?ficou sabendo|como conheceu|indicação.*redes.*google/i.test(prevAssistant) && content.length > 1) {
+        collectedData["origem"] = content.trim();
+      }
     }
+
     if (h.role === "assistant") {
       const confirmedEmail = content.match(/e-?mail[^(]*\(([^)]+@[^)]+)\)/i);
       if (confirmedEmail) collectedData["email"] = confirmedEmail[1].toLowerCase();

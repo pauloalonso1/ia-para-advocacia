@@ -744,6 +744,24 @@ export type Database = {
           },
         ]
       }
+      message_processing_locks: {
+        Row: {
+          client_phone: string
+          locked_at: string
+          user_id: string
+        }
+        Insert: {
+          client_phone: string
+          locked_at?: string
+          user_id: string
+        }
+        Update: {
+          client_phone?: string
+          locked_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           created_at: string
@@ -1003,6 +1021,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_locks: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
