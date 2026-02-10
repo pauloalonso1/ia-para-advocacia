@@ -27,8 +27,9 @@ export async function processWithAI(
 ): Promise<AIResponse> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // === Calendar deterministic auto-booking ===
-  if (hasCalendarConnected) {
+  // === Calendar deterministic auto-booking (only when script is completed or no script) ===
+  const hasActiveScript = !!currentStep || (allSteps.length > 0 && !isScriptCompleted);
+  if (hasCalendarConnected && !hasActiveScript) {
     const autoResult = await tryCalendarAutoBook(
       supabase, userId, clientPhone, clientName, clientMessage, history
     );
@@ -39,7 +40,7 @@ export async function processWithAI(
   const collectedDataContext = buildCollectedDataContext(history);
   const scriptContext = buildScriptContext(allSteps, currentStep, nextStep, isScriptCompleted);
   const conversationMemory = buildConversationMemory(history);
-  const calendarContext = hasCalendarConnected ? buildCalendarContext() : "";
+  const calendarContext = (hasCalendarConnected && !hasActiveScript) ? buildCalendarContext() : "";
 
   // RAG search
   let ragContext = "";
@@ -66,7 +67,7 @@ export async function processWithAI(
   ];
 
   // === Build tools ===
-  const tools = buildTools(supabase, userId, hasCalendarConnected, history, clientMessage);
+  const tools = buildTools(supabase, userId, hasCalendarConnected && !hasActiveScript, history, clientMessage);
 
   // Check ZapSign
   const { data: zapsignSettings } = await supabase
