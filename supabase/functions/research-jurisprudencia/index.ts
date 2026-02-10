@@ -70,7 +70,7 @@ serve(async (req) => {
 });
 
 async function handleEscavador(apiKey: string, action: string, data: any): Promise<Response> {
-  const baseUrl = "https://api.escavador.com/api/v1";
+  const baseUrlV2 = "https://api.escavador.com/api/v2";
   const headers = {
     Authorization: `Bearer ${apiKey}`,
     "X-Requested-With": "XMLHttpRequest",
@@ -81,28 +81,66 @@ async function handleEscavador(apiKey: string, action: string, data: any): Promi
   let method = "GET";
 
   switch (action) {
+    // Search processes by person name or CPF/CNPJ (V2 endpoint)
+    case "search_processo":
     case "search": {
-      const params = new URLSearchParams({
-        q: data.query || "",
-        qo: "t",
-        limit: String(data.limit || 20),
-        page: String(data.page || 1),
-      });
-      url = `${baseUrl}/busca?${params.toString()}`;
+      const query = (data.query || "").trim();
+      if (!query) {
+        return new Response(JSON.stringify({ error: "Termo de busca é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Detect if query is a CNJ number (format: NNNNNNN-NN.NNNN.N.NN.NNNN)
+      const cnjRegex = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
+      if (cnjRegex.test(query)) {
+        // Direct CNJ lookup
+        url = `${baseUrlV2}/processos/numero_cnj/${encodeURIComponent(query)}`;
+      } else {
+        // Search by person name or CPF/CNPJ
+        const params = new URLSearchParams();
+        
+        // Detect if it's a CPF (11 digits) or CNPJ (14 digits)
+        const digitsOnly = query.replace(/\D/g, "");
+        if (digitsOnly.length === 11 || digitsOnly.length === 14) {
+          params.set("cpf_cnpj", digitsOnly);
+        } else {
+          params.set("nome", query);
+        }
+
+        if (data.tribunal) {
+          params.set("tribunais[]", data.tribunal);
+        }
+
+        url = `${baseUrlV2}/envolvido/processos?${params.toString()}`;
+      }
       break;
     }
 
-    case "search_processo": {
-      const params = new URLSearchParams({
-        q: data.query || "",
-        limit: String(data.limit || 20),
-        page: String(data.page || 1),
-      });
-      if (data.tribunal) params.set("tribunal", data.tribunal);
-      url = `${baseUrl}/busca/processos?${params.toString()}`;
+    // Search person's processes (same as above but explicit)
+    case "search_pessoa": {
+      const query = (data.query || "").trim();
+      if (!query) {
+        return new Response(JSON.stringify({ error: "Nome ou CPF/CNPJ é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const params = new URLSearchParams();
+      const digitsOnly = query.replace(/\D/g, "");
+      if (digitsOnly.length === 11 || digitsOnly.length === 14) {
+        params.set("cpf_cnpj", digitsOnly);
+      } else {
+        params.set("nome", query);
+      }
+
+      url = `${baseUrlV2}/envolvido/processos?${params.toString()}`;
       break;
     }
 
+    // Get process details by CNJ number (V2)
     case "get_processo": {
       if (!data.numero_cnj) {
         return new Response(JSON.stringify({ error: "Número CNJ é obrigatório" }), {
@@ -110,17 +148,38 @@ async function handleEscavador(apiKey: string, action: string, data: any): Promi
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      url = `https://api.escavador.com/api/v2/processos/numero_cnj/${encodeURIComponent(data.numero_cnj)}`;
+      url = `${baseUrlV2}/processos/numero_cnj/${encodeURIComponent(data.numero_cnj)}`;
       break;
     }
 
-    case "search_pessoa": {
+    // Get process movements (V2)
+    case "get_movimentacoes": {
+      if (!data.numero_cnj) {
+        return new Response(JSON.stringify({ error: "Número CNJ é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const params = new URLSearchParams();
+      if (data.limit) params.set("limit", String(data.limit));
+      const queryStr = params.toString();
+      url = `${baseUrlV2}/processos/numero_cnj/${encodeURIComponent(data.numero_cnj)}/movimentacoes${queryStr ? `?${queryStr}` : ""}`;
+      break;
+    }
+
+    // Get processes by OAB (V2)
+    case "search_oab": {
+      if (!data.numero || !data.uf) {
+        return new Response(JSON.stringify({ error: "Número da OAB e UF são obrigatórios" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const params = new URLSearchParams({
-        q: data.query || "",
-        limit: String(data.limit || 20),
-        page: String(data.page || 1),
+        oab_numero: String(data.numero),
+        oab_estado: data.uf,
       });
-      url = `${baseUrl}/busca/pessoas?${params.toString()}`;
+      url = `${baseUrlV2}/advogado/processos?${params.toString()}`;
       break;
     }
 
@@ -131,6 +190,7 @@ async function handleEscavador(apiKey: string, action: string, data: any): Promi
       });
   }
 
+  console.log(`Escavador V2 request: ${method} ${url}`);
   const res = await fetch(url, { method, headers });
 
   if (!res.ok) {
@@ -140,6 +200,18 @@ async function handleEscavador(apiKey: string, action: string, data: any): Promi
     if (res.status === 401) {
       return new Response(JSON.stringify({ error: "API key inválida. Verifique sua chave nas configurações." }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (res.status === 402) {
+      return new Response(JSON.stringify({ error: "Saldo insuficiente na API do Escavador. Recarregue seus créditos." }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (res.status === 404) {
+      return new Response(JSON.stringify({ error: "Nenhum resultado encontrado." }), {
+        status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -163,7 +235,6 @@ async function handleEscavador(apiKey: string, action: string, data: any): Promi
 }
 
 async function handleJusBrasil(apiKey: string, action: string, data: any): Promise<Response> {
-  // JusBrasil API integration placeholder - their API requires commercial access
   return new Response(
     JSON.stringify({
       error: "A integração com JusBrasil está em desenvolvimento. Por enquanto, use o Escavador.",
