@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toaster } from "@/components/ui/basic-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PetitionRequest {
   type: string;
@@ -22,8 +23,23 @@ interface ContractRequest {
 export function useLegalDocuments() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const { user } = useAuth();
 
-  const callFunction = async (action: string, data: Record<string, any>) => {
+  const saveToHistory = async (documentType: string, inputData: Record<string, any>, outputData: string) => {
+    if (!user) return;
+    try {
+      await supabase.from("legal_document_history").insert({
+        user_id: user.id,
+        document_type: documentType,
+        input_data: inputData,
+        output_data: outputData,
+      });
+    } catch (e) {
+      console.warn("Failed to save document history:", e);
+    }
+  };
+
+  const callFunction = async (action: string, data: Record<string, any>, docType: string) => {
     setIsLoading(true);
     setResult(null);
     try {
@@ -35,6 +51,8 @@ export function useLegalDocuments() {
       if (!res?.success) throw new Error(res?.error || "Erro ao processar documento");
 
       setResult(res.content);
+      await saveToHistory(docType, data, res.content);
+      toaster.create({ title: "Documento gerado!", description: "O resultado está disponível ao lado.", type: "success" });
       return res.content as string;
     } catch (e: any) {
       const msg =
@@ -50,10 +68,10 @@ export function useLegalDocuments() {
     }
   };
 
-  const generatePetition = (data: PetitionRequest) => callFunction("generate_petition", data);
-  const analyzePetition = (text: string) => callFunction("analyze_petition", { text });
-  const generateContract = (data: ContractRequest) => callFunction("generate_contract", data);
-  const analyzeContract = (text: string) => callFunction("analyze_contract", { text });
+  const generatePetition = (data: PetitionRequest) => callFunction("generate_petition", data, "petition");
+  const analyzePetition = (text: string) => callFunction("analyze_petition", { text }, "petition_analysis");
+  const generateContract = (data: ContractRequest) => callFunction("generate_contract", data, "contract");
+  const analyzeContract = (text: string) => callFunction("analyze_contract", { text }, "contract_analysis");
 
   return { isLoading, result, setResult, generatePetition, analyzePetition, generateContract, analyzeContract };
 }

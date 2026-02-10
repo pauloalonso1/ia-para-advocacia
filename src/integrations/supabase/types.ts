@@ -744,6 +744,33 @@ export type Database = {
           },
         ]
       }
+      legal_document_history: {
+        Row: {
+          created_at: string
+          document_type: string
+          id: string
+          input_data: Json
+          output_data: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          id?: string
+          input_data?: Json
+          output_data: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          input_data?: Json
+          output_data?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       message_processing_locks: {
         Row: {
           client_phone: string
