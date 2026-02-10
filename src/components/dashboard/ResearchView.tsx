@@ -57,7 +57,7 @@ export default function ResearchView() {
   const items = results?.items || results?.processos || results?.data?.items || [];
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
+    <div className="p-4 md:p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Pesquisa Jurisprudencial</h2>
         <p className="text-muted-foreground">Busque processos e jurisprudência via API</p>

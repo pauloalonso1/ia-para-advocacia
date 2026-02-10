@@ -55,7 +55,7 @@ const CRMKanbanView = ({ onOpenConversation }: CRMKanbanViewProps) => {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-48" />
@@ -74,8 +74,8 @@ const CRMKanbanView = ({ onOpenConversation }: CRMKanbanViewProps) => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between">
+      <div className="p-4 md:p-6 border-b border-border">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
               <LayoutGrid className="w-7 h-7 text-primary" />
@@ -111,7 +111,7 @@ const CRMKanbanView = ({ onOpenConversation }: CRMKanbanViewProps) => {
       {/* Content */}
       {viewMode === 'kanban' ? (
         <ScrollArea className="flex-1">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             <DragDropContext onDragEnd={handleDragEnd}>
               <div className="flex gap-4 pb-4">
                 {crmStages.map((stage) => (
@@ -131,7 +131,7 @@ const CRMKanbanView = ({ onOpenConversation }: CRMKanbanViewProps) => {
         </ScrollArea>
       ) : (
         <ScrollArea className="flex-1">
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             <CRMListView cases={cases} onCaseClick={handleCaseClick} />
           </div>
         </ScrollArea>

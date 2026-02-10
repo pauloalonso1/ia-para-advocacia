@@ -52,6 +52,7 @@ interface CRMPanelProps {
   onUpdateName: (caseId: string, name: string) => void;
   onAssignAgent: (caseId: string, agentId: string | null) => void;
   profilePictureUrl?: string | null;
+  isMobile?: boolean;
 }
 
 const crmStages = [
@@ -63,7 +64,7 @@ const crmStages = [
   { id: 'Arquivado', label: 'Arquivado', color: 'bg-muted-foreground' },
 ];
 
-const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, profilePictureUrl }: CRMPanelProps) => {
+const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, profilePictureUrl, isMobile }: CRMPanelProps) => {
   const { agents } = useAgents();
   const { activeMembers } = useTeamMembers();
   const { loading: summaryLoading, summary, generateSummary, clearSummary } = useAISummary();
@@ -99,6 +100,7 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, p
   const activeAgents = agents.filter(a => a.is_active);
 
   if (!selectedCase) {
+    if (isMobile) return null;
     return (
       <div className="w-80 border-l border-border bg-card flex items-center justify-center">
         <div className="text-center p-6">
@@ -204,7 +206,7 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, p
   };
 
   return (
-    <div className="w-80 border-l border-border bg-card flex flex-col">
+    <div className={cn(isMobile ? "flex flex-col h-full" : "w-80 border-l border-border bg-card flex flex-col")}>
       {/* Tabs Header */}
       <div className="border-b border-border">
         <div className="flex items-center">

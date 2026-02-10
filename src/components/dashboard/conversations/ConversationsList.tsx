@@ -33,6 +33,7 @@ interface ConversationsListProps {
   loading: boolean;
   typingCases?: Set<string>;
   profilePictures?: Record<string, string | null>;
+  isMobile?: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -60,7 +61,8 @@ const ConversationsList = ({
   onDeleteCase, 
   loading,
   typingCases = new Set(),
-  profilePictures = {}
+  profilePictures = {},
+  isMobile = false
 }: ConversationsListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -162,7 +164,7 @@ const ConversationsList = ({
 
   return (
     <>
-      <div className="w-80 border-r border-border flex flex-col bg-card">
+      <div className={cn("border-r border-border flex flex-col bg-card", isMobile ? "w-full h-full" : "w-80")}>
         {/* Top Bar with Search and Actions */}
         <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2">

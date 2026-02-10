@@ -12,7 +12,7 @@ const PerformanceView = () => {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-24" />
@@ -29,7 +29,7 @@ const PerformanceView = () => {
 
   if (metrics.members.length === 0) {
     return (
-      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="p-4 md:p-6 flex flex-col items-center justify-center min-h-[60vh]">
         <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
           <Users className="w-10 h-10 text-muted-foreground" />
         </div>
@@ -44,7 +44,7 @@ const PerformanceView = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
+    <div className="p-4 md:p-6 space-y-6 overflow-auto h-full">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
