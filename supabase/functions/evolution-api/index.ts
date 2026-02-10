@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EvolutionRequest {
-  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text" | "send-media" | "logout";
+  action: "create" | "qrcode" | "status" | "delete" | "restart" | "send-text" | "send-media" | "logout" | "fetch-profile-pic";
   instanceName?: string;
   phone?: string;
   message?: string;
@@ -440,6 +440,45 @@ serve(async (req) => {
           );
         }
         break;
+
+      case "fetch-profile-pic": {
+        const { phone: picPhone } = body;
+        if (!picPhone) {
+          return new Response(
+            JSON.stringify({ error: "phone is required for fetch-profile-pic action" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log("Fetching profile picture for:", picPhone);
+        try {
+          response = await fetch(`${EVOLUTION_API_URL}/chat/fetchProfilePictureUrl/${finalInstanceName}`, {
+            method: "POST",
+            headers: baseHeaders,
+            body: JSON.stringify({ number: picPhone }),
+          });
+          result = await response.json();
+          console.log("Profile pic response:", JSON.stringify(result));
+          
+          if (!response.ok) {
+            return new Response(
+              JSON.stringify({ profilePictureUrl: null }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+
+          return new Response(
+            JSON.stringify({ profilePictureUrl: result.profilePictureUrl || null }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } catch (picErr) {
+          console.error("Profile pic fetch error:", picErr);
+          return new Response(
+            JSON.stringify({ profilePictureUrl: null }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
 
       case "send-media": {
         const { phone: mediaPhone, message: mediaCaption, mediaUrl, mediaType, fileName } = body;

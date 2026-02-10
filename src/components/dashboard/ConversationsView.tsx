@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useCases, useMessages, Case } from '@/hooks/useCases';
+import { useProfilePictures } from '@/hooks/useProfilePictures';
 import ConversationsList from './conversations/ConversationsList';
 import ChatView from './conversations/ChatView';
 import CRMPanel from './conversations/CRMPanel';
@@ -7,8 +8,17 @@ import CRMPanel from './conversations/CRMPanel';
 const ConversationsView = () => {
   const { cases, loading: casesLoading, updateCaseStatus, updateCaseName, deleteCase, assignAgentToCase, pauseAgentForCase, markAsRead } = useCases();
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  const { pictures, fetchMultiple } = useProfilePictures();
   
   const { messages, loading: messagesLoading } = useMessages(selectedCase?.id || null);
+
+  // Fetch profile pictures for visible cases
+  useEffect(() => {
+    if (cases.length > 0) {
+      const phones = cases.map(c => c.client_phone);
+      fetchMultiple(phones);
+    }
+  }, [cases, fetchMultiple]);
 
   // Keep selectedCase in sync with cases array updates
   useEffect(() => {
@@ -76,6 +86,7 @@ const ConversationsView = () => {
         onSelectCase={handleSelectCase}
         onDeleteCase={handleDeleteCase}
         loading={casesLoading}
+        profilePictures={pictures}
       />
 
       {/* Center: Chat View */}
@@ -84,6 +95,7 @@ const ConversationsView = () => {
         messages={messages}
         loading={messagesLoading}
         onPauseAgent={(caseId) => pauseAgentForCase(caseId)}
+        profilePictureUrl={selectedCase ? pictures[selectedCase.client_phone] : undefined}
       />
 
       {/* Right: CRM Panel */}

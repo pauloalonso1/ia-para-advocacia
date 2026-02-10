@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Case, Message } from '@/hooks/useCases';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -22,6 +22,7 @@ interface ChatViewProps {
   messages: Message[];
   loading: boolean;
   onPauseAgent?: (caseId: string) => void;
+  profilePictureUrl?: string | null;
 }
 
 const commonEmojis = [
@@ -32,7 +33,7 @@ const commonEmojis = [
   '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💯', '✨',
 ];
 
-const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewProps) => {
+const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictureUrl }: ChatViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [messageInput, setMessageInput] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -304,6 +305,9 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
       {/* Chat Header */}
       <div className="h-16 px-4 border-b border-border flex items-center gap-3 bg-card/50">
         <Avatar className="w-10 h-10 border-2 border-primary/30">
+          {profilePictureUrl && (
+            <AvatarImage src={profilePictureUrl} alt={selectedCase.client_name || 'Contact'} className="object-cover" />
+          )}
           <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-sm font-medium">
             {getInitials(selectedCase.client_name, selectedCase.client_phone)}
           </AvatarFallback>
@@ -371,6 +375,9 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
                       >
                         {!isAssistant && (
                           <Avatar className="w-8 h-8 mt-1">
+                            {profilePictureUrl && (
+                              <AvatarImage src={profilePictureUrl} alt="Contact" className="object-cover" />
+                            )}
                             <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70">
                               <User className="w-4 h-4 text-primary-foreground" />
                             </AvatarFallback>
@@ -439,6 +446,9 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent }: ChatViewPro
         {isContactTyping && (
           <div className="flex gap-2 items-center mt-3">
             <Avatar className="w-8 h-8">
+              {profilePictureUrl && (
+                <AvatarImage src={profilePictureUrl} alt="Contact" className="object-cover" />
+              )}
               <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70">
                 <User className="w-4 h-4 text-primary-foreground" />
               </AvatarFallback>
