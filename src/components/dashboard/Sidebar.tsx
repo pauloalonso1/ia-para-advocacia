@@ -22,6 +22,7 @@ import {
   FileText,
   Search,
   History,
+  BarChart3,
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
@@ -56,6 +57,7 @@ const menuItems = [
   { id: 'documents', label: 'Documentos', icon: FileText },
   { id: 'history', label: 'Histórico', icon: History },
   { id: 'research', label: 'Pesquisa', icon: Search },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
 ];
 
