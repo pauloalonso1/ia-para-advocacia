@@ -296,33 +296,24 @@ const Index = () => {
               </p>
             </AnimatedContainer>
             <AnimatedContainer delay={0.3}>
-              <BentoGrid className="lg:grid-rows-3">
-                <BentoCard
-                  Icon={Clock}
-                  name="Economize 20h por semana"
-                  description="A IA elimina triagem manual, follow-ups e agendamentos repetitivos. Seu tempo volta a ser seu."
-                  className="lg:row-start-1 lg:row-end-4 lg:col-start-2 lg:col-end-3"
-                  href="/auth"
-                  cta="Começar agora"
-                  background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />}
-                />
+              <BentoGrid className="lg:grid-rows-2">
                 <BentoCard
                   Icon={Users}
                   name="Atendimento 24/7"
                   description="Seu agente de IA nunca dorme. Capture e qualifique leads a qualquer hora do dia ou da noite."
-                  className="lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-3"
+                  className="lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2"
                   href="/auth"
                   cta="Começar agora"
                   background={<div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-transparent" />}
                 />
                 <BentoCard
-                  Icon={Shield}
-                  name="100% Seguro e LGPD"
-                  description="Dados criptografados, armazenados com segurança e em total conformidade com a LGPD."
-                  className="lg:col-start-1 lg:col-end-2 lg:row-start-3 lg:row-end-4"
+                  Icon={Clock}
+                  name="Economize 20h por semana"
+                  description="A IA elimina triagem manual, follow-ups e agendamentos repetitivos. Seu tempo volta a ser seu."
+                  className="lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-3"
                   href="/auth"
-                  cta="Saiba mais"
-                  background={<div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent" />}
+                  cta="Começar agora"
+                  background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />}
                 />
                 <BentoCard
                   Icon={BarChart3}
@@ -334,10 +325,19 @@ const Index = () => {
                   background={<div className="absolute inset-0 bg-gradient-to-bl from-purple-500/5 via-transparent to-transparent" />}
                 />
                 <BentoCard
+                  Icon={Shield}
+                  name="100% Seguro e LGPD"
+                  description="Dados criptografados, armazenados com segurança e em total conformidade com a LGPD."
+                  className="lg:col-start-1 lg:col-end-2 lg:row-start-2 lg:row-end-3"
+                  href="/auth"
+                  cta="Saiba mais"
+                  background={<div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent" />}
+                />
+                <BentoCard
                   Icon={Bot}
                   name="IA Especializada em Direito"
                   description="Agentes treinados com contexto jurídico que entendem o vocabulário, processos e necessidades do seu escritório."
-                  className="lg:col-start-3 lg:col-end-4 lg:row-start-2 lg:row-end-4"
+                  className="lg:col-start-3 lg:col-end-4 lg:row-start-2 lg:row-end-3"
                   href="/auth"
                   cta="Conhecer agentes"
                   background={<div className="absolute inset-0 bg-gradient-to-tl from-amber-500/5 via-transparent to-transparent" />}
