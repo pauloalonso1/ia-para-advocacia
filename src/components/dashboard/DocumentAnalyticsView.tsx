@@ -136,7 +136,10 @@ const DocumentAnalyticsView = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Analytics de Documentos</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-primary" />
+            Analytics de Documentos
+          </h1>
           <p className="text-sm text-muted-foreground">Métricas e insights sobre seus documentos jurídicos</p>
         </div>
         <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>

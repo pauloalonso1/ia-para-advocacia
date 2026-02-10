@@ -98,7 +98,10 @@ export default function DocumentHistoryView() {
   return (
     <div className="p-4 md:p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Histórico de Documentos</h2>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <History className="w-6 h-6 text-primary" />
+          Histórico de Documentos
+        </h2>
         <p className="text-muted-foreground">Documentos gerados e análises anteriores</p>
       </div>
 

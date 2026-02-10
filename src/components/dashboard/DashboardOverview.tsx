@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, LayoutDashboard } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -107,7 +107,8 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            📊 Dashboard
+            <LayoutDashboard className="w-6 h-6 text-primary" />
+            Dashboard
           </h1>
           <p className="text-muted-foreground">Visão geral das conversas e contatos</p>
         </div>
