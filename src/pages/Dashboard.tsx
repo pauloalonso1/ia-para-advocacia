@@ -16,6 +16,7 @@ import FinancialView from '@/components/dashboard/FinancialView';
 import LegalDocumentsView from '@/components/dashboard/LegalDocumentsView';
 import ResearchView from '@/components/dashboard/ResearchView';
 import DocumentHistoryView from '@/components/dashboard/DocumentHistoryView';
+import DocumentAnalyticsView from '@/components/dashboard/DocumentAnalyticsView';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +84,8 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
         return <ResearchView />;
       case 'history':
         return <DocumentHistoryView />;
+      case 'analytics':
+        return <DocumentAnalyticsView />;
       case 'settings':
         return <SettingsView initialSection={settingsSection as any} />;
       default:
