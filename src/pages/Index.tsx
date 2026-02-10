@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AnimatedGroup } from '@/components/ui/animated-group';
 import { FeatureCard as GridFeatureCard } from '@/components/ui/grid-feature-cards';
+import { BentoGrid, BentoCard } from '@/components/ui/bento-grid';
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/ui/footer-section';
@@ -284,30 +285,65 @@ const Index = () => {
           </div>
         </section>
 
-        {/* ═══ BENEFITS ═══ */}
+        {/* ═══ BENEFITS (BENTO GRID) ═══ */}
         <section id="benefits" className="py-24 md:py-32">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <div>
-                <span className="text-primary text-sm font-semibold uppercase tracking-wider">Por que escolher</span>
-                <h2 className="mt-4 text-3xl md:text-4xl font-bold text-foreground">Foque nos seus clientes, não em tarefas repetitivas</h2>
-                <p className="mt-6 text-muted-foreground text-lg">
-                  Enquanto a IA cuida do atendimento inicial, qualificação e agendamento, você dedica seu tempo ao que realmente gera valor: a advocacia.
-                </p>
-                <Button asChild size="lg" className="mt-8 rounded-xl px-8 text-base">
-                  <Link to="/auth">
-                    Começar agora
-                    <ArrowRight className="ml-2 size-4" />
-                  </Link>
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <BenefitCard icon={<Clock className="size-5 text-primary" />} title="Economize 20h/semana" description="Elimine tarefas repetitivas de triagem e agendamento." />
-                <BenefitCard icon={<Users className="size-5 text-primary" />} title="Atenda 24/7" description="Seu agente nunca dorme. Capture leads a qualquer hora." />
-                <BenefitCard icon={<BarChart3 className="size-5 text-primary" />} title="Aumente conversão" description="Funil otimizado do primeiro contato à assinatura." />
-                <BenefitCard icon={<Shield className="size-5 text-primary" />} title="100% seguro" description="Dados criptografados e em conformidade com a LGPD." />
-              </div>
-            </div>
+            <AnimatedContainer className="text-center mb-12">
+              <span className="text-primary text-sm font-semibold uppercase tracking-wider">Por que escolher</span>
+              <h2 className="mt-4 text-3xl md:text-4xl font-bold text-foreground">Foque nos seus clientes, não em tarefas repetitivas</h2>
+              <p className="mt-4 text-muted-foreground text-sm md:text-base max-w-2xl mx-auto">
+                Enquanto a IA cuida do atendimento inicial, qualificação e agendamento, você dedica seu tempo ao que realmente gera valor.
+              </p>
+            </AnimatedContainer>
+            <AnimatedContainer delay={0.3}>
+              <BentoGrid className="lg:grid-rows-3">
+                <BentoCard
+                  Icon={Clock}
+                  name="Economize 20h por semana"
+                  description="A IA elimina triagem manual, follow-ups e agendamentos repetitivos. Seu tempo volta a ser seu."
+                  className="lg:row-start-1 lg:row-end-4 lg:col-start-2 lg:col-end-3"
+                  href="/auth"
+                  cta="Começar agora"
+                  background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />}
+                />
+                <BentoCard
+                  Icon={Users}
+                  name="Atendimento 24/7"
+                  description="Seu agente de IA nunca dorme. Capture e qualifique leads a qualquer hora do dia ou da noite."
+                  className="lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-3"
+                  href="/auth"
+                  cta="Começar agora"
+                  background={<div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-transparent" />}
+                />
+                <BentoCard
+                  Icon={Shield}
+                  name="100% Seguro e LGPD"
+                  description="Dados criptografados, armazenados com segurança e em total conformidade com a LGPD."
+                  className="lg:col-start-1 lg:col-end-2 lg:row-start-3 lg:row-end-4"
+                  href="/auth"
+                  cta="Saiba mais"
+                  background={<div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent" />}
+                />
+                <BentoCard
+                  Icon={BarChart3}
+                  name="Funil Inteligente"
+                  description="Do primeiro contato à assinatura do contrato, cada etapa é otimizada pela IA."
+                  className="lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-2"
+                  href="/auth"
+                  cta="Ver planos"
+                  background={<div className="absolute inset-0 bg-gradient-to-bl from-purple-500/5 via-transparent to-transparent" />}
+                />
+                <BentoCard
+                  Icon={Bot}
+                  name="IA Especializada em Direito"
+                  description="Agentes treinados com contexto jurídico que entendem o vocabulário, processos e necessidades do seu escritório."
+                  className="lg:col-start-3 lg:col-end-4 lg:row-start-2 lg:row-end-4"
+                  href="/auth"
+                  cta="Conhecer agentes"
+                  background={<div className="absolute inset-0 bg-gradient-to-tl from-amber-500/5 via-transparent to-transparent" />}
+                />
+              </BentoGrid>
+            </AnimatedContainer>
           </div>
         </section>
 
@@ -374,15 +410,6 @@ const StepCard = ({ number, icon, title, description }: { number: string; icon: 
   </div>
 );
 
-const BenefitCard = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
-  <div className="rounded-xl border border-border bg-card p-5 space-y-2 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-    <div className="flex items-center gap-2">
-      {icon}
-      <h4 className="font-semibold text-foreground text-sm">{title}</h4>
-    </div>
-    <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
-  </div>
-);
 
 const StatItem = ({ value, label }: { value: string; label: string }) => (
   <div>
