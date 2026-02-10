@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -278,10 +279,8 @@ export default function LegalDocumentsView() {
                 <p className="text-sm">Isso pode levar alguns segundos</p>
               </div>
             ) : result ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap text-sm bg-muted/50 p-4 rounded-lg border overflow-auto max-h-[70vh]">
-                  {result}
-                </pre>
+              <div className="prose prose-sm dark:prose-invert max-w-none overflow-auto max-h-[70vh] p-4">
+                <ReactMarkdown>{result}</ReactMarkdown>
               </div>
             ) : (
               <div className="text-center py-16 text-muted-foreground">
