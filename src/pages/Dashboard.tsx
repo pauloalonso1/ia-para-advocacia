@@ -13,6 +13,7 @@ import PerformanceView from '@/components/dashboard/PerformanceView';
 import MeetingsView from '@/components/dashboard/MeetingsView';
 import KnowledgeBaseView from '@/components/dashboard/KnowledgeBaseView';
 import FinancialView from '@/components/dashboard/FinancialView';
+import LegalDocumentsView from '@/components/dashboard/LegalDocumentsView';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { cn } from '@/lib/utils';
 
@@ -74,6 +75,8 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
         return <TeamMembersView />;
       case 'performance':
         return <PerformanceView />;
+      case 'documents':
+        return <LegalDocumentsView />;
       case 'settings':
         return <SettingsView initialSection={settingsSection as any} />;
       default:
