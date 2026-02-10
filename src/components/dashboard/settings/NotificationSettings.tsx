@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import {
-  Loader2, XCircle, Trash2, Save, Bell, BellRing, Phone,
+  Loader2, XCircle, Trash2, Save, Bell, BellRing, Phone, Volume2, MonitorSmartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,15 @@ const NotificationSettings = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [testingNotification, setTestingNotification] = useState(false);
 
+  // Browser notification preferences (localStorage)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const stored = localStorage.getItem('lexia_sound_enabled');
+    return stored !== null ? stored === 'true' : true;
+  });
+  const [pushEnabled, setPushEnabled] = useState(() => {
+    const stored = localStorage.getItem('lexia_push_enabled');
+    return stored !== null ? stored === 'true' : true;
+  });
   useEffect(() => {
     if (notificationSettings) {
       setNotificationPhone(notificationSettings.notification_phone || '');
@@ -86,6 +95,7 @@ const NotificationSettings = () => {
   };
 
   return (
+    <>
     <Card className="bg-card border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -171,6 +181,56 @@ const NotificationSettings = () => {
         </div>
       </CardContent>
     </Card>
+
+    {/* Browser Notifications */}
+    <Card className="bg-card border-border mt-4">
+      <CardHeader>
+        <CardTitle className="text-foreground flex items-center gap-2">
+          <MonitorSmartphone className="w-5 h-5 text-primary" />
+          Notificações do Navegador
+        </CardTitle>
+        <CardDescription className="text-muted-foreground">
+          Som e alertas push quando novas mensagens chegarem em tempo real
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-muted-foreground" />
+            <Label className="text-foreground">Som de notificação</Label>
+          </div>
+          <Switch
+            checked={soundEnabled}
+            onCheckedChange={(v) => {
+              setSoundEnabled(v);
+              localStorage.setItem('lexia_sound_enabled', String(v));
+            }}
+            className="data-[state=checked]:bg-primary"
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-muted-foreground" />
+            <Label className="text-foreground">Push no navegador</Label>
+          </div>
+          <Switch
+            checked={pushEnabled}
+            onCheckedChange={(v) => {
+              setPushEnabled(v);
+              localStorage.setItem('lexia_push_enabled', String(v));
+              if (v && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+              }
+            }}
+            className="data-[state=checked]:bg-primary"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Essas preferências são salvas localmente neste navegador.
+        </p>
+      </CardContent>
+    </Card>
+    </>
   );
 };
 
