@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, ScrollText, Loader2, Copy, Download, Search } from "lucide-react";
+import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useLegalDocuments } from "@/hooks/useLegalDocuments";
 import { toaster } from "@/components/ui/basic-toast";
 
@@ -100,15 +101,43 @@ export default function LegalDocumentsView() {
     }
   };
 
-  const downloadResult = () => {
+  const downloadAsDocx = async () => {
     if (!result) return;
-    const blob = new Blob([result], { type: "text/plain;charset=utf-8" });
+    const { Document, Packer, Paragraph, TextRun } = await import("docx");
+    const paragraphs = result.split("\n").map((line) => {
+      const isBold = line.startsWith("**") && line.endsWith("**");
+      const isHeading = line.startsWith("# ") || line.startsWith("## ") || line.startsWith("### ");
+      const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, "");
+      return new Paragraph({
+        children: [new TextRun({ text: cleanLine, bold: isBold || isHeading, size: isHeading ? 28 : 24 })],
+        spacing: { after: 120 },
+      });
+    });
+    const doc = new Document({ sections: [{ children: paragraphs }] });
+    const blob = await Packer.toBlob(doc);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "documento-juridico.txt";
+    a.download = "documento-juridico.docx";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadAsPdf = async () => {
+    if (!result) return;
+    const html2pdf = (await import("html2pdf.js")).default;
+    const container = document.createElement("div");
+    container.style.fontFamily = "Arial, sans-serif";
+    container.style.fontSize = "12pt";
+    container.style.lineHeight = "1.6";
+    container.style.padding = "40px";
+    container.innerHTML = result
+      .replace(/^### (.*$)/gm, "<h3>$1</h3>")
+      .replace(/^## (.*$)/gm, "<h2>$1</h2>")
+      .replace(/^# (.*$)/gm, "<h1>$1</h1>")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>");
+    html2pdf().set({ margin: 10, filename: "documento-juridico.pdf", html2canvas: { scale: 2 }, jsPDF: { format: "a4" } }).from(container).save();
   };
 
   return (
@@ -264,9 +293,21 @@ export default function LegalDocumentsView() {
                   <Button variant="outline" size="sm" onClick={copyResult}>
                     <Copy className="h-4 w-4 mr-1" /> Copiar
                   </Button>
-                  <Button variant="outline" size="sm" onClick={downloadResult}>
-                    <Download className="h-4 w-4 mr-1" /> Baixar
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <FileDown className="h-4 w-4 mr-1" /> Baixar
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={downloadAsDocx}>
+                        <Download className="h-4 w-4 mr-2" /> Word (.docx)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={downloadAsPdf}>
+                        <Download className="h-4 w-4 mr-2" /> PDF (.pdf)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
             </div>
