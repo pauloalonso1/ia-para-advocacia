@@ -496,12 +496,13 @@ serve(async (req) => {
       console.log(`➡️ Proceeding to step ${nextStep.step_order}`);
       await supabase.from("cases").update({ current_step_id: nextStep.id }).eq("id", existingCase.id);
 
-      const nextMessage = nextStep.message_to_send.replace(/\{nome\}/gi, existingCase.client_name || clientName);
-      const proceedMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, nextMessage);
+      // Use AI's personalized response instead of rigid template — prevents AI from returning STAY to keep its text
+      const messageToSend = aiResponse.response_text || nextStep.message_to_send.replace(/\{nome\}/gi, existingCase.client_name || clientName);
+      const proceedMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, messageToSend);
       await supabase.from("conversation_history").insert({
         case_id: existingCase.id,
         role: "assistant",
-        content: nextMessage,
+        content: messageToSend,
         external_message_id: proceedMsgId,
         message_status: "sent",
       });

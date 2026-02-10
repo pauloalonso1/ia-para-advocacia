@@ -425,6 +425,8 @@ ${knowledgeBaseContext}
 
 🎯 INSTRUÇÕES DE DECISÃO:
 1. Se o cliente respondeu adequadamente à pergunta da etapa atual → action "PROCEED"
+   - Sua response_text SERÁ enviada ao cliente. Inclua um breve reconhecimento da resposta E a pergunta da PRÓXIMA etapa, personalizada.
+   - NÃO tenha medo de usar PROCEED — o sistema enviará SUA mensagem, não o template fixo.
 2. Se o cliente fez uma pergunta ou deu resposta vaga → action "STAY"
 3. Se for a última etapa e o cliente concordou → new_status "Qualificado"
 4. Se o cliente demonstrar desinteresse → new_status "Não Qualificado"
