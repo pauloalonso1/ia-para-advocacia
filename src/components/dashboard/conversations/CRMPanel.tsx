@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
@@ -51,6 +51,7 @@ interface CRMPanelProps {
   onUpdateStatus: (caseId: string, status: string) => void;
   onUpdateName: (caseId: string, name: string) => void;
   onAssignAgent: (caseId: string, agentId: string | null) => void;
+  profilePictureUrl?: string | null;
 }
 
 const crmStages = [
@@ -62,7 +63,7 @@ const crmStages = [
   { id: 'Arquivado', label: 'Arquivado', color: 'bg-muted-foreground' },
 ];
 
-const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }: CRMPanelProps) => {
+const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, profilePictureUrl }: CRMPanelProps) => {
   const { agents } = useAgents();
   const { activeMembers } = useTeamMembers();
   const { loading: summaryLoading, summary, generateSummary, clearSummary } = useAISummary();
@@ -252,6 +253,9 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent }:
             {/* Contact Card */}
             <div className="flex items-center gap-3">
               <Avatar className="w-14 h-14">
+                {profilePictureUrl && (
+                  <AvatarImage src={profilePictureUrl} alt={selectedCase.client_name || 'Contact'} className="object-cover" />
+                )}
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground text-lg font-semibold">
                   {getInitials(selectedCase.client_name, selectedCase.client_phone)}
                 </AvatarFallback>

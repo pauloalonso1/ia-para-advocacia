@@ -104,6 +104,7 @@ const ConversationsView = () => {
         onUpdateStatus={handleUpdateStatus}
         onUpdateName={handleUpdateName}
         onAssignAgent={handleAssignAgent}
+        profilePictureUrl={selectedCase ? pictures[selectedCase.client_phone] : undefined}
       />
     </div>
   );
