@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 import {
   DropdownMenu,
@@ -32,6 +32,7 @@ interface ConversationsListProps {
   onDeleteCase: (caseId: string) => Promise<boolean>;
   loading: boolean;
   typingCases?: Set<string>;
+  profilePictures?: Record<string, string | null>;
 }
 
 const statusColors: Record<string, string> = {
@@ -58,7 +59,8 @@ const ConversationsList = ({
   onSelectCase, 
   onDeleteCase, 
   loading,
-  typingCases = new Set()
+  typingCases = new Set(),
+  profilePictures = {}
 }: ConversationsListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -270,6 +272,13 @@ const ConversationsList = ({
                     <div className="flex items-start gap-3">
                       {/* Avatar */}
                       <Avatar className="w-10 h-10 shrink-0">
+                        {profilePictures[caseItem.client_phone] && (
+                          <AvatarImage 
+                            src={profilePictures[caseItem.client_phone]!} 
+                            alt={caseItem.client_name || 'Contact'}
+                            className="object-cover"
+                          />
+                        )}
                         <AvatarFallback className={cn(
                           "text-white font-medium text-sm",
                           statusColors[caseItem.status || 'Novo Contato'] || 'bg-primary'
