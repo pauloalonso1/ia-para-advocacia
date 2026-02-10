@@ -858,6 +858,36 @@ export type Database = {
         }
         Relationships: []
       }
+      research_api_settings: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          is_enabled: boolean | null
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          provider?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedule_settings: {
         Row: {
           appointment_duration_minutes: number

@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.legal-documents]
 verify_jwt = false
+
+[functions.research-jurisprudencia]
+verify_jwt = false
