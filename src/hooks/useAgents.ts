@@ -123,59 +123,8 @@ export const useAgents = () => {
 
   const deleteAgent = async (id: string) => {
     try {
-      // First, get all step IDs for this agent
-      const { data: stepsData } = await supabase
-        .from('agent_script_steps')
-        .select('id')
-        .eq('agent_id', id);
-
-      const stepIds = stepsData?.map(s => s.id) || [];
-
-      // Remove current_step_id reference from any cases pointing to these steps
-      if (stepIds.length > 0) {
-        const { error: stepsRefError } = await supabase
-          .from('cases')
-          .update({ current_step_id: null })
-          .in('current_step_id', stepIds);
-
-        if (stepsRefError) {
-          console.error('Error clearing current_step_id:', stepsRefError);
-        }
-      }
-
-      // Remove agent reference from any cases using this agent
-      const { error: casesError } = await supabase
-        .from('cases')
-        .update({ active_agent_id: null })
-        .eq('active_agent_id', id);
-
-      if (casesError) throw casesError;
-
-      // Delete related agent_faqs
-      const { error: faqsError } = await supabase
-        .from('agent_faqs')
-        .delete()
-        .eq('agent_id', id);
-
-      if (faqsError) throw faqsError;
-
-      // Delete related agent_script_steps
-      const { error: stepsError } = await supabase
-        .from('agent_script_steps')
-        .delete()
-        .eq('agent_id', id);
-
-      if (stepsError) throw stepsError;
-
-      // Delete related agent_rules
-      const { error: rulesError } = await supabase
-        .from('agent_rules')
-        .delete()
-        .eq('agent_id', id);
-
-      if (rulesError) throw rulesError;
-
-      // Finally delete the agent
+      // CASCADE handles cleanup of agent_faqs, agent_rules, agent_script_steps
+      // SET NULL handles cases.active_agent_id, cases.current_step_id, knowledge_*, contact_memories, funnel_assignments
       const { error } = await supabase
         .from('agents')
         .delete()
