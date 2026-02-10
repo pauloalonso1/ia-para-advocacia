@@ -509,72 +509,106 @@ serve(async (req) => {
         console.error("❌ Category agent detection error:", e);
       }
 
-      const nextFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
+      // Determine target funnel stage based on category agent's assignment or next progression
+      let targetFunnelStage: string | null = null;
+      let switchAgentId: string | null = null;
 
-      if (nextFunnelStage && nextFunnelStage !== existingCase.status) {
-        console.log(`📊 Auto-advancing funnel: ${existingCase.status} → ${nextFunnelStage}`);
+      if (categoryAgentId) {
+        // Find which funnel stage this category agent is assigned to
+        const { data: categoryAssignment } = await supabase
+          .from("funnel_agent_assignments")
+          .select("stage_name")
+          .eq("user_id", userId)
+          .eq("agent_id", categoryAgentId)
+          .maybeSingle();
 
-        let switchAgentId: string | null = categoryAgentId;
-        if (!switchAgentId) {
+        if (categoryAssignment) {
+          targetFunnelStage = categoryAssignment.stage_name;
+          switchAgentId = categoryAgentId;
+          console.log(`🏷️ Category agent "${categoryAgentId}" is assigned to stage "${targetFunnelStage}"`);
+        } else {
+          // Category agent exists but not assigned to any funnel stage — use next progression
+          targetFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
+          switchAgentId = categoryAgentId;
+        }
+      } else {
+        // No category agent found — use standard funnel progression
+        targetFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
+
+        if (targetFunnelStage) {
           const { data: nextAssignment } = await supabase
             .from("funnel_agent_assignments")
             .select("agent_id")
             .eq("user_id", userId)
-            .eq("stage_name", nextFunnelStage)
+            .eq("stage_name", targetFunnelStage)
             .maybeSingle();
           switchAgentId = nextAssignment?.agent_id || null;
         }
+      }
 
-        const statusUpdate: Record<string, any> = {
-          status: nextFunnelStage,
-          updated_at: new Date().toISOString(),
-        };
+      if (targetFunnelStage) {
+        const stageChanged = targetFunnelStage !== existingCase.status;
+        const agentChanged = switchAgentId && switchAgentId !== agentId;
 
-        if (switchAgentId && switchAgentId !== agentId) {
-          statusUpdate.active_agent_id = switchAgentId;
-          statusUpdate.is_agent_paused = false;
-          statusUpdate.current_step_id = null;
+        if (stageChanged || agentChanged) {
+          console.log(`📊 Funnel update: "${existingCase.status}" → "${targetFunnelStage}", agent switch: ${agentChanged}`);
 
-          const { data: newFirstStep } = await supabase
-            .from("agent_script_steps")
-            .select("id")
-            .eq("agent_id", switchAgentId)
-            .order("step_order", { ascending: true })
-            .limit(1)
-            .maybeSingle();
+          const statusUpdate: Record<string, any> = {
+            updated_at: new Date().toISOString(),
+          };
 
-          if (newFirstStep) statusUpdate.current_step_id = newFirstStep.id;
-
-          console.log(`🔄 Auto-switch to ${switchAgentId} for "${nextFunnelStage}"`);
-
-          const [newAgentRules, newAgentFirstStep] = await Promise.all([
-            supabase.from("agent_rules").select("welcome_message").eq("agent_id", switchAgentId).maybeSingle(),
-            supabase.from("agent_script_steps").select("message_to_send").eq("agent_id", switchAgentId).order("step_order", { ascending: true }).limit(1).maybeSingle(),
-          ]);
-
-          const newAgentGreeting = newAgentFirstStep.data?.message_to_send || newAgentRules.data?.welcome_message;
-          if (newAgentGreeting) {
-            const greetingMsg = newAgentGreeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
-            // Fire-and-forget delayed greeting (60 seconds)
-            fireDelayedGreeting(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-              delay_seconds: 60,
-              case_id: existingCase.id,
-              greeting_message: greetingMsg,
-              client_phone: clientPhone,
-              instance_name: instanceName,
-              evolution_api_url: EVOLUTION_API_URL,
-              evolution_api_key: EVOLUTION_API_KEY,
-            });
-            console.log(`⏰ Delayed greeting scheduled (60s) for new agent`);
+          if (stageChanged) {
+            statusUpdate.status = targetFunnelStage;
           }
-        }
 
-        await supabase.from("cases").update(statusUpdate).eq("id", existingCase.id);
+          if (agentChanged) {
+            statusUpdate.active_agent_id = switchAgentId;
+            statusUpdate.is_agent_paused = false;
+            statusUpdate.current_step_id = null;
 
-        await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, userId, existingCase.client_name || clientName, clientPhone, nextFunnelStage);
+            const { data: newFirstStep } = await supabase
+              .from("agent_script_steps")
+              .select("id")
+              .eq("agent_id", switchAgentId)
+              .order("step_order", { ascending: true })
+              .limit(1)
+              .maybeSingle();
 
-        if (nextFunnelStage === "Qualificado" || nextFunnelStage === "Convertido") {
-          generateCaseDescription(supabase, OPENAI_API_KEY, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history).catch((e) => console.error("Case description error:", e));
+            if (newFirstStep) statusUpdate.current_step_id = newFirstStep.id;
+
+            console.log(`🔄 Auto-switch to ${switchAgentId} for "${targetFunnelStage}"`);
+
+            const [newAgentRules, newAgentFirstStep] = await Promise.all([
+              supabase.from("agent_rules").select("welcome_message").eq("agent_id", switchAgentId).maybeSingle(),
+              supabase.from("agent_script_steps").select("message_to_send").eq("agent_id", switchAgentId).order("step_order", { ascending: true }).limit(1).maybeSingle(),
+            ]);
+
+            const newAgentGreeting = newAgentFirstStep.data?.message_to_send || newAgentRules.data?.welcome_message;
+            if (newAgentGreeting) {
+              const greetingMsg = newAgentGreeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
+              // Fire-and-forget delayed greeting (60 seconds)
+              fireDelayedGreeting(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+                delay_seconds: 60,
+                case_id: existingCase.id,
+                greeting_message: greetingMsg,
+                client_phone: clientPhone,
+                instance_name: instanceName,
+                evolution_api_url: EVOLUTION_API_URL,
+                evolution_api_key: EVOLUTION_API_KEY,
+              });
+              console.log(`⏰ Delayed greeting scheduled (60s) for new agent`);
+            }
+          }
+
+          await supabase.from("cases").update(statusUpdate).eq("id", existingCase.id);
+
+          if (stageChanged) {
+            await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, userId, existingCase.client_name || clientName, clientPhone, targetFunnelStage);
+          }
+
+          if (targetFunnelStage === "Qualificado" || targetFunnelStage === "Convertido") {
+            generateCaseDescription(supabase, OPENAI_API_KEY, LOVABLE_API_KEY, existingCase.id, existingCase.client_name || clientName, history).catch((e) => console.error("Case description error:", e));
+          }
         }
       }
     } else {
