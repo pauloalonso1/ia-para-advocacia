@@ -134,8 +134,43 @@ serve(async (req) => {
             const mediaCaption = imageMsg?.caption || docMsg?.caption || "";
 
             incomingMediaType = audioMsg ? "audio" : imageMsg ? "image" : "document";
-            if (incomingMediaType === "image") {
-              incomingMediaUrl = `data:${mediaMimeType};base64,${mediaBase64}`;
+
+            // Upload media to Supabase Storage
+            try {
+              const extMap: Record<string, string> = {
+                "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+                "audio/ogg; codecs=opus": "ogg", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a",
+                "application/pdf": "pdf", "application/msword": "doc",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+              };
+              const ext = extMap[mediaMimeType] || mediaMimeType.split("/").pop()?.split(";")[0] || "bin";
+              const fileName = docMsg?.fileName || `${incomingMediaType}_${Date.now()}.${ext}`;
+              const storagePath = `incoming/${clientPhone}/${Date.now()}_${fileName}`;
+
+              const binaryStr = atob(mediaBase64);
+              const bytes = new Uint8Array(binaryStr.length);
+              for (let i = 0; i < binaryStr.length; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+              }
+
+              const { error: uploadError } = await supabase.storage
+                .from("chat-media")
+                .upload(storagePath, bytes, {
+                  contentType: mediaMimeType,
+                  upsert: false,
+                });
+
+              if (uploadError) {
+                console.error("❌ Storage upload error:", uploadError);
+              } else {
+                const { data: urlData } = supabase.storage
+                  .from("chat-media")
+                  .getPublicUrl(storagePath);
+                incomingMediaUrl = urlData.publicUrl;
+                console.log(`📦 Media uploaded to storage: ${incomingMediaUrl}`);
+              }
+            } catch (storageError) {
+              console.error("❌ Storage upload failed:", storageError);
             }
 
             messageBody = await processMediaWithAI(
