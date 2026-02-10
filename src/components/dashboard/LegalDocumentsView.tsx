@@ -111,7 +111,7 @@ export default function LegalDocumentsView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Documentos Jurídicos</h2>
         <p className="text-muted-foreground">Gere e analise petições e contratos com IA</p>
