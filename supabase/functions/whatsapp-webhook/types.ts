@@ -52,6 +52,7 @@ export interface AIResponse {
   response_text: string;
   action: "PROCEED" | "STAY";
   new_status?: string;
+  finalization_forced?: boolean;
 }
 
 // CRM Status progression — ordered for auto-advance

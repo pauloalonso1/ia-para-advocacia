@@ -922,6 +922,7 @@ function parseFallbackResponse(data: any): AIResponse {
         textLower.includes("action: proceed") ||
         textLower.includes("«proceed»");
 
+      let finalizationForced = false;
       if (!shouldProceed) {
         const finalizationKeywords = [
           "encaminhar", "encaminhando", "especialista responsável",
@@ -932,6 +933,7 @@ function parseFallbackResponse(data: any): AIResponse {
         ];
         if (finalizationKeywords.some((kw) => textLower.includes(kw))) {
           shouldProceed = true;
+          finalizationForced = true;
           console.log("🔍 Detected finalization intent — forcing PROCEED");
         }
       }
@@ -944,6 +946,7 @@ function parseFallbackResponse(data: any): AIResponse {
         response_text: content,
         action: shouldProceed ? "PROCEED" : "STAY",
         new_status: detectedStatus,
+        finalization_forced: finalizationForced || undefined,
       };
     }
   }
