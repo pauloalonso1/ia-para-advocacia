@@ -20,6 +20,7 @@ import {
   WifiOff,
   Loader2,
   FileText,
+  Search,
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
@@ -52,6 +53,7 @@ const menuItems = [
   { id: 'financial', label: 'Financeiro', icon: Wallet },
   { id: 'team', label: 'Equipe', icon: Users },
   { id: 'documents', label: 'Documentos', icon: FileText },
+  { id: 'research', label: 'Pesquisa', icon: Search },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];

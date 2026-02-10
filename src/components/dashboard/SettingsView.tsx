@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Settings, MessageSquare, User, Bell, Clock, Zap, FileSignature, Users, GitBranch,
+  Settings, MessageSquare, User, Bell, Clock, Zap, FileSignature, Users, GitBranch, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -12,9 +12,10 @@ import NotificationSettings from './settings/NotificationSettings';
 import FollowupSettings from './settings/FollowupSettings';
 import ZapSignSettings from './settings/ZapSignSettings';
 import FunnelAgentsSettings from './settings/FunnelAgentsSettings';
+import ResearchApiSettings from './settings/ResearchApiSettings';
 import TeamMembersView from './TeamMembersView';
 
-type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign' | 'funnel' | 'team';
+type SettingsSection = 'profile' | 'whatsapp' | 'schedule' | 'notifications' | 'followup' | 'zapsign' | 'funnel' | 'team' | 'research';
 
 interface SettingsViewProps {
   initialSection?: SettingsSection;
@@ -29,6 +30,7 @@ const menuItems: { id: SettingsSection; label: string; icon: React.ElementType; 
   { id: 'followup', label: 'Follow-up', icon: Zap, description: 'Automação' },
   { id: 'funnel', label: 'Funil', icon: GitBranch, description: 'Multi-agente' },
   { id: 'zapsign', label: 'ZapSign', icon: FileSignature, description: 'Assinatura digital' },
+  { id: 'research', label: 'Pesquisa', icon: Search, description: 'API Jurisprudencial' },
 ];
 
 const SettingsView = ({ initialSection = 'profile' }: SettingsViewProps) => {
@@ -47,6 +49,7 @@ const SettingsView = ({ initialSection = 'profile' }: SettingsViewProps) => {
       case 'followup': return <FollowupSettings />;
       case 'funnel': return <FunnelAgentsSettings />;
       case 'zapsign': return <ZapSignSettings />;
+      case 'research': return <ResearchApiSettings />;
       case 'team': return <TeamMembersView />;
       default: return null;
     }
