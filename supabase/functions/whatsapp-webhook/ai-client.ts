@@ -1,5 +1,7 @@
 // AI API wrappers with automatic fallback from OpenAI to Lovable AI Gateway
 
+import { withRetry } from "./retry.ts";
+
 const FETCH_TIMEOUT_MS = 30_000;
 
 function withTimeout(promise: Promise<Response>, ms: number): Promise<Response> {
@@ -17,72 +19,71 @@ export async function callAIChatCompletions(
   lovableApiKey: string | null,
   body: Record<string, any>
 ): Promise<any> {
-  // Try OpenAI first if key is available
-  if (openaiApiKey) {
-    try {
-      const response = await withTimeout(
-        fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${openaiApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-        }),
-        FETCH_TIMEOUT_MS
-      );
+  return withRetry(async () => {
+    // Try OpenAI first if key is available
+    if (openaiApiKey) {
+      try {
+        const response = await withTimeout(
+          fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${openaiApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          }),
+          FETCH_TIMEOUT_MS
+        );
 
-      if (response.ok) {
-        return await response.json();
-      }
+        if (response.ok) {
+          return await response.json();
+        }
 
-      const errorText = await response.text();
-      console.warn(`⚠️ OpenAI API error ${response.status}: ${errorText.slice(0, 200)}`);
-      // If 429 or 5xx, fall through to Lovable AI
-      if (response.status !== 429 && response.status < 500) {
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText.slice(0, 200)}`);
+        const errorText = await response.text();
+        console.warn(`⚠️ OpenAI API error ${response.status}: ${errorText.slice(0, 200)}`);
+        if (response.status !== 429 && response.status < 500) {
+          throw new Error(`OpenAI API error: ${response.status} - ${errorText.slice(0, 200)}`);
+        }
+        console.log("🔄 Falling back to Lovable AI Gateway...");
+      } catch (e: any) {
+        if (e.message?.startsWith("OpenAI API error:")) throw e;
+        console.warn("⚠️ OpenAI request failed, trying Lovable AI:", e.message);
       }
-      console.log("🔄 Falling back to Lovable AI Gateway...");
-    } catch (e: any) {
-      if (e.message?.startsWith("OpenAI API error:")) throw e;
-      console.warn("⚠️ OpenAI request failed, trying Lovable AI:", e.message);
     }
-  }
 
-  // Fallback to Lovable AI Gateway (Gemini)
-  if (!lovableApiKey) {
-    throw new Error("No AI API key available (OpenAI failed and LOVABLE_API_KEY not configured)");
-  }
+    // Fallback to Lovable AI Gateway (Gemini)
+    if (!lovableApiKey) {
+      throw new Error("No AI API key available (OpenAI failed and LOVABLE_API_KEY not configured)");
+    }
 
-  // Map OpenAI model to Gemini equivalent
-  const modelMap: Record<string, string> = {
-    "gpt-4o-mini": "google/gemini-2.5-flash",
-    "gpt-4o": "google/gemini-2.5-flash",
-  };
-  const lovableModel = modelMap[body.model] || "google/gemini-2.5-flash";
+    const modelMap: Record<string, string> = {
+      "gpt-4o-mini": "google/gemini-2.5-flash",
+      "gpt-4o": "google/gemini-2.5-flash",
+    };
+    const lovableModel = modelMap[body.model] || "google/gemini-2.5-flash";
+    const lovableBody = { ...body, model: lovableModel };
 
-  const lovableBody = { ...body, model: lovableModel };
+    const response = await withTimeout(
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(lovableBody),
+      }),
+      FETCH_TIMEOUT_MS
+    );
 
-  const response = await withTimeout(
-    fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(lovableBody),
-    }),
-    FETCH_TIMEOUT_MS
-  );
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Lovable AI Gateway error ${response.status}: ${errorText.slice(0, 200)}`);
+      throw new Error(`Lovable AI Gateway error: ${response.status}`);
+    }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`❌ Lovable AI Gateway error ${response.status}: ${errorText.slice(0, 200)}`);
-    throw new Error(`Lovable AI Gateway error: ${response.status}`);
-  }
-
-  console.log("✅ Lovable AI Gateway response received");
-  return await response.json();
+    console.log("✅ AI response received");
+    return await response.json();
+  }, `AI:${body.model || "default"}`, { maxRetries: 2 });
 }
 
 // Helper: call AI embeddings with fallback

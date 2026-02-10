@@ -1,6 +1,7 @@
 // Media processing: download from Evolution API and transcribe/describe with AI
 
 import { callAIChatCompletions } from "./ai-client.ts";
+import { withRetry } from "./retry.ts";
 
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -12,40 +13,42 @@ export async function downloadMediaFromEvolution(
   messageData: any
 ): Promise<string | null> {
   try {
-    const url = `${apiUrl}/chat/getBase64FromMediaMessage/${instanceName}`;
-    console.log(`📥 Downloading media from Evolution API...`);
+    return await withRetry(async () => {
+      const url = `${apiUrl}/chat/getBase64FromMediaMessage/${instanceName}`;
+      console.log(`📥 Downloading media from Evolution API...`);
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: apiKey,
-      },
-      body: JSON.stringify({
-        message: {
-          key: messageData.key,
-          message: messageData.message,
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: apiKey,
         },
-        convertToMp4: false,
-      }),
-    });
+        body: JSON.stringify({
+          message: {
+            key: messageData.key,
+            message: messageData.message,
+          },
+          convertToMp4: false,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Evolution media download error:", response.status, errorText);
-      return null;
-    }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Evolution media download error:", response.status, errorText);
+        throw new Error(`Evolution media download failed: ${response.status}`);
+      }
 
-    const data = await response.json();
-    const base64 = data?.base64 || data?.data?.base64 || null;
+      const data = await response.json();
+      const base64 = data?.base64 || data?.data?.base64 || null;
 
-    if (!base64) {
-      console.error("No base64 data in Evolution response");
-      return null;
-    }
+      if (!base64) {
+        console.error("No base64 data in Evolution response");
+        return null;
+      }
 
-    console.log(`📥 Media downloaded: ${base64.length} chars base64`);
-    return base64;
+      console.log(`📥 Media downloaded: ${base64.length} chars base64`);
+      return base64;
+    }, "downloadMedia", { maxRetries: 2 });
   } catch (error) {
     console.error("Error downloading media:", error);
     return null;

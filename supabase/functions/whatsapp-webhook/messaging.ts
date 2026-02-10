@@ -1,6 +1,7 @@
 // WhatsApp messaging and notification helpers
 
 import { STATUS_NOTIFICATION_MAP } from "./types.ts";
+import { withRetry } from "./retry.ts";
 
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -11,30 +12,32 @@ export async function sendWhatsAppMessage(
   phone: string,
   text: string
 ): Promise<string | null> {
-  const url = `${apiUrl}/message/sendText/${instanceName}`;
+  return withRetry(async () => {
+    const url = `${apiUrl}/message/sendText/${instanceName}`;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: apiKey,
-    },
-    body: JSON.stringify({
-      number: phone,
-      text: text,
-    }),
-  });
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: apiKey,
+      },
+      body: JSON.stringify({
+        number: phone,
+        text: text,
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("WhatsApp send error:", response.status, errorText);
-    throw new Error(`WhatsApp send failed: ${response.status}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("WhatsApp send error:", response.status, errorText);
+      throw new Error(`WhatsApp send failed: ${response.status}`);
+    }
 
-  const data = await response.json();
-  const messageId = data?.key?.id || null;
-  console.log(`✅ Message sent to ${phone}, id: ${messageId}`);
-  return messageId;
+    const data = await response.json();
+    const messageId = data?.key?.id || null;
+    console.log(`✅ Message sent to ${phone}, id: ${messageId}`);
+    return messageId;
+  }, `sendWhatsApp:${phone}`);
 }
 
 export async function sendStatusNotification(
