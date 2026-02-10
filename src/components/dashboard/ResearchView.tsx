@@ -59,7 +59,10 @@ export default function ResearchView() {
   return (
     <div className="p-4 md:p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Pesquisa Jurisprudencial</h2>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Scale className="w-6 h-6 text-primary" />
+          Pesquisa Jurisprudencial
+        </h2>
         <p className="text-muted-foreground">Busque processos e jurisprudência via API</p>
       </div>
 
