@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, MoreVertical as InfoIcon } from 'lucide-react';
 import { Case, Message } from '@/hooks/useCases';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,6 +24,9 @@ interface ChatViewProps {
   loading: boolean;
   onPauseAgent?: (caseId: string) => void;
   profilePictureUrl?: string | null;
+  onBack?: () => void;
+  onOpenCRM?: () => void;
+  isMobile?: boolean;
 }
 
 const commonEmojis = [
@@ -33,7 +37,7 @@ const commonEmojis = [
   '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💯', '✨',
 ];
 
-const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictureUrl }: ChatViewProps) => {
+const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictureUrl, onBack, onOpenCRM, isMobile }: ChatViewProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [messageInput, setMessageInput] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -304,6 +308,11 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictur
     <div className="flex-1 flex flex-col bg-background/30">
       {/* Chat Header */}
       <div className="h-16 px-4 border-b border-border flex items-center gap-3 bg-card/50">
+        {isMobile && onBack && (
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onBack}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
         <Avatar className="w-10 h-10 border-2 border-primary/30">
           {profilePictureUrl && (
             <AvatarImage src={profilePictureUrl} alt={selectedCase.client_name || 'Contact'} className="object-cover" />
@@ -324,6 +333,11 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictur
           </h3>
           <p className="text-xs text-muted-foreground">{formatPhone(selectedCase.client_phone)}</p>
         </div>
+        {isMobile && onOpenCRM && (
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onOpenCRM}>
+            <InfoIcon className="w-5 h-5" />
+          </Button>
+        )}
       </div>
 
       {/* Messages Area */}

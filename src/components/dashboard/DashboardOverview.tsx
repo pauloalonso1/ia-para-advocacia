@@ -75,7 +75,7 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-48" />
@@ -83,16 +83,16 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
           </div>
           <Skeleton className="h-10 w-48" />
         </div>
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-5 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6">
+          <div className="md:col-span-1 xl:col-span-5 space-y-6">
             <Skeleton className="h-24" />
             <Skeleton className="h-64" />
             <Skeleton className="h-80" />
           </div>
-          <div className="col-span-4">
+          <div className="md:col-span-1 xl:col-span-4">
             <Skeleton className="h-[600px]" />
           </div>
-          <div className="col-span-3 space-y-6">
+          <div className="md:col-span-2 xl:col-span-3 space-y-6">
             <Skeleton className="h-32" />
             <Skeleton className="h-80" />
           </div>
@@ -102,9 +102,9 @@ const DashboardOverview = ({ onNavigate }: DashboardOverviewProps = {}) => {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
+    <div className="p-4 md:p-6 space-y-6 overflow-auto h-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             📊 Dashboard
