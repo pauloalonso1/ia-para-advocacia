@@ -96,7 +96,7 @@ const Dashboard = ({ initialTab = 'dashboard' }: DashboardProps) => {
   const isFullHeightView = activeTab === 'conversations';
 
   return (
-    <div className="min-h-screen h-screen bg-background flex">
+    <div className="min-h-screen h-screen bg-background flex flex-col md:flex-row">
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={(tab) => { setSettingsSection(undefined); setActiveTab(tab); }}
