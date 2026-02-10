@@ -554,16 +554,18 @@ serve(async (req) => {
 
           const newAgentGreeting = newAgentFirstStep.data?.message_to_send || newAgentRules.data?.welcome_message;
           if (newAgentGreeting) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
             const greetingMsg = newAgentGreeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
-            const greetingMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, greetingMsg);
-            await supabase.from("conversation_history").insert({
+            // Fire-and-forget delayed greeting (60 seconds)
+            fireDelayedGreeting(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+              delay_seconds: 60,
               case_id: existingCase.id,
-              role: "assistant",
-              content: greetingMsg,
-              external_message_id: greetingMsgId,
-              message_status: "sent",
+              greeting_message: greetingMsg,
+              client_phone: clientPhone,
+              instance_name: instanceName,
+              evolution_api_url: EVOLUTION_API_URL,
+              evolution_api_key: EVOLUTION_API_KEY,
             });
+            console.log(`⏰ Delayed greeting scheduled (60s) for new agent`);
           }
         }
 
@@ -786,16 +788,20 @@ async function switchToAgent(
 
   const greeting = newAgentFirstStepRes.data?.message_to_send || newAgentRulesRes.data?.welcome_message;
   if (greeting) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
     const greetingText = greeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
-    const greetingMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, greetingText);
-    await supabase.from("conversation_history").insert({
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Fire-and-forget delayed greeting (60 seconds)
+    fireDelayedGreeting(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      delay_seconds: 60,
       case_id: existingCase.id,
-      role: "assistant",
-      content: greetingText,
-      external_message_id: greetingMsgId,
-      message_status: "sent",
+      greeting_message: greetingText,
+      client_phone: clientPhone,
+      instance_name: instanceName,
+      evolution_api_url: EVOLUTION_API_URL,
+      evolution_api_key: EVOLUTION_API_KEY,
     });
+    console.log(`⏰ Delayed greeting scheduled (60s) for category switch agent`);
   }
 
   return new Response(JSON.stringify({ status: "agent_switched_by_category" }), {
@@ -843,7 +849,32 @@ async function handleStatusChange(
 
   if (newStatus === "Qualificado" || newStatus === "Convertido") {
     generateCaseDescription(supabase, OPENAI_API_KEY, LOVABLE_API_KEY, existingCase.id, clientName, history).catch((e) => console.error("Case description error:", e));
+}
+
+// ===== Helper: Fire-and-forget delayed greeting =====
+function fireDelayedGreeting(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  payload: {
+    delay_seconds: number;
+    case_id: string;
+    greeting_message: string;
+    client_phone: string;
+    instance_name: string;
+    evolution_api_url: string;
+    evolution_api_key: string;
   }
+) {
+  // Fire and forget — don't await
+  fetch(`${supabaseUrl}/functions/v1/send-delayed-greeting`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${supabaseServiceKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }).catch((e) => console.error("❌ Failed to schedule delayed greeting:", e));
+}
 
   await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, userId, clientName, clientPhone, newStatus);
 }
