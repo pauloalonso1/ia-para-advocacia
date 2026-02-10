@@ -25,7 +25,7 @@ export function useLegalDocuments() {
   const [result, setResult] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const saveToHistory = async (documentType: string, inputData: Record<string, any>, outputData: string) => {
+  const saveToHistory = async (documentType: string, inputData: Record<string, any>, outputData: string, title?: string) => {
     if (!user) return;
     try {
       await supabase.from("legal_document_history").insert({
@@ -33,13 +33,14 @@ export function useLegalDocuments() {
         document_type: documentType,
         input_data: inputData,
         output_data: outputData,
-      });
+        title: title || null,
+      } as any);
     } catch (e) {
       console.warn("Failed to save document history:", e);
     }
   };
 
-  const callFunction = async (action: string, data: Record<string, any>, docType: string) => {
+  const callFunction = async (action: string, data: Record<string, any>, docType: string, title?: string) => {
     setIsLoading(true);
     setResult(null);
     try {
@@ -51,7 +52,7 @@ export function useLegalDocuments() {
       if (!res?.success) throw new Error(res?.error || "Erro ao processar documento");
 
       setResult(res.content);
-      await saveToHistory(docType, data, res.content);
+      await saveToHistory(docType, data, res.content, title);
       toaster.create({ title: "Documento gerado!", description: "O resultado está disponível ao lado.", type: "success" });
       return res.content as string;
     } catch (e: any) {
@@ -68,10 +69,10 @@ export function useLegalDocuments() {
     }
   };
 
-  const generatePetition = (data: PetitionRequest) => callFunction("generate_petition", data, "petition");
-  const analyzePetition = (text: string) => callFunction("analyze_petition", { text }, "petition_analysis");
-  const generateContract = (data: ContractRequest) => callFunction("generate_contract", data, "contract");
-  const analyzeContract = (text: string) => callFunction("analyze_contract", { text }, "contract_analysis");
+  const generatePetition = (data: PetitionRequest) => callFunction("generate_petition", data, "petition", `${data.type} - ${data.parties?.plaintiff || "Petição"}`);
+  const analyzePetition = (text: string) => callFunction("analyze_petition", { text }, "petition_analysis", "Análise de Petição");
+  const generateContract = (data: ContractRequest) => callFunction("generate_contract", data, "contract", `Contrato de ${data.type}`);
+  const analyzeContract = (text: string) => callFunction("analyze_contract", { text }, "contract_analysis", "Análise de Contrato");
 
   return { isLoading, result, setResult, generatePetition, analyzePetition, generateContract, analyzeContract };
 }

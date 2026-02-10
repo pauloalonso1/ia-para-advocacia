@@ -21,6 +21,7 @@ import {
   Loader2,
   FileText,
   Search,
+  History,
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
@@ -53,6 +54,7 @@ const menuItems = [
   { id: 'financial', label: 'Financeiro', icon: Wallet },
   { id: 'team', label: 'Equipe', icon: Users },
   { id: 'documents', label: 'Documentos', icon: FileText },
+  { id: 'history', label: 'Histórico', icon: History },
   { id: 'research', label: 'Pesquisa', icon: Search },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
 ];

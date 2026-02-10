@@ -750,7 +750,9 @@ export type Database = {
           document_type: string
           id: string
           input_data: Json
+          is_favorite: boolean | null
           output_data: string
+          title: string | null
           user_id: string
         }
         Insert: {
@@ -758,7 +760,9 @@ export type Database = {
           document_type: string
           id?: string
           input_data?: Json
+          is_favorite?: boolean | null
           output_data: string
+          title?: string | null
           user_id: string
         }
         Update: {
@@ -766,7 +770,9 @@ export type Database = {
           document_type?: string
           id?: string
           input_data?: Json
+          is_favorite?: boolean | null
           output_data?: string
+          title?: string | null
           user_id?: string
         }
         Relationships: []
