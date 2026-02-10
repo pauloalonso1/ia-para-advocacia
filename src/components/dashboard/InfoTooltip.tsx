@@ -15,7 +15,7 @@ const InfoTooltip = ({ content, className, side = 'top' }: InfoTooltipProps) => 
         <TooltipTrigger asChild>
           <HelpCircle className={cn("w-3.5 h-3.5 text-muted-foreground/50 hover:text-muted-foreground cursor-help transition-colors inline-block", className)} />
         </TooltipTrigger>
-        <TooltipContent side={side} className="max-w-[240px] text-xs leading-relaxed">
+        <TooltipContent side={side} className="max-w-[240px] text-xs leading-relaxed z-[100]" avoidCollisions>
           {content}
         </TooltipContent>
       </Tooltip>
