@@ -9,7 +9,13 @@ interface SoundNotificationOptions {
 }
 
 export const useNotificationSound = (options: SoundNotificationOptions = {}) => {
-  const { enabled = true, soundEnabled = true, pushEnabled = true } = options;
+  const soundStored = typeof window !== 'undefined' ? localStorage.getItem('lexia_sound_enabled') : null;
+  const pushStored = typeof window !== 'undefined' ? localStorage.getItem('lexia_push_enabled') : null;
+  const {
+    enabled = true,
+    soundEnabled = soundStored !== null ? soundStored === 'true' : true,
+    pushEnabled = pushStored !== null ? pushStored === 'true' : true,
+  } = options;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const permissionRef = useRef<NotificationPermission>('default');
 
