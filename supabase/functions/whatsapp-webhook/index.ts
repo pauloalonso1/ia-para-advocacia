@@ -472,7 +472,27 @@ serve(async (req) => {
     }
 
     // ===== Handle AI response =====
-    if (aiResponse.action === "PROCEED" && nextStep) {
+    // Check if finalization was forced AND next step is the last — skip to script completion
+    const isLastStep = nextStep && steps.indexOf(nextStep) === steps.length - 1;
+    const skipToCompletion = aiResponse.action === "PROCEED" && nextStep && aiResponse.finalization_forced && isLastStep;
+
+    if (skipToCompletion) {
+      console.log(`🏁 Finalization forced at second-to-last step. Skipping step ${nextStep.step_order} → completing script.`);
+      await supabase.from("cases").update({ current_step_id: null }).eq("id", existingCase.id);
+
+      const closingMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, aiResponse.response_text);
+      await supabase.from("conversation_history").insert({
+        case_id: existingCase.id,
+        role: "assistant",
+        content: aiResponse.response_text,
+        external_message_id: closingMsgId,
+        message_status: "sent",
+      });
+
+      // Fall through to script completion logic (category agent switch)
+    }
+
+    if (aiResponse.action === "PROCEED" && nextStep && !skipToCompletion) {
       console.log(`➡️ Proceeding to step ${nextStep.step_order}`);
       await supabase.from("cases").update({ current_step_id: nextStep.id }).eq("id", existingCase.id);
 
@@ -485,7 +505,7 @@ serve(async (req) => {
         external_message_id: proceedMsgId,
         message_status: "sent",
       });
-    } else if (aiResponse.action === "PROCEED" && !nextStep && !isScriptCompleted) {
+    } else if (skipToCompletion || (aiResponse.action === "PROCEED" && !nextStep && !isScriptCompleted)) {
       // Script completed — auto-advance funnel
       console.log(`🏁 Script completed. Marking done and auto-advancing...`);
       await supabase.from("cases").update({ current_step_id: null }).eq("id", existingCase.id);
