@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import EmptyState from './EmptyState';
 import { useContacts, Contact, ContactInput } from '@/hooks/useContacts';
 import { Button } from '@/components/ui/button';
@@ -38,14 +38,25 @@ import {
   UserPlus,
   MessageSquare
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useProfilePictures } from '@/hooks/useProfilePictures';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const ContactsView = () => {
   const { contacts, loading, saving, createContact, updateContact, deleteContact, searchContacts } = useContacts();
+  const { pictures, fetchMultiple } = useProfilePictures();
   
+  // Fetch profile pictures for WhatsApp contacts
+  useEffect(() => {
+    const whatsappPhones = contacts
+      .filter(c => c.source === 'whatsapp' && c.phone)
+      .map(c => c.phone);
+    if (whatsappPhones.length > 0) {
+      fetchMultiple(whatsappPhones);
+    }
+  }, [contacts, fetchMultiple]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -264,6 +275,9 @@ const ContactsView = () => {
                 <div className="flex-grow flex items-center gap-3 overflow-hidden min-w-0">
                   <div className="relative shrink-0">
                     <Avatar className="h-9 w-9">
+                      {pictures[contact.phone] && (
+                        <AvatarImage src={pictures[contact.phone]!} alt={contact.name} className="object-cover" />
+                      )}
                       <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
                         {contact.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
                       </AvatarFallback>
