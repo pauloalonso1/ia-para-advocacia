@@ -103,24 +103,52 @@ export default function LegalDocumentsView() {
 
   const downloadAsDocx = async () => {
     if (!result) return;
-    const { Document, Packer, Paragraph, TextRun } = await import("docx");
+    const { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip } = await import("docx");
     const paragraphs = result.split("\n").map((line) => {
+      const isH1 = line.startsWith("# ");
+      const isH2 = line.startsWith("## ");
+      const isH3 = line.startsWith("### ");
+      const isHeading = isH1 || isH2 || isH3;
       const isBold = line.startsWith("**") && line.endsWith("**");
-      const isHeading = line.startsWith("# ") || line.startsWith("## ") || line.startsWith("### ");
       const cleanLine = line.replace(/^#+\s*/, "").replace(/\*\*/g, "");
+      if (!cleanLine.trim()) return new Paragraph({ spacing: { after: 120 } });
       return new Paragraph({
-        children: [new TextRun({ text: cleanLine, bold: isBold || isHeading, size: isHeading ? 28 : 24 })],
-        spacing: { after: 120 },
+        alignment: isHeading ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
+        spacing: { after: 200, line: 360 },
+        children: [
+          new TextRun({
+            text: isHeading ? cleanLine.toUpperCase() : cleanLine,
+            bold: isBold || isHeading,
+            font: "Times New Roman",
+            size: isH1 ? 28 : isH2 ? 26 : isH3 ? 24 : 24,
+          }),
+        ],
       });
     });
-    const doc = new Document({ sections: [{ children: paragraphs }] });
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            margin: {
+              top: convertMillimetersToTwip(30),
+              bottom: convertMillimetersToTwip(20),
+              left: convertMillimetersToTwip(30),
+              right: convertMillimetersToTwip(20),
+            },
+          },
+        },
+        children: paragraphs,
+      }],
+    });
     const blob = await Packer.toBlob(doc);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = "documento-juridico.docx";
+    a.download = `documento-juridico-${date}.docx`;
     a.click();
     URL.revokeObjectURL(url);
+    toaster.create({ title: "Download concluído!", description: "Documento Word gerado com sucesso.", type: "success" });
   };
 
   const downloadAsPdf = async () => {
