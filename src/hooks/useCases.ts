@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 export interface Case {
   id: string;
@@ -38,6 +39,7 @@ export const useCases = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { notifyNewLead } = useNotificationSound();
 
   const fetchCases = async () => {
     if (!user) return;
@@ -172,7 +174,12 @@ export const useCases = () => {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setCases(prev => [payload.new as Case, ...prev]);
+            const newCase = payload.new as Case;
+            setCases(prev => {
+              if (prev.some(c => c.id === newCase.id)) return prev;
+              return [newCase, ...prev];
+            });
+            notifyNewLead(newCase.client_name, newCase.client_phone);
           } else if (payload.eventType === 'UPDATE') {
             setCases(prev => prev.map(c => 
               c.id === (payload.new as Case).id ? payload.new as Case : c
@@ -321,6 +328,7 @@ export const useCases = () => {
 export const useMessages = (caseId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const { notifyNewMessage } = useNotificationSound();
 
   const fetchMessages = async () => {
     if (!caseId) return;
@@ -364,6 +372,10 @@ export const useMessages = (caseId: string | null) => {
           setMessages(prev => {
             const newMsg = payload.new as Message;
             if (prev.some(m => m.id === newMsg.id)) return prev;
+            // Notify only for incoming client messages
+            if (newMsg.role === 'user') {
+              notifyNewMessage(null, newMsg.content);
+            }
             return [...prev, newMsg];
           });
         }
