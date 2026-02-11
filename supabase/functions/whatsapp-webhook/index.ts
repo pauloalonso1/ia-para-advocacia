@@ -421,7 +421,23 @@ serve(async (req) => {
       currentStepIndex = advanced.newIndex;
     }
 
-    const isScriptCompleted = !currentStep && steps.length > 0;
+    const isLastStep = currentStepIndex >= 0 && currentStepIndex === steps.length - 1;
+    const noNextStep = currentStepIndex >= 0 && !steps[currentStepIndex + 1];
+
+    // Detect closing messages (obrigado, ok, etc.) when on the last step with no next step
+    const closingPattern = /^(obrigad|valeu|brigad|ok|beleza|perfeito|show|massa|top|combinado|até|ateh|tchau|falou|vlw|tmj|👍|🙏|😊|👏|✅)/i;
+    const isClosingMessage = isLastStep && noNextStep && closingPattern.test(messageBody.trim());
+
+    let isScriptCompleted = !currentStep && steps.length > 0;
+
+    // If we're on the last step and client sent a closing message, mark as completed
+    if (isClosingMessage && !isScriptCompleted) {
+      console.log(`🏁 Closing message detected on last step. Marking script as completed.`);
+      await supabase.from("cases").update({ current_step_id: null }).eq("id", existingCase.id);
+      isScriptCompleted = true;
+      currentStep = null;
+    }
+
     const nextStep = isScriptCompleted
       ? undefined
       : currentStepIndex >= 0 ? steps[currentStepIndex + 1] : steps[0];
@@ -476,8 +492,8 @@ serve(async (req) => {
     }
 
     // ===== Handle AI response =====
-    const isLastStep = nextStep && steps.indexOf(nextStep) === steps.length - 1;
-    const skipToCompletion = aiResponse.action === "PROCEED" && nextStep && aiResponse.finalization_forced && isLastStep;
+    const isNextStepLast = nextStep && steps.indexOf(nextStep) === steps.length - 1;
+    const skipToCompletion = aiResponse.action === "PROCEED" && nextStep && aiResponse.finalization_forced && isNextStepLast;
 
     if (skipToCompletion) {
       console.log(`🏁 Finalization forced at second-to-last step. Skipping step ${nextStep.step_order} → completing script.`);
