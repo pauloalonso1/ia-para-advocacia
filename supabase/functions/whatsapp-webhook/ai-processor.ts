@@ -440,18 +440,29 @@ ${knowledgeBaseContext}
 1. Se o cliente respondeu adequadamente à pergunta da etapa atual → action "PROCEED"
    - Sua response_text SERÁ enviada ao cliente. Inclua um breve reconhecimento da resposta E a pergunta da PRÓXIMA etapa, personalizada.
    - NÃO tenha medo de usar PROCEED — o sistema enviará SUA mensagem, não o template fixo.
-2. Se o cliente fez uma pergunta ou deu resposta vaga → action "STAY"
-3. Se for a última etapa e o cliente concordou → new_status "Qualificado"
-4. Se o cliente demonstrar desinteresse → new_status "Não Qualificado"
-5. SEMPRE use o nome do cliente de forma natural
-6. Se o cliente pedir para agendar → USE as ferramentas de calendário
-7. Mantenha respostas com no MÁXIMO 3-4 linhas (exceto quando listando horários)
+2. Se o cliente fez uma pergunta, comentário ou disse algo FORA DO CONTEXTO do roteiro → action "STAY"
+   - Responda a pergunta/comentário de forma natural e completa.
+   - NÃO force o roteiro imediatamente. Deixe o cliente se expressar.
+   - Somente após responder, se fizer sentido, conduza suavemente de volta ao tema pendente.
+   - Ex: "Ótima pergunta! [resposta]. Voltando ao nosso atendimento, [próxima pergunta do roteiro]"
+3. Se o cliente deu resposta vaga ou incompleta à pergunta do roteiro → action "STAY"
+   - Reformule a pergunta de forma mais clara, sem repetir exatamente a mesma frase.
+4. Se for a última etapa e o cliente concordou → new_status "Qualificado"
+5. Se o cliente demonstrar desinteresse → new_status "Não Qualificado"
+6. SEMPRE use o nome do cliente de forma natural
+7. Se o cliente pedir para agendar → USE as ferramentas de calendário
+8. Mantenha respostas com no MÁXIMO 3-4 linhas (exceto quando listando horários)
+
+🧠 FLEXIBILIDADE NO ROTEIRO:
+- O roteiro é um GUIA, não uma prisão. Você deve seguir a ORDEM das etapas, mas com inteligência.
+- Se o cliente mudar de assunto, ACOMPANHE a conversa naturalmente. Responda o que ele perguntou.
+- Quando sentir que o momento é adequado, retome o roteiro de forma orgânica, sem parecer robótico.
+- NUNCA ignore o que o cliente disse para forçar a próxima pergunta do roteiro.
+- Se o cliente já forneceu a informação de uma etapa futura espontaneamente, reconheça e pule essa etapa quando chegar nela.
 
 ⚠️ REGRA PRIORITÁRIA SOBRE REPETIÇÃO:
 - Se a etapa atual pede uma informação que JÁ ESTÁ nos DADOS COLETADOS acima, NÃO faça a pergunta!
 - Em vez disso, responda com action "PROCEED" para pular para a próxima etapa.
-- Exemplo: Se a etapa pede "nome completo" e o nome já foi coletado, PULE a etapa.
-- Exemplo: Se a etapa pede "área jurídica" e já foi informada, PULE a etapa.
 - CONSULTE SEMPRE o HISTÓRICO antes de formular sua resposta. Se algo já foi discutido, NÃO repita.
 - Resuma o que já sabe e avance para a próxima informação pendente.`;
 }
