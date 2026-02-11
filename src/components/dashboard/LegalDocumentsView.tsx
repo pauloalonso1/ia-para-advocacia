@@ -353,8 +353,8 @@ export default function LegalDocumentsView() {
                   <div className="border border-dashed border-muted-foreground/30 rounded-lg p-4 space-y-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <BookOpen className="h-4 w-4 text-primary" />
-                      <Label className="text-sm font-medium">Petição Modelo</Label>
-                      <InfoTooltip content="Selecione um modelo salvo ou cole um novo texto para a IA usar como referência de estilo e estrutura." />
+                      <Label className="text-sm font-medium">Instruções de Petição</Label>
+                      <InfoTooltip content="Escreva instruções específicas para a IA seguir ao gerar a petição (estilo, tom, estrutura, formato, etc). Estas instruções NÃO aparecerão no documento final." />
                     </div>
 
                     {/* Template selector */}
