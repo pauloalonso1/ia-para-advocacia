@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AILoader } from "@/components/ui/ai-loader";
 import ReactMarkdown from "react-markdown";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -274,6 +275,8 @@ export default function LegalDocumentsView() {
   };
 
   return (
+    <>
+      {isLoading && <AILoader text="Gerando documento" />}
     <div className="p-4 md:p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-2rem)]">
       <div>
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -645,5 +648,6 @@ export default function LegalDocumentsView() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }
