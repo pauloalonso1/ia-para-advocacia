@@ -175,7 +175,7 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, p
       }
       await supabase
         .from('cases')
-        .update({ is_agent_paused: false })
+        .update({ is_agent_paused: false, current_step_id: null })
         .eq('id', selectedCase.id);
     }
   };
