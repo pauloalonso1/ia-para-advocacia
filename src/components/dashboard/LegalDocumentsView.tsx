@@ -7,10 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload, BookOpen, Plus, Trash2, Eye, Save } from "lucide-react";
 import InfoTooltip from "@/components/dashboard/InfoTooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useLegalDocuments } from "@/hooks/useLegalDocuments";
+import { usePetitionTemplates } from "@/hooks/usePetitionTemplates";
 import { toaster } from "@/components/ui/basic-toast";
 
 const petitionTypes = [
@@ -42,6 +46,7 @@ const contractTypes = [
 
 export default function LegalDocumentsView() {
   const { isLoading, result, setResult, generatePetition, analyzePetition, generateContract, analyzeContract } = useLegalDocuments();
+  const { templates, saveTemplate, deleteTemplate } = usePetitionTemplates();
 
   // Petition form
   const [petType, setPetType] = useState("");
@@ -51,6 +56,14 @@ export default function LegalDocumentsView() {
   const [petFacts, setPetFacts] = useState("");
   const [petLegal, setPetLegal] = useState("");
   const [petRequests, setPetRequests] = useState("");
+  const [petModelText, setPetModelText] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  // Template modals
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [saveTemplateName, setSaveTemplateName] = useState("");
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<{ title: string; content: string } | null>(null);
 
   // Contract form
   const [conType, setConType] = useState("");
@@ -124,6 +137,9 @@ export default function LegalDocumentsView() {
       toaster.create({ title: "Campos obrigatórios", description: "Selecione o tipo e preencha os fatos.", type: "warning" });
       return;
     }
+    const factsWithModel = petModelText
+      ? `${petFacts}\n\n---\nPETIÇÃO MODELO (use como referência de estilo e estrutura):\n${petModelText}`
+      : petFacts;
     generatePetition({
       type: petType,
       court: petCourt,
@@ -131,10 +147,30 @@ export default function LegalDocumentsView() {
         plaintiff: petPlaintiff,
         defendant: petDefendant,
       },
-      facts: petFacts,
+      facts: factsWithModel,
       legalBasis: petLegal,
       requests: petRequests,
     });
+  };
+
+  const handleSelectTemplate = (id: string) => {
+    const tpl = templates.find((t) => t.id === id);
+    if (tpl) {
+      setPetModelText(tpl.content);
+      setSelectedTemplateId(id);
+      setShowTemplatesModal(false);
+      toaster.create({ title: `Modelo "${tpl.title}" selecionado`, type: "success" });
+    }
+  };
+
+  const handleSaveTemplate = () => {
+    if (!saveTemplateName.trim() || !petModelText.trim()) {
+      toaster.create({ title: "Preencha o nome e o texto do modelo", type: "warning" });
+      return;
+    }
+    saveTemplate(saveTemplateName.trim(), petModelText.trim());
+    setSaveTemplateName("");
+    setShowSaveTemplateModal(false);
   };
 
   const handleGenerateContract = () => {
@@ -311,6 +347,40 @@ export default function LegalDocumentsView() {
                     <Label>Pedidos</Label>
                     <Textarea value={petRequests} onChange={(e) => setPetRequests(e.target.value)} placeholder="O que se pede ao juízo (opcional)" rows={2} />
                   </div>
+
+                  {/* Petition Model / Template */}
+                  <div className="border border-dashed border-muted-foreground/30 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        <Label className="text-sm font-medium">Petição Modelo</Label>
+                        <InfoTooltip content="Cole uma petição de exemplo para a IA usar como referência de estilo e estrutura ao gerar a nova petição." />
+                      </div>
+                      <div className="flex gap-1.5">
+                        {templates.length > 0 && (
+                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowTemplatesModal(true)}>
+                            <BookOpen className="h-3 w-3 mr-1" /> Meus Modelos ({templates.length})
+                          </Button>
+                        )}
+                        {petModelText.trim() && (
+                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowSaveTemplateModal(true)}>
+                            <Save className="h-3 w-3 mr-1" /> Salvar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <Textarea
+                      value={petModelText}
+                      onChange={(e) => { setPetModelText(e.target.value); setSelectedTemplateId(null); }}
+                      placeholder="Cole aqui uma petição de exemplo para usar como base (opcional)"
+                      rows={4}
+                    />
+                    {selectedTemplateId && (
+                      <p className="text-xs text-muted-foreground">
+                        Usando modelo: <span className="font-medium text-foreground">{templates.find(t => t.id === selectedTemplateId)?.title}</span>
+                      </p>
+                    )}
+                  </div>
                   <Button onClick={handleGeneratePetition} disabled={isLoading} className="w-full">
                     {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><FileText className="h-4 w-4 mr-2" /> Gerar Petição</>}
                   </Button>
@@ -463,6 +533,97 @@ export default function LegalDocumentsView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Save Template Modal */}
+      <Dialog open={showSaveTemplateModal} onOpenChange={setShowSaveTemplateModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Salvar como Modelo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nome do Modelo *</Label>
+              <Input value={saveTemplateName} onChange={(e) => setSaveTemplateName(e.target.value)} placeholder="Ex: Petição Inicial - Consumidor" />
+            </div>
+            <div className="text-sm text-muted-foreground bg-muted/50 rounded-md p-3 max-h-32 overflow-auto">
+              {petModelText.slice(0, 300)}{petModelText.length > 300 ? "..." : ""}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveTemplateModal(false)}>Cancelar</Button>
+            <Button onClick={handleSaveTemplate}>
+              <Save className="h-4 w-4 mr-1" /> Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Templates Library Modal */}
+      <Dialog open={showTemplatesModal} onOpenChange={setShowTemplatesModal}>
+        <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" /> Meus Modelos de Petição
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[55vh]">
+            {templates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p>Nenhum modelo salvo ainda</p>
+              </div>
+            ) : (
+              <div className="space-y-2 pr-2">
+                {templates.map((tpl) => (
+                  <div key={tpl.id} className="flex items-center gap-3 p-3 rounded-lg border hover:border-primary/30 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{tpl.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{tpl.content.slice(0, 80)}...</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewTemplate({ title: tpl.title, content: tpl.content })}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => handleSelectTemplate(tpl.id)}>
+                        Usar
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteTemplate(tpl.id)}>Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Preview Modal */}
+      <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{previewTemplate?.title}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="whitespace-pre-wrap text-sm p-4">{previewTemplate?.content}</div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
