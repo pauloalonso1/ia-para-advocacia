@@ -117,10 +117,27 @@ serve(async (req) => {
     switch (action) {
       case "generate_petition": {
         const { type, court, parties, facts, legalBasis, requests, referenceModel } = data;
-        systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses. Use linguagem técnica jurídica formal.`;
+        console.log(`[legal-documents] generate_petition called. Has referenceModel: ${!!referenceModel}, length: ${referenceModel?.length || 0}`);
+        
         if (referenceModel) {
-          systemPrompt += `\n\nIMPORTANTE: O usuário forneceu o seguinte modelo de referência. Você DEVE seguir rigorosamente o estilo, a estrutura, o tom e o formato deste modelo ao gerar a nova petição. Adapte o conteúdo aos fatos e dados fornecidos, mas mantenha o padrão do modelo:\n\n---MODELO DE REFERÊNCIA---\n${referenceModel}\n---FIM DO MODELO---`;
+          systemPrompt = `Você é um advogado brasileiro sênior. Sua ÚNICA tarefa é replicar EXATAMENTE o estilo, formato, estrutura e tom do MODELO DE REFERÊNCIA fornecido abaixo, substituindo apenas os dados específicos do caso (partes, fatos, pedidos) pelos novos dados informados pelo usuário.
+
+REGRAS OBRIGATÓRIAS:
+1. COPIE a estrutura exata do modelo: mesmos títulos, mesma ordem de seções, mesma formatação
+2. REPLIQUE o estilo de escrita: mesmo nível de formalidade, mesmas expressões jurídicas, mesmo padrão de citação legal
+3. MANTENHA o mesmo formato de endereçamento, qualificação das partes e encerramento do modelo
+4. APENAS substitua os dados factuais (nomes, fatos, valores) pelos novos dados fornecidos
+5. NÃO invente seções que não existem no modelo
+6. NÃO omita seções que existem no modelo
+
+MODELO DE REFERÊNCIA (siga este padrão rigorosamente):
+"""
+${referenceModel}
+"""`;
+        } else {
+          systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses. Use linguagem técnica jurídica formal.`;
         }
+        
         userPrompt = `Gere uma petição do tipo "${type}" para o ${court || "juízo competente"}.
 
 Partes:
@@ -133,7 +150,7 @@ Fundamento Jurídico: ${legalBasis || "A ser fundamentado conforme aplicável"}
 
 Pedidos: ${requests || "Conforme os fatos narrados"}
 
-Gere a petição completa com: endereçamento, qualificação das partes, dos fatos, do direito, dos pedidos e encerramento.`;
+Gere a petição completa seguindo ${referenceModel ? "RIGOROSAMENTE o modelo de referência fornecido no system prompt" : "o formato padrão: endereçamento, qualificação das partes, dos fatos, do direito, dos pedidos e encerramento"}.`;
         break;
       }
 
