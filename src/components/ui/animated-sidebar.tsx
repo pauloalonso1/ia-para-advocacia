@@ -157,10 +157,18 @@ export const AnimatedSidebarLink = ({
   active?: boolean;
   onClick?: () => void;
 }) => {
-  const { open, animate: shouldAnimate } = useAnimatedSidebar();
+  const { open, setOpen, animate: shouldAnimate } = useAnimatedSidebar();
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+  const handleClick = () => {
+    onClick?.();
+    if (isMobile) {
+      setOpen(false);
+    }
+  };
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className={cn(
         "flex items-center gap-3 group/sidebar py-2.5 rounded-lg w-full transition-colors duration-200",
         open ? "justify-start px-3" : "justify-center px-0",
