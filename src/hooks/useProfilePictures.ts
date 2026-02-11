@@ -2,7 +2,8 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const CACHE_KEY = 'whatsapp-profile-pics';
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours for found pictures
+const NULL_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for null/failed pictures (retry sooner)
 
 interface CacheEntry {
   url: string | null;
@@ -30,7 +31,8 @@ export const useProfilePictures = () => {
     const now = Date.now();
     const pics: Record<string, string | null> = {};
     for (const [phone, entry] of Object.entries(cache)) {
-      if (now - entry.fetchedAt < CACHE_TTL) {
+      const ttl = entry.url ? CACHE_TTL : NULL_CACHE_TTL;
+      if (now - entry.fetchedAt < ttl) {
         pics[phone] = entry.url;
       }
     }
@@ -45,7 +47,10 @@ export const useProfilePictures = () => {
     
     const cache = loadCache();
     const existing = cache[phone];
-    if (existing && Date.now() - existing.fetchedAt < CACHE_TTL) return;
+    if (existing) {
+      const ttl = existing.url ? CACHE_TTL : NULL_CACHE_TTL;
+      if (Date.now() - existing.fetchedAt < ttl) return;
+    }
 
     pendingRef.current.add(phone);
 
@@ -73,7 +78,9 @@ export const useProfilePictures = () => {
     const toFetch = phones.filter(p => {
       const cache = loadCache();
       const entry = cache[p];
-      return !entry || Date.now() - entry.fetchedAt >= CACHE_TTL;
+      if (!entry) return true;
+      const ttl = entry.url ? CACHE_TTL : NULL_CACHE_TTL;
+      return Date.now() - entry.fetchedAt >= ttl;
     }).slice(0, 10);
 
     toFetch.forEach(phone => fetchPicture(phone));
