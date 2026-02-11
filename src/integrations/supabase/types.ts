@@ -220,6 +220,53 @@ export type Database = {
           },
         ]
       }
+      case_appointments: {
+        Row: {
+          case_id: string
+          created_at: string
+          duration_minutes: number
+          google_event_id: string | null
+          id: string
+          notes: string | null
+          scheduled_at: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          duration_minutes?: number
+          google_event_id?: string | null
+          id?: string
+          notes?: string | null
+          scheduled_at: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          duration_minutes?: number
+          google_event_id?: string | null
+          id?: string
+          notes?: string | null
+          scheduled_at?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_appointments_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_followups: {
         Row: {
           case_id: string
