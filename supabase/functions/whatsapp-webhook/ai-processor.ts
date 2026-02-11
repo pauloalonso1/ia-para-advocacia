@@ -81,6 +81,13 @@ export async function processWithAI(
     tools.push(buildZapSignTool());
   }
 
+  // === Fetch agent name for logging ===
+  let agentName: string | undefined;
+  try {
+    const { data: agentData } = await supabase.from("agents").select("name").eq("id", agentId).maybeSingle();
+    agentName = agentData?.name || undefined;
+  } catch { /* ignore */ }
+
   // === First AI call ===
   const data = await callAIChatCompletions(apiKey, lovableApiKey, {
     model: "gpt-4o-mini",
@@ -89,6 +96,12 @@ export async function processWithAI(
     max_tokens: 500,
     tools,
     tool_choice: "auto",
+  }, {
+    userId,
+    source: "whatsapp-webhook",
+    agentId,
+    agentName,
+    contactPhone: clientPhone,
   });
 
   // === Handle tool calls ===
