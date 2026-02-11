@@ -3,6 +3,9 @@ import { Case } from '@/hooks/useCases';
 import { useAgents } from '@/hooks/useAgents';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useAISummary } from '@/hooks/useAISummary';
+import { useAuth } from '@/contexts/AuthContext';
+import TagsManager from '@/components/dashboard/crm/TagsManager';
+import AppointmentManager from '@/components/dashboard/crm/AppointmentManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +25,7 @@ import {
   Phone, 
   Calendar, 
   Clock, 
-  Tag,
+  
   Edit2,
   Check,
   X,
@@ -68,6 +71,7 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, p
   const { agents } = useAgents();
   const { activeMembers } = useTeamMembers();
   const { loading: summaryLoading, summary, generateSummary, clearSummary } = useAISummary();
+  const { user } = useAuth();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [aiStatus, setAiStatus] = useState<'active' | 'paused' | 'disabled'>('disabled');
@@ -447,16 +451,9 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, p
             <Separator className="bg-border" />
 
             {/* Etiquetas */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                <Tag className="w-3 h-3" />
-                Etiquetas
-              </Label>
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-start text-muted-foreground">
-                <Plus className="w-3 h-3 mr-1.5" />
-                Adicionar etiqueta
-              </Button>
-            </div>
+            {user && (
+              <TagsManager clientPhone={selectedCase.client_phone} userId={user.id} />
+            )}
 
             {/* Departamentos */}
             <div className="space-y-2">
@@ -473,16 +470,7 @@ const CRMPanel = ({ selectedCase, onUpdateStatus, onUpdateName, onAssignAgent, p
             <Separator className="bg-border" />
 
             {/* Agendamentos */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                Agendamentos
-              </Label>
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-start text-muted-foreground">
-                <Plus className="w-3 h-3 mr-1.5" />
-                Novo agendamento
-              </Button>
-            </div>
+            <AppointmentManager caseId={selectedCase.id} />
 
             <Separator className="bg-border" />
 

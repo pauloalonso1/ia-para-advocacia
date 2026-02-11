@@ -368,6 +368,28 @@ serve(async (req) => {
       .update({ followup_count: 0, last_followup_at: null, next_followup_at: null, is_paused: false })
       .eq("case_id", existingCase.id);
 
+    // ===== Auto-capture email from client message =====
+    const emailMatch = messageBody.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (emailMatch) {
+      const detectedEmail = emailMatch[0].toLowerCase();
+      console.log(`📧 Email detected in message: ${detectedEmail}`);
+      // Update contact's email if not already set
+      const { data: contact } = await supabase
+        .from("contacts")
+        .select("id, email")
+        .eq("phone", clientPhone)
+        .eq("user_id", ownerId)
+        .maybeSingle();
+      
+      if (contact && !contact.email) {
+        await supabase
+          .from("contacts")
+          .update({ email: detectedEmail, updated_at: new Date().toISOString() })
+          .eq("id", contact.id);
+        console.log(`📧 Email saved to contact: ${detectedEmail}`);
+      }
+    }
+
     // Auto-advance from "Novo Contato" to "Em Atendimento"
     if (existingCase.status === "Novo Contato") {
       await supabase.from("cases").update({ status: "Em Atendimento" }).eq("id", existingCase.id);
