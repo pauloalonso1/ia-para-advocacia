@@ -290,14 +290,14 @@ export default function LegalDocumentsView() {
                       <Label>Requerente</Label>
                       <InfoTooltip content="Informe a qualificação completa: nome, nacionalidade, estado civil, profissão, CPF/CNPJ e endereço. Ex: João da Silva, brasileiro, solteiro, empresário, CPF 000.000.000-00, residente na Rua X, nº 10, Bairro Y, CEP 00000-000, Cidade/UF." />
                     </div>
-                    <Textarea value={petPlaintiff} onChange={(e) => setPetPlaintiff(e.target.value)} placeholder="Ex: Carlos Henrique da Silva, brasileiro, casado, vendedor, residente e domiciliado na Rua das Acácias, nº 245, Bairro Jardim Bela Vista, CEP 13334-210, Indaiatuba/SP." rows={3} />
+                    <Textarea value={petPlaintiff} onChange={(e) => setPetPlaintiff(e.target.value)} placeholder="Qualificação completa do requerente" rows={3} />
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
                       <Label>Requerido</Label>
                       <InfoTooltip content="Informe a qualificação completa: nome/razão social, nacionalidade, estado civil (se pessoa física), profissão, CPF/CNPJ e endereço. Para pessoa jurídica, inclua razão social, CNPJ e sede." />
                     </div>
-                    <Textarea value={petDefendant} onChange={(e) => setPetDefendant(e.target.value)} placeholder="Ex: GAV Resorts Empreendimentos Turísticos Ltda., pessoa jurídica de direito privado, inscrita no CNPJ nº 12.345.678/0001-90, com sede na Avenida das Hortênsias, nº 1500, Bairro Centro, CEP 95670-000, Gramado/RS." rows={3} />
+                    <Textarea value={petDefendant} onChange={(e) => setPetDefendant(e.target.value)} placeholder="Qualificação completa do requerido" rows={3} />
                   </div>
                   <div>
                     <Label>Fatos *</Label>
