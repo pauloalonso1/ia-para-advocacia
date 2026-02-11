@@ -11,6 +11,7 @@ interface PetitionRequest {
   legalBasis?: string;
   requests?: string;
   referenceModel?: string;
+  lawyer?: { name: string; oab?: string; email?: string; phone?: string };
 }
 
 interface ContractRequest {
