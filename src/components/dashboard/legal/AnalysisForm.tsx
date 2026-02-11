@@ -71,8 +71,8 @@ export default function AnalysisForm({ isLoading, onAnalyzePetition, onAnalyzeCo
   };
 
   const handleAnalyze = () => {
-    if (!analyzeText.trim()) {
-      toaster.create({ title: "Campo obrigatório", description: "Cole o documento para análise.", type: "warning" });
+    if (!analyzeText.trim() && !uploadedFileName) {
+      toaster.create({ title: "Campo obrigatório", description: "Cole o documento ou faça upload de um arquivo.", type: "warning" });
       return;
     }
     if (analyzeMode === "petition") onAnalyzePetition(analyzeText);
