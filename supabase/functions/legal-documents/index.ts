@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const FETCH_TIMEOUT_MS = 60_000;
+const FETCH_TIMEOUT_MS = 120_000;
 
 function withTimeout(promise: Promise<Response>, ms: number): Promise<Response> {
   return Promise.race([
