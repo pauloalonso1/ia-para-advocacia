@@ -158,6 +158,68 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_logs: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          contact_phone: string | null
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          model: string | null
+          response_time_ms: number | null
+          source: string
+          status: string
+          tokens_input: number | null
+          tokens_output: number | null
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          model?: string | null
+          response_time_ms?: number | null
+          source?: string
+          status?: string
+          tokens_input?: number | null
+          tokens_output?: number | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          model?: string | null
+          response_time_ms?: number | null
+          source?: string
+          status?: string
+          tokens_input?: number | null
+          tokens_output?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_logs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_followups: {
         Row: {
           case_id: string

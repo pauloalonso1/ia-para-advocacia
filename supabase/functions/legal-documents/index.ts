@@ -139,8 +139,8 @@ Gere o contrato completo com: identificação das partes, objeto, obrigações, 
     const useStrongerModel = action === "generate_petition" && data.referenceModel;
     const aiModel = useStrongerModel ? "gpt-5.2" : "gpt-4o-mini";
     const aiOptions = useStrongerModel
-      ? { temperature: 0.5, max_tokens: 16384, timeoutMs: 120_000 }
-      : { timeoutMs: 120_000 };
+      ? { temperature: 0.5, max_tokens: 16384, timeoutMs: 120_000, userId: user.id, source: "legal-documents" }
+      : { timeoutMs: 120_000, userId: user.id, source: "legal-documents" };
 
     const result = await callAI(openaiApiKey, lovableApiKey, messages, aiModel, aiOptions);
 

@@ -23,6 +23,7 @@ import {
   Search,
   History,
   BarChart3,
+  Activity,
 } from 'lucide-react';
 import logoDashboard from '@/assets/logo-dashboard.svg';
 import lexiaLogoFull from '@/assets/lexia-logo.svg';
@@ -59,6 +60,7 @@ const menuItems = [
   { id: 'research', label: 'Pesquisa', icon: Search },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'performance', label: 'Performance', icon: TrendingUp },
+  { id: 'monitoring', label: 'Monitoramento', icon: Activity },
 ];
 
 const SidebarContent = ({ activeTab, onTabChange, whatsappStatus, onWhatsappClick }: SidebarProps) => {
