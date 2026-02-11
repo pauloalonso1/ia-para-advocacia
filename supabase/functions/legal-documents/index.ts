@@ -59,6 +59,7 @@ async function callAI(
   const modelMap: Record<string, string> = {
     "gpt-4o-mini": "google/gemini-2.5-flash",
     "gpt-4o": "google/gemini-2.5-pro",
+    "gpt-5": "openai/gpt-5",
   };
   const fallbackBody = { ...body, model: modelMap[model] || "google/gemini-2.5-flash" };
 
@@ -123,32 +124,38 @@ serve(async (req) => {
         const { type, court, parties, facts, legalBasis, requests, referenceModel } = data;
         console.log(`[legal-documents] generate_petition called. Has referenceModel: ${!!referenceModel}, length: ${referenceModel?.length || 0}`);
         
-        systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses. Use linguagem técnica jurídica formal.`;
+        systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Sua tarefa é gerar petições jurídicas profissionais em português brasileiro.
+
+REGRA FUNDAMENTAL: Se o usuário fornecer instruções personalizadas na mensagem, você DEVE seguir CADA UMA delas com prioridade ABSOLUTA sobre qualquer padrão genérico. As instruções do usuário são LEI. Não gere uma petição genérica — adapte TUDO conforme as instruções.`;
         
+        let instructionBlock = "";
         if (referenceModel) {
-          extraMessages.push({
-            role: "user",
-            content: `ANTES DE GERAR A PETIÇÃO, leia atentamente estas instruções que eu defini. Você DEVE seguir cada uma delas ao redigir o documento:\n\n${referenceModel}\n\nConfirme que entendeu as instruções.`
-          });
-          extraMessages.push({
-            role: "assistant",
-            content: "Entendi perfeitamente todas as suas instruções. Vou segui-las rigorosamente ao redigir a petição. Pode me fornecer os dados do caso."
-          });
+          instructionBlock = `
+
+╔══════════════════════════════════════════════════════════╗
+║  INSTRUÇÕES PERSONALIZADAS DO USUÁRIO - PRIORIDADE MÁXIMA  ║
+╚══════════════════════════════════════════════════════════╝
+
+${referenceModel}
+
+╔══════════════════════════════════════════════════════════╗
+║  FIM DAS INSTRUÇÕES - SIGA TODAS ACIMA AO REDIGIR       ║
+╚══════════════════════════════════════════════════════════╝
+
+`;
         }
         
-        userPrompt = `Agora gere a petição ${referenceModel ? "(SEGUINDO RIGOROSAMENTE as instruções que eu passei acima)" : ""} do tipo "${type}" para o ${court || "juízo competente"}.
+        userPrompt = `${instructionBlock}Com base ${referenceModel ? "nas INSTRUÇÕES PERSONALIZADAS acima e " : ""}nos dados abaixo, gere a petição:
 
-Partes:
-- Requerente: ${parties?.plaintiff || "A definir"}
-- Requerido: ${parties?.defendant || "A definir"}
-
+Tipo: ${type}
+Juízo: ${court || "competente"}
+Requerente: ${parties?.plaintiff || "A definir"}
+Requerido: ${parties?.defendant || "A definir"}
 Fatos: ${facts}
-
 Fundamento Jurídico: ${legalBasis || "A ser fundamentado conforme aplicável"}
-
 Pedidos: ${requests || "Conforme os fatos narrados"}
 
-Gere a petição completa com: endereçamento, qualificação das partes, dos fatos, do direito, dos pedidos e encerramento.`;
+${referenceModel ? "LEMBRETE FINAL: Siga TODAS as instruções personalizadas fornecidas acima. NÃO gere uma petição genérica." : "Gere a petição completa com: endereçamento, qualificação das partes, dos fatos, do direito, dos pedidos e encerramento."}`;
         break;
       }
 
@@ -195,8 +202,8 @@ Gere o contrato completo com: identificação das partes, objeto, obrigações, 
     
     // Use stronger model for petition generation with instructions, and more tokens
     const useStrongerModel = action === "generate_petition" && data.referenceModel;
-    const aiModel = useStrongerModel ? "gpt-4o" : "gpt-4o-mini";
-    const aiOptions = useStrongerModel ? { temperature: 0.4, max_tokens: 8192 } : {};
+    const aiModel = useStrongerModel ? "gpt-5" : "gpt-4o-mini";
+    const aiOptions = useStrongerModel ? { temperature: 0.5, max_tokens: 8192 } : {};
     
     const result = await callAI(openaiApiKey, lovableApiKey, messages, aiModel, aiOptions);
 
