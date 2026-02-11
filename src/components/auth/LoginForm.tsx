@@ -70,7 +70,7 @@ export const LoginForm = ({ isLoading, onSignIn, onResetPassword }: LoginFormPro
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
-                autoComplete="off"
+                autoComplete="email"
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="h-12 bg-background border-border/60 focus:border-primary"
