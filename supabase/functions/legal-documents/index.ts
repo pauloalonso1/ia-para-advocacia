@@ -27,7 +27,11 @@ async function callAI(
 ): Promise<string> {
   const temperature = options.temperature ?? 0.3;
   const max_tokens = options.max_tokens ?? 4096;
-  const body = { model, messages, temperature, max_tokens };
+  // gpt-5 series uses max_completion_tokens instead of max_tokens
+  const isNewModel = model.startsWith("gpt-5");
+  const body = isNewModel
+    ? { model, messages, temperature, max_completion_tokens: max_tokens }
+    : { model, messages, temperature, max_tokens };
 
   // Try OpenAI first (only for standard models, not gateway-specific ones)
   const isGatewayOnly = model.startsWith("gpt-5");
