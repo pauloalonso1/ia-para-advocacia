@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload, BookOpen, Plus, Trash2, Eye, Save, Pencil } from "lucide-react";
+import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload, BookOpen, Trash2, Save, Pencil } from "lucide-react";
 import InfoTooltip from "@/components/dashboard/InfoTooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useLegalDocuments } from "@/hooks/useLegalDocuments";
 import { usePetitionTemplates } from "@/hooks/usePetitionTemplates";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { toaster } from "@/components/ui/basic-toast";
 
 const petitionTypes = [
@@ -48,6 +49,7 @@ const contractTypes = [
 export default function LegalDocumentsView() {
   const { isLoading, result, setResult, generatePetition, analyzePetition, generateContract, analyzeContract } = useLegalDocuments();
   const { templates, saveTemplate, deleteTemplate, updateTemplate } = usePetitionTemplates();
+  const { activeMembers } = useTeamMembers();
 
   // Petition form
   const [petType, setPetType] = useState("");
@@ -59,6 +61,7 @@ export default function LegalDocumentsView() {
   const [petRequests, setPetRequests] = useState("");
   const [petModelText, setPetModelText] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedLawyerId, setSelectedLawyerId] = useState<string>("");
 
   // Template modals
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
@@ -139,6 +142,13 @@ export default function LegalDocumentsView() {
       toaster.create({ title: "Campos obrigatórios", description: "Selecione o tipo e preencha os fatos.", type: "warning" });
       return;
     }
+    const selectedLawyer = activeMembers.find(m => m.id === selectedLawyerId);
+    const lawyerInfo = selectedLawyer ? {
+      name: selectedLawyer.name,
+      oab: selectedLawyer.oab_number || undefined,
+      email: selectedLawyer.email,
+      phone: selectedLawyer.phone || undefined,
+    } : undefined;
     generatePetition({
       type: petType,
       court: petCourt,
@@ -150,6 +160,7 @@ export default function LegalDocumentsView() {
       referenceModel: petModelText || undefined,
       legalBasis: petLegal,
       requests: petRequests,
+      lawyer: lawyerInfo,
     });
   };
 
@@ -405,6 +416,28 @@ export default function LegalDocumentsView() {
                       )}
                     </div>
                   </div>
+
+                  {/* Lawyer selector */}
+                  {activeMembers.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Label>Advogado Responsável</Label>
+                        <InfoTooltip content="Selecione um advogado da equipe para preencher automaticamente o nome, OAB, e-mail e telefone no encerramento da petição." />
+                      </div>
+                      <Select value={selectedLawyerId} onValueChange={setSelectedLawyerId}>
+                        <SelectTrigger><SelectValue placeholder="Selecionar advogado (opcional)" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nenhum (preencher manualmente)</SelectItem>
+                          {activeMembers.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name}{m.oab_number ? ` — OAB ${m.oab_number}` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <Button onClick={handleGeneratePetition} disabled={isLoading} className="w-full">
                     {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><FileText className="h-4 w-4 mr-2" /> Gerar Petição</>}
                   </Button>

@@ -127,12 +127,24 @@ serve(async (req) => {
 
     switch (action) {
       case "generate_petition": {
-        const { type, court, parties, facts, legalBasis, requests, referenceModel } = data;
-        console.log(`[legal-documents] generate_petition called. Has referenceModel: ${!!referenceModel}, length: ${referenceModel?.length || 0}`);
+        const { type, court, parties, facts, legalBasis, requests, referenceModel, lawyer } = data;
+        console.log(`[legal-documents] generate_petition called. Has referenceModel: ${!!referenceModel}, length: ${referenceModel?.length || 0}, has lawyer: ${!!lawyer}`);
         
+        let lawyerBlock = "";
+        if (lawyer?.name) {
+          lawyerBlock = `
+
+ADVOGADO RESPONSÁVEL (use estas informações EXATAS no encerramento/assinatura da petição):
+- Nome: ${lawyer.name}
+- OAB: ${lawyer.oab || "a informar"}
+- E-mail: ${lawyer.email || "a informar"}
+- Telefone: ${lawyer.phone || "a informar"}
+`;
+        }
+
         systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Sua tarefa é gerar petições jurídicas profissionais em português brasileiro.
 
-REGRA FUNDAMENTAL: Se o usuário fornecer instruções personalizadas na mensagem, você DEVE seguir CADA UMA delas com prioridade ABSOLUTA sobre qualquer padrão genérico. As instruções do usuário são LEI. Não gere uma petição genérica — adapte TUDO conforme as instruções.`;
+REGRA FUNDAMENTAL: Se o usuário fornecer instruções personalizadas na mensagem, você DEVE seguir CADA UMA delas com prioridade ABSOLUTA sobre qualquer padrão genérico. As instruções do usuário são LEI. Não gere uma petição genérica — adapte TUDO conforme as instruções.${lawyerBlock ? "\n" + lawyerBlock : ""}`;
         
         let instructionBlock = "";
         if (referenceModel) {
