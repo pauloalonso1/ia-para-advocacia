@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload, BookOpen, Plus, Trash2, Eye, Save } from "lucide-react";
+import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload, BookOpen, Plus, Trash2, Eye, Save, Pencil } from "lucide-react";
 import InfoTooltip from "@/components/dashboard/InfoTooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useLegalDocuments } from "@/hooks/useLegalDocuments";
@@ -47,7 +47,7 @@ const contractTypes = [
 
 export default function LegalDocumentsView() {
   const { isLoading, result, setResult, generatePetition, analyzePetition, generateContract, analyzeContract } = useLegalDocuments();
-  const { templates, saveTemplate, deleteTemplate } = usePetitionTemplates();
+  const { templates, saveTemplate, deleteTemplate, updateTemplate } = usePetitionTemplates();
 
   // Petition form
   const [petType, setPetType] = useState("");
@@ -65,6 +65,7 @@ export default function LegalDocumentsView() {
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<{ title: string; content: string } | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<{ id: string; title: string; content: string } | null>(null);
 
   // Contract form
   const [conType, setConType] = useState("");
@@ -399,7 +400,7 @@ export default function LegalDocumentsView() {
                       )}
                       {templates.length > 0 && (
                         <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setShowTemplatesModal(true)}>
-                          <Eye className="h-3.5 w-3.5 mr-1" /> Gerenciar Modelos
+                          <BookOpen className="h-3.5 w-3.5 mr-1" /> Gerenciar Instruções
                         </Button>
                       )}
                     </div>
@@ -586,39 +587,45 @@ export default function LegalDocumentsView() {
         <DialogContent className="max-w-lg max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" /> Meus Modelos de Petição
+              <BookOpen className="h-5 w-5 text-primary" /> Instruções de Petição
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[55vh]">
             {templates.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                <p>Nenhum modelo salvo ainda</p>
+                <p>Nenhuma instrução salva ainda</p>
               </div>
             ) : (
               <div className="space-y-2 pr-2">
                 {templates.map((tpl) => (
-                  <div key={tpl.id} className="flex items-center gap-3 p-3 rounded-lg border hover:border-primary/30 transition-colors">
-                    <div className="flex-1 min-w-0">
+                  <div key={tpl.id} className="flex items-center gap-3 p-3 rounded-lg border hover:border-primary/30 transition-colors group">
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setPreviewTemplate({ title: tpl.title, content: tpl.content })}>
                       <p className="font-medium text-sm truncate">{tpl.title}</p>
                       <p className="text-xs text-muted-foreground truncate">{tpl.content.slice(0, 80)}...</p>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewTemplate({ title: tpl.title, content: tpl.content })}>
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
                       <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => handleSelectTemplate(tpl.id)}>
                         Usar
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        title="Editar"
+                        onClick={() => setEditingTemplate({ id: tpl.id, title: tpl.title, content: tpl.content })}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
+                            <AlertDialogTitle>Excluir instrução?</AlertDialogTitle>
                             <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -633,6 +640,48 @@ export default function LegalDocumentsView() {
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Template Modal */}
+      <Dialog open={!!editingTemplate} onOpenChange={() => setEditingTemplate(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Editar Instrução
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nome *</Label>
+              <Input
+                value={editingTemplate?.title || ""}
+                onChange={(e) => setEditingTemplate((prev) => prev ? { ...prev, title: e.target.value } : null)}
+                placeholder="Nome da instrução"
+              />
+            </div>
+            <div>
+              <Label>Conteúdo *</Label>
+              <Textarea
+                value={editingTemplate?.content || ""}
+                onChange={(e) => setEditingTemplate((prev) => prev ? { ...prev, content: e.target.value } : null)}
+                rows={8}
+                placeholder="Instruções para a IA..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTemplate(null)}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!editingTemplate || !editingTemplate.title.trim() || !editingTemplate.content.trim()) return;
+                await updateTemplate(editingTemplate.id, editingTemplate.title.trim(), editingTemplate.content.trim());
+                setEditingTemplate(null);
+              }}
+            >
+              <Save className="h-4 w-4 mr-1" /> Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
