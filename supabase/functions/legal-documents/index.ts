@@ -113,26 +113,27 @@ serve(async (req) => {
 
     let systemPrompt = "";
     let userPrompt = "";
+    let extraMessages: Array<{ role: string; content: string }> = [];
 
     switch (action) {
       case "generate_petition": {
         const { type, court, parties, facts, legalBasis, requests, referenceModel } = data;
         console.log(`[legal-documents] generate_petition called. Has referenceModel: ${!!referenceModel}, length: ${referenceModel?.length || 0}`);
         
+        systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses. Use linguagem técnica jurídica formal.`;
+        
         if (referenceModel) {
-          systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses.
-
-INSTRUÇÕES ADICIONAIS DO USUÁRIO (siga estas instruções com prioridade máxima ao redigir a petição):
-"""
-${referenceModel}
-"""
-
-Estas instruções podem conter orientações de estilo, estrutura, tom, formato ou qualquer diretriz específica. Siga-as fielmente ao gerar o documento. NÃO inclua as instruções acima no texto da petição gerada — elas são apenas diretrizes para você.`;
-        } else {
-          systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses. Use linguagem técnica jurídica formal.`;
+          extraMessages.push({
+            role: "user",
+            content: `ANTES DE GERAR A PETIÇÃO, leia atentamente estas instruções que eu defini. Você DEVE seguir cada uma delas ao redigir o documento:\n\n${referenceModel}\n\nConfirme que entendeu as instruções.`
+          });
+          extraMessages.push({
+            role: "assistant",
+            content: "Entendi perfeitamente todas as suas instruções. Vou segui-las rigorosamente ao redigir a petição. Pode me fornecer os dados do caso."
+          });
         }
         
-        userPrompt = `Gere uma petição do tipo "${type}" para o ${court || "juízo competente"}.
+        userPrompt = `Agora gere a petição ${referenceModel ? "(SEGUINDO RIGOROSAMENTE as instruções que eu passei acima)" : ""} do tipo "${type}" para o ${court || "juízo competente"}.
 
 Partes:
 - Requerente: ${parties?.plaintiff || "A definir"}
@@ -183,10 +184,13 @@ Gere o contrato completo com: identificação das partes, objeto, obrigações, 
         });
     }
 
-    const result = await callAI(openaiApiKey, lovableApiKey, [
+    const messages = [
       { role: "system", content: systemPrompt },
+      ...extraMessages,
       { role: "user", content: userPrompt },
-    ]);
+    ];
+    
+    const result = await callAI(openaiApiKey, lovableApiKey, messages);
 
     return new Response(JSON.stringify({ success: true, content: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
