@@ -29,8 +29,9 @@ async function callAI(
   const max_tokens = options.max_tokens ?? 4096;
   const body = { model, messages, temperature, max_tokens };
 
-  // Try OpenAI first
-  if (openaiApiKey) {
+  // Try OpenAI first (only for standard models, not gateway-specific ones)
+  const isGatewayOnly = model.startsWith("gpt-5");
+  if (openaiApiKey && !isGatewayOnly) {
     try {
       const res = await withTimeout(
         fetch("https://api.openai.com/v1/chat/completions", {
@@ -60,6 +61,7 @@ async function callAI(
     "gpt-4o-mini": "google/gemini-2.5-flash",
     "gpt-4o": "google/gemini-2.5-pro",
     "gpt-5": "openai/gpt-5",
+    "gpt-5.2": "openai/gpt-5.2",
   };
   const fallbackBody = { ...body, model: modelMap[model] || "google/gemini-2.5-flash" };
 
@@ -200,10 +202,10 @@ Gere o contrato completo com: identificação das partes, objeto, obrigações, 
       { role: "user", content: userPrompt },
     ];
     
-    // Use stronger model for petition generation with instructions, and more tokens
+    // Use strongest model for petition generation with custom instructions
     const useStrongerModel = action === "generate_petition" && data.referenceModel;
-    const aiModel = useStrongerModel ? "gpt-5" : "gpt-4o-mini";
-    const aiOptions = useStrongerModel ? { temperature: 0.5, max_tokens: 8192 } : {};
+    const aiModel = useStrongerModel ? "gpt-5.2" : "gpt-4o-mini";
+    const aiOptions = useStrongerModel ? { temperature: 0.5, max_tokens: 16384 } : {};
     
     const result = await callAI(openaiApiKey, lovableApiKey, messages, aiModel, aiOptions);
 
