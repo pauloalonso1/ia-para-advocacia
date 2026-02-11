@@ -155,17 +155,28 @@ export default function LegalDocumentsView() {
     if (!result) return;
     const html2pdf = (await import("html2pdf.js")).default;
     const container = document.createElement("div");
-    container.style.fontFamily = "Arial, sans-serif";
+    container.style.fontFamily = "'Times New Roman', serif";
     container.style.fontSize = "12pt";
-    container.style.lineHeight = "1.6";
-    container.style.padding = "40px";
+    container.style.lineHeight = "1.8";
+    container.style.padding = "0";
+    container.style.color = "#000";
     container.innerHTML = result
-      .replace(/^### (.*$)/gm, "<h3>$1</h3>")
-      .replace(/^## (.*$)/gm, "<h2>$1</h2>")
-      .replace(/^# (.*$)/gm, "<h1>$1</h1>")
+      .replace(/^### (.*$)/gm, '<h3 style="font-size:13pt;font-weight:bold;margin:16px 0 8px;page-break-after:avoid;">$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2 style="font-size:14pt;font-weight:bold;text-align:center;margin:20px 0 10px;page-break-after:avoid;">$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1 style="font-size:16pt;font-weight:bold;text-align:center;margin:24px 0 12px;page-break-after:avoid;">$1</h1>')
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n\n/g, '</p><p style="margin:0 0 10px;text-align:justify;page-break-inside:avoid;">')
       .replace(/\n/g, "<br>");
-    html2pdf().set({ margin: 10, filename: "documento-juridico.pdf", html2canvas: { scale: 2 }, jsPDF: { format: "a4" } }).from(container).save();
+    container.innerHTML = '<p style="margin:0 0 10px;text-align:justify;">' + container.innerHTML + '</p>';
+    const date = new Date().toISOString().slice(0, 10);
+    html2pdf().set({
+      margin: [25, 20, 20, 25],
+      filename: `documento-juridico-${date}.pdf`,
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['h1', 'h2', 'h3', 'strong', 'tr'] },
+    } as any).from(container).save();
+    toaster.create({ title: "Download concluído!", description: "PDF gerado com sucesso.", type: "success" });
   };
 
   return (
