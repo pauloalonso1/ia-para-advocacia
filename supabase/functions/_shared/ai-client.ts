@@ -1,11 +1,18 @@
 // Shared AI client with automatic fallback from OpenAI to Lovable AI Gateway
-// Used by: legal-documents, whatsapp-webhook
+// Used by: legal-documents, whatsapp-webhook, generate-summary
+import { logAIEvent } from "./ai-logger.ts";
 
 export interface CallAIOptions {
   temperature?: number;
   max_tokens?: number;
   timeoutMs?: number;
   maxRetries?: number;
+  // Logging context
+  userId?: string;
+  source?: string;
+  agentId?: string;
+  agentName?: string;
+  contactPhone?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -73,58 +80,101 @@ export async function callAI(
     ? { model, messages, temperature, max_completion_tokens: max_tokens }
     : { model, messages, temperature, max_tokens };
 
-  return withRetry(async () => {
-    // Try OpenAI first (skip for gateway-only models like gpt-5.x)
-    const isGatewayOnly = model.startsWith("gpt-5");
-    if (openaiApiKey && !isGatewayOnly) {
-      try {
-        const res = await withTimeout(
-          fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${openaiApiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          }),
-          timeoutMs
-        );
-        if (res.ok) {
-          const data = await res.json();
-          return data.choices?.[0]?.message?.content || "";
+  const startTime = Date.now();
+  let finalModel = model;
+  let usageData: { prompt_tokens?: number; completion_tokens?: number } = {};
+
+  try {
+    const result = await withRetry(async () => {
+      const isGatewayOnly = model.startsWith("gpt-5");
+      if (openaiApiKey && !isGatewayOnly) {
+        try {
+          const res = await withTimeout(
+            fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${openaiApiKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }),
+            timeoutMs
+          );
+          if (res.ok) {
+            const data = await res.json();
+            usageData = data.usage || {};
+            return data.choices?.[0]?.message?.content || "";
+          }
+          const errText = await res.text();
+          console.warn(`⚠️ OpenAI error ${res.status}: ${errText.slice(0, 200)}`);
+          if (res.status !== 429 && res.status < 500) throw new Error(`OpenAI error: ${res.status}`);
+        } catch (e: any) {
+          if (e.message?.startsWith("OpenAI error:")) throw e;
+          console.warn("⚠️ OpenAI failed, trying Lovable AI:", e.message);
         }
-        const errText = await res.text();
-        console.warn(`⚠️ OpenAI error ${res.status}: ${errText.slice(0, 200)}`);
-        if (res.status !== 429 && res.status < 500) throw new Error(`OpenAI error: ${res.status}`);
-      } catch (e: any) {
-        if (e.message?.startsWith("OpenAI error:")) throw e;
-        console.warn("⚠️ OpenAI failed, trying Lovable AI:", e.message);
       }
+
+      if (!lovableApiKey) throw new Error("No AI API key available");
+
+      const fallbackModel = MODEL_MAP[model] || "google/gemini-2.5-flash";
+      finalModel = fallbackModel;
+      const fallbackBody = { ...body, model: fallbackModel };
+
+      const res = await withTimeout(
+        fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify(fallbackBody),
+        }),
+        timeoutMs
+      );
+
+      if (res.status === 429) throw new Error("Rate limit exceeded (429)");
+      if (res.status === 402) throw new Error("Payment required (402)");
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Lovable AI error ${res.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const data = await res.json();
+      usageData = data.usage || {};
+      console.log("✅ AI response received");
+      return data.choices?.[0]?.message?.content || "";
+    }, `AI:${model}`, maxRetries);
+
+    // Log success
+    if (options.userId) {
+      logAIEvent({
+        user_id: options.userId,
+        source: options.source || "unknown",
+        agent_id: options.agentId,
+        agent_name: options.agentName,
+        model: finalModel,
+        tokens_input: usageData.prompt_tokens,
+        tokens_output: usageData.completion_tokens,
+        response_time_ms: Date.now() - startTime,
+        status: "success",
+        contact_phone: options.contactPhone,
+      }).catch(() => {});
     }
 
-    // Fallback to Lovable AI Gateway
-    if (!lovableApiKey) throw new Error("No AI API key available");
-
-    const fallbackModel = MODEL_MAP[model] || "google/gemini-2.5-flash";
-    const fallbackBody = { ...body, model: fallbackModel };
-
-    const res = await withTimeout(
-      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify(fallbackBody),
-      }),
-      timeoutMs
-    );
-
-    if (res.status === 429) throw new Error("Rate limit exceeded (429)");
-    if (res.status === 402) throw new Error("Payment required (402)");
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Lovable AI error ${res.status}: ${errText.slice(0, 200)}`);
+    return result;
+  } catch (e: any) {
+    // Log error
+    if (options.userId) {
+      const msg = e.message || "";
+      logAIEvent({
+        user_id: options.userId,
+        source: options.source || "unknown",
+        agent_id: options.agentId,
+        agent_name: options.agentName,
+        model: finalModel,
+        response_time_ms: Date.now() - startTime,
+        status: msg.includes("429") ? "rate_limited" : msg.includes("timed out") ? "timeout" : "error",
+        event_type: msg.includes("429") ? "rate_limit" : msg.includes("timed out") ? "timeout" : "error",
+        error_message: msg.slice(0, 500),
+        contact_phone: options.contactPhone,
+      }).catch(() => {});
     }
-
-    const data = await res.json();
-    console.log("✅ AI response received");
-    return data.choices?.[0]?.message?.content || "";
-  }, `AI:${model}`, maxRetries);
+    throw e;
+  }
 }
 
 /**
@@ -135,65 +185,105 @@ export async function callAIChatCompletions(
   openaiApiKey: string | null,
   lovableApiKey: string | null,
   body: Record<string, any>,
-  options: { timeoutMs?: number; maxRetries?: number } = {}
+  options: { timeoutMs?: number; maxRetries?: number; userId?: string; source?: string; agentId?: string; agentName?: string; contactPhone?: string } = {}
 ): Promise<any> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxRetries = options.maxRetries ?? 2;
+  const startTime = Date.now();
+  let finalModel = body.model || "unknown";
 
-  return withRetry(async () => {
-    if (openaiApiKey) {
-      try {
-        const response = await withTimeout(
-          fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${openaiApiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          }),
-          timeoutMs
-        );
-        if (response.ok) return await response.json();
+  try {
+    const result = await withRetry(async () => {
+      if (openaiApiKey) {
+        try {
+          const response = await withTimeout(
+            fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${openaiApiKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }),
+            timeoutMs
+          );
+          if (response.ok) return await response.json();
 
-        const errorText = await response.text();
-        console.warn(`⚠️ OpenAI API error ${response.status}: ${errorText.slice(0, 200)}`);
-        if (response.status !== 429 && response.status < 500) {
-          throw new Error(`OpenAI API error: ${response.status} - ${errorText.slice(0, 200)}`);
+          const errorText = await response.text();
+          console.warn(`⚠️ OpenAI API error ${response.status}: ${errorText.slice(0, 200)}`);
+          if (response.status !== 429 && response.status < 500) {
+            throw new Error(`OpenAI API error: ${response.status} - ${errorText.slice(0, 200)}`);
+          }
+          console.log("🔄 Falling back to Lovable AI Gateway...");
+        } catch (e: any) {
+          if (e.message?.startsWith("OpenAI API error:")) throw e;
+          console.warn("⚠️ OpenAI request failed, trying Lovable AI:", e.message);
         }
-        console.log("🔄 Falling back to Lovable AI Gateway...");
-      } catch (e: any) {
-        if (e.message?.startsWith("OpenAI API error:")) throw e;
-        console.warn("⚠️ OpenAI request failed, trying Lovable AI:", e.message);
       }
+
+      if (!lovableApiKey) {
+        throw new Error("No AI API key available (OpenAI failed and LOVABLE_API_KEY not configured)");
+      }
+
+      const modelMap: Record<string, string> = {
+        "gpt-4o-mini": "google/gemini-2.5-flash",
+        "gpt-4o": "google/gemini-2.5-flash",
+      };
+      const lovableModel = modelMap[body.model] || "google/gemini-2.5-flash";
+      finalModel = lovableModel;
+      const lovableBody = { ...body, model: lovableModel };
+
+      const response = await withTimeout(
+        fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify(lovableBody),
+        }),
+        timeoutMs
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Lovable AI Gateway error ${response.status}: ${errorText.slice(0, 200)}`);
+        throw new Error(`Lovable AI Gateway error: ${response.status}`);
+      }
+
+      console.log("✅ AI response received");
+      return await response.json();
+    }, `AI:${body.model || "default"}`, maxRetries);
+
+    // Log success
+    if (options.userId) {
+      logAIEvent({
+        user_id: options.userId,
+        source: options.source || "whatsapp-webhook",
+        agent_id: options.agentId,
+        agent_name: options.agentName,
+        model: finalModel,
+        tokens_input: result.usage?.prompt_tokens,
+        tokens_output: result.usage?.completion_tokens,
+        response_time_ms: Date.now() - startTime,
+        status: "success",
+        contact_phone: options.contactPhone,
+      }).catch(() => {});
     }
 
-    if (!lovableApiKey) {
-      throw new Error("No AI API key available (OpenAI failed and LOVABLE_API_KEY not configured)");
+    return result;
+  } catch (e: any) {
+    if (options.userId) {
+      const msg = e.message || "";
+      logAIEvent({
+        user_id: options.userId,
+        source: options.source || "whatsapp-webhook",
+        agent_id: options.agentId,
+        agent_name: options.agentName,
+        model: finalModel,
+        response_time_ms: Date.now() - startTime,
+        status: msg.includes("429") ? "rate_limited" : msg.includes("timed out") ? "timeout" : "error",
+        event_type: msg.includes("429") ? "rate_limit" : msg.includes("timed out") ? "timeout" : "error",
+        error_message: msg.slice(0, 500),
+        contact_phone: options.contactPhone,
+      }).catch(() => {});
     }
-
-    const modelMap: Record<string, string> = {
-      "gpt-4o-mini": "google/gemini-2.5-flash",
-      "gpt-4o": "google/gemini-2.5-flash",
-    };
-    const lovableModel = modelMap[body.model] || "google/gemini-2.5-flash";
-    const lovableBody = { ...body, model: lovableModel };
-
-    const response = await withTimeout(
-      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify(lovableBody),
-      }),
-      timeoutMs
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Lovable AI Gateway error ${response.status}: ${errorText.slice(0, 200)}`);
-      throw new Error(`Lovable AI Gateway error: ${response.status}`);
-    }
-
-    console.log("✅ AI response received");
-    return await response.json();
-  }, `AI:${body.model || "default"}`, maxRetries);
+    throw e;
+  }
 }
 
 /**
