@@ -115,7 +115,7 @@ export default function AnalysisForm({ isLoading, onAnalyzePetition, onAnalyzeCo
           </label>
         </div>
         <div>
-          <Label>Documento *</Label>
+          <Label>Documento {!uploadedFileName && '*'}</Label>
           <Textarea value={analyzeText} onChange={(e) => setAnalyzeText(e.target.value)} placeholder="Cole o texto do documento aqui ou faça upload acima..." rows={8} />
         </div>
         <Button onClick={handleAnalyze} disabled={isLoading} className="w-full">
