@@ -350,36 +350,58 @@ export default function LegalDocumentsView() {
 
                   {/* Petition Model / Template */}
                   <div className="border border-dashed border-muted-foreground/30 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen className="h-4 w-4 text-primary" />
-                        <Label className="text-sm font-medium">Petição Modelo</Label>
-                        <InfoTooltip content="Cole uma petição de exemplo para a IA usar como referência de estilo e estrutura ao gerar a nova petição." />
-                      </div>
-                      <div className="flex gap-1.5">
-                        {templates.length > 0 && (
-                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowTemplatesModal(true)}>
-                            <BookOpen className="h-3 w-3 mr-1" /> Meus Modelos ({templates.length})
-                          </Button>
-                        )}
-                        {petModelText.trim() && (
-                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowSaveTemplateModal(true)}>
-                            <Save className="h-3 w-3 mr-1" /> Salvar
-                          </Button>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <Label className="text-sm font-medium">Petição Modelo</Label>
+                      <InfoTooltip content="Selecione um modelo salvo ou cole um novo texto para a IA usar como referência de estilo e estrutura." />
                     </div>
+
+                    {/* Template selector */}
+                    {templates.length > 0 && (
+                      <div>
+                        <Select
+                          value={selectedTemplateId || ""}
+                          onValueChange={(val) => {
+                            if (val === "__none__") {
+                              setSelectedTemplateId(null);
+                              setPetModelText("");
+                            } else {
+                              handleSelectTemplate(val);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecionar modelo salvo..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Nenhum modelo</SelectItem>
+                            {templates.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     <Textarea
                       value={petModelText}
                       onChange={(e) => { setPetModelText(e.target.value); setSelectedTemplateId(null); }}
-                      placeholder="Cole aqui uma petição de exemplo para usar como base (opcional)"
+                      placeholder="Cole aqui um modelo de petição ou prompt de instrução para a IA usar como referência (opcional)"
                       rows={4}
                     />
-                    {selectedTemplateId && (
-                      <p className="text-xs text-muted-foreground">
-                        Usando modelo: <span className="font-medium text-foreground">{templates.find(t => t.id === selectedTemplateId)?.title}</span>
-                      </p>
-                    )}
+
+                    <div className="flex gap-2">
+                      {petModelText.trim() && (
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowSaveTemplateModal(true)}>
+                          <Save className="h-3.5 w-3.5 mr-1" /> Salvar como Modelo
+                        </Button>
+                      )}
+                      {templates.length > 0 && (
+                        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setShowTemplatesModal(true)}>
+                          <Eye className="h-3.5 w-3.5 mr-1" /> Gerenciar Modelos
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <Button onClick={handleGeneratePetition} disabled={isLoading} className="w-full">
                     {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><FileText className="h-4 w-4 mr-2" /> Gerar Petição</>}
