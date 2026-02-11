@@ -384,7 +384,7 @@ export default function LegalDocumentsView() {
                     <Textarea
                       value={petModelText}
                       onChange={(e) => { setPetModelText(e.target.value); setSelectedTemplateId(null); }}
-                      placeholder="Cole aqui um modelo de petição ou prompt de instrução para a IA usar como referência (opcional)"
+                      placeholder="Cole aqui instruções para a IA (ex: estilo, estrutura, tom, formato desejado) ou um modelo de petição como referência (opcional)"
                       rows={4}
                     />
 
