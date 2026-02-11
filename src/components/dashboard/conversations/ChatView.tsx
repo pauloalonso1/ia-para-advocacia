@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/popover';
 import { Bot, User, MessageSquare, Clock, Paperclip, Mic, Smile, Send, Image, FileText, Camera, X, Loader2, Check, CheckCheck } from 'lucide-react';
 import MediaMessage from './MediaMessage';
-import { toast } from 'sonner';
+import { toaster } from '@/components/ui/basic-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -102,7 +102,7 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictur
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error('Sessão expirada', { description: 'Faça login novamente' });
+        toaster.create({ title: 'Sessão expirada', description: 'Faça login novamente', type: 'error' });
         return;
       }
 
@@ -183,12 +183,10 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictur
 
       setMessageInput('');
       clearSelectedFile();
-      toast.success('Mensagem enviada!');
+      toaster.create({ title: 'Mensagem enviada!', type: 'success' });
     } catch (error: any) {
       console.error('Send message error:', error);
-      toast.error('Erro ao enviar mensagem', {
-        description: error.message || 'Tente novamente',
-      });
+      toaster.create({ title: 'Erro ao enviar mensagem', description: error.message || 'Tente novamente', type: 'error' });
     } finally {
       setSending(false);
     }
@@ -207,18 +205,14 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictur
 
     const maxSize = 16 * 1024 * 1024; // 16MB
     if (file.size > maxSize) {
-      toast.error('Arquivo muito grande', {
-        description: 'O tamanho máximo é 16MB'
-      });
+      toaster.create({ title: 'Arquivo muito grande', description: 'O tamanho máximo é 16MB', type: 'error' });
       return;
     }
 
     const preview = type === 'image' ? URL.createObjectURL(file) : '';
     setSelectedFile({ file, preview, type });
     setAttachmentOpen(false);
-    toast.success(`${type === 'image' ? 'Imagem' : 'Documento'} selecionado`, {
-      description: file.name
-    });
+    toaster.create({ title: `${type === 'image' ? 'Imagem' : 'Documento'} selecionado`, description: file.name, type: 'success' });
   };
 
   const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,7 +222,7 @@ const ChatView = ({ selectedCase, messages, loading, onPauseAgent, profilePictur
     const preview = URL.createObjectURL(file);
     setSelectedFile({ file, preview, type: 'image' });
     setAttachmentOpen(false);
-    toast.success('Foto capturada');
+    toaster.create({ title: 'Foto capturada', type: 'success' });
   };
 
   const clearSelectedFile = () => {

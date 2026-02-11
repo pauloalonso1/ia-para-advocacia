@@ -15,7 +15,7 @@ import { Download, Phone, Calendar, Bot } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toaster } from '@/components/ui/basic-toast';
 
 interface CRMListViewProps {
   cases: Case[];
@@ -71,7 +71,7 @@ const CRMListView = ({ cases, onCaseClick }: CRMListViewProps) => {
   const handleExport = () => {
     const toExport = cases.filter(c => selectedIds.has(c.id));
     if (toExport.length === 0) {
-      toast.error('Selecione pelo menos um contato para exportar');
+      toaster.create({ title: 'Selecione pelo menos um contato para exportar', type: 'error' });
       return;
     }
 
@@ -98,7 +98,7 @@ const CRMListView = ({ cases, onCaseClick }: CRMListViewProps) => {
     link.click();
     URL.revokeObjectURL(url);
 
-    toast.success(`${toExport.length} contato(s) exportado(s)`);
+    toaster.create({ title: `${toExport.length} contato(s) exportado(s)`, type: 'success' });
   };
 
   return (
