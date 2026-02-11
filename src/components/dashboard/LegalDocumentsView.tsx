@@ -584,7 +584,7 @@ export default function LegalDocumentsView() {
 
       {/* Templates Library Modal */}
       <Dialog open={showTemplatesModal} onOpenChange={setShowTemplatesModal}>
-        <DialogContent className="max-w-2xl max-h-[85vh]">
+        <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <BookOpen className="h-6 w-6 text-primary" /> Instruções de Petição
