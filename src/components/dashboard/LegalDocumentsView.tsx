@@ -45,8 +45,18 @@ export default function LegalDocumentsView() {
   // Petition form
   const [petType, setPetType] = useState("");
   const [petCourt, setPetCourt] = useState("");
-  const [petPlaintiff, setPetPlaintiff] = useState("");
-  const [petDefendant, setPetDefendant] = useState("");
+  const [petPlaintiffName, setPetPlaintiffName] = useState("");
+  const [petPlaintiffNationality, setPetPlaintiffNationality] = useState("");
+  const [petPlaintiffCivilStatus, setPetPlaintiffCivilStatus] = useState("");
+  const [petPlaintiffProfession, setPetPlaintiffProfession] = useState("");
+  const [petPlaintiffDoc, setPetPlaintiffDoc] = useState("");
+  const [petPlaintiffAddress, setPetPlaintiffAddress] = useState("");
+  const [petDefendantName, setPetDefendantName] = useState("");
+  const [petDefendantNationality, setPetDefendantNationality] = useState("");
+  const [petDefendantCivilStatus, setPetDefendantCivilStatus] = useState("");
+  const [petDefendantProfession, setPetDefendantProfession] = useState("");
+  const [petDefendantDoc, setPetDefendantDoc] = useState("");
+  const [petDefendantAddress, setPetDefendantAddress] = useState("");
   const [petFacts, setPetFacts] = useState("");
   const [petLegal, setPetLegal] = useState("");
   const [petRequests, setPetRequests] = useState("");
@@ -126,7 +136,10 @@ export default function LegalDocumentsView() {
     generatePetition({
       type: petType,
       court: petCourt,
-      parties: { plaintiff: petPlaintiff, defendant: petDefendant },
+      parties: {
+        plaintiff: `${petPlaintiffName}, ${petPlaintiffNationality}, ${petPlaintiffCivilStatus}, ${petPlaintiffProfession}, ${petPlaintiffDoc}, ${petPlaintiffAddress}`.replace(/, ,/g, ',').replace(/^, |, $/g, ''),
+        defendant: `${petDefendantName}, ${petDefendantNationality}, ${petDefendantCivilStatus}, ${petDefendantProfession}, ${petDefendantDoc}, ${petDefendantAddress}`.replace(/, ,/g, ',').replace(/^, |, $/g, ''),
+      },
       facts: petFacts,
       legalBasis: petLegal,
       requests: petRequests,
@@ -281,14 +294,62 @@ export default function LegalDocumentsView() {
                     <Label>Juízo/Tribunal</Label>
                     <Input value={petCourt} onChange={(e) => setPetCourt(e.target.value)} placeholder="Ex: Vara Cível da Comarca de São Paulo" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Requerente</Label>
-                      <Input value={petPlaintiff} onChange={(e) => setPetPlaintiff(e.target.value)} placeholder="Nome do requerente" />
+                  <div className="space-y-3 border rounded-lg p-3">
+                    <Label className="font-semibold">Requerente</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Nome completo</Label>
+                        <Input value={petPlaintiffName} onChange={(e) => setPetPlaintiffName(e.target.value)} placeholder="Nome completo" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Nacionalidade</Label>
+                        <Input value={petPlaintiffNationality} onChange={(e) => setPetPlaintiffNationality(e.target.value)} placeholder="Ex: brasileiro(a)" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Estado Civil</Label>
+                        <Input value={petPlaintiffCivilStatus} onChange={(e) => setPetPlaintiffCivilStatus(e.target.value)} placeholder="Ex: solteiro(a)" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Profissão</Label>
+                        <Input value={petPlaintiffProfession} onChange={(e) => setPetPlaintiffProfession(e.target.value)} placeholder="Ex: empresário(a)" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">CPF/CNPJ</Label>
+                        <Input value={petPlaintiffDoc} onChange={(e) => setPetPlaintiffDoc(e.target.value)} placeholder="000.000.000-00" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Endereço</Label>
+                        <Input value={petPlaintiffAddress} onChange={(e) => setPetPlaintiffAddress(e.target.value)} placeholder="Endereço completo" />
+                      </div>
                     </div>
-                    <div>
-                      <Label>Requerido</Label>
-                      <Input value={petDefendant} onChange={(e) => setPetDefendant(e.target.value)} placeholder="Nome do requerido" />
+                  </div>
+                  <div className="space-y-3 border rounded-lg p-3">
+                    <Label className="font-semibold">Requerido</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Nome completo</Label>
+                        <Input value={petDefendantName} onChange={(e) => setPetDefendantName(e.target.value)} placeholder="Nome completo" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Nacionalidade</Label>
+                        <Input value={petDefendantNationality} onChange={(e) => setPetDefendantNationality(e.target.value)} placeholder="Ex: brasileiro(a)" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Estado Civil</Label>
+                        <Input value={petDefendantCivilStatus} onChange={(e) => setPetDefendantCivilStatus(e.target.value)} placeholder="Ex: solteiro(a)" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Profissão</Label>
+                        <Input value={petDefendantProfession} onChange={(e) => setPetDefendantProfession(e.target.value)} placeholder="Ex: empresário(a)" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">CPF/CNPJ</Label>
+                        <Input value={petDefendantDoc} onChange={(e) => setPetDefendantDoc(e.target.value)} placeholder="000.000.000-00" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Endereço</Label>
+                        <Input value={petDefendantAddress} onChange={(e) => setPetDefendantAddress(e.target.value)} placeholder="Endereço completo" />
+                      </div>
                     </div>
                   </div>
                   <div>
