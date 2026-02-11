@@ -71,12 +71,13 @@ export default function AnalysisForm({ isLoading, onAnalyzePetition, onAnalyzeCo
   };
 
   const handleAnalyze = () => {
-    if (!analyzeText.trim() && !uploadedFileName) {
-      toaster.create({ title: "Campo obrigatório", description: "Cole o documento ou faça upload de um arquivo.", type: "warning" });
+    const textToAnalyze = analyzeText.trim();
+    if (!textToAnalyze) {
+      toaster.create({ title: "Texto vazio", description: "O documento não contém texto extraível. Cole o texto manualmente ou tente outro arquivo.", type: "warning" });
       return;
     }
-    if (analyzeMode === "petition") onAnalyzePetition(analyzeText);
-    else onAnalyzeContract(analyzeText);
+    if (analyzeMode === "petition") onAnalyzePetition(textToAnalyze);
+    else onAnalyzeContract(textToAnalyze);
   };
 
   return (
