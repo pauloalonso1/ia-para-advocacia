@@ -80,7 +80,7 @@ const LeadDetailModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border max-w-md">
+      <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <User className="w-5 h-5 text-primary" />
@@ -88,7 +88,7 @@ const LeadDetailModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto flex-1 pr-1">
           {/* Lead Info */}
           <div className="space-y-4">
             <div>
