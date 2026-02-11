@@ -584,43 +584,44 @@ export default function LegalDocumentsView() {
 
       {/* Templates Library Modal */}
       <Dialog open={showTemplatesModal} onOpenChange={setShowTemplatesModal}>
-        <DialogContent className="max-w-lg max-h-[80vh]">
+        <DialogContent className="max-w-2xl max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" /> Instruções de Petição
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <BookOpen className="h-6 w-6 text-primary" /> Instruções de Petição
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[55vh]">
+          <ScrollArea className="max-h-[65vh]">
             {templates.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                <p>Nenhuma instrução salva ainda</p>
+              <div className="text-center py-12 text-muted-foreground">
+                <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p className="text-base">Nenhuma instrução salva ainda</p>
+                <p className="text-sm mt-1">Salve instruções para reutilizar em futuras petições</p>
               </div>
             ) : (
-              <div className="space-y-2 pr-2">
+              <div className="space-y-3 pr-2">
                 {templates.map((tpl) => (
-                  <div key={tpl.id} className="flex items-center gap-3 p-3 rounded-lg border hover:border-primary/30 transition-colors group">
+                  <div key={tpl.id} className="flex items-start gap-4 p-4 rounded-xl border hover:border-primary/40 transition-colors bg-card">
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setPreviewTemplate({ title: tpl.title, content: tpl.content })}>
-                      <p className="font-medium text-sm truncate">{tpl.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{tpl.content.slice(0, 80)}...</p>
+                      <p className="font-semibold text-base truncate">{tpl.title}</p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{tpl.content.slice(0, 120)}...</p>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => handleSelectTemplate(tpl.id)}>
+                    <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                      <Button variant="default" size="sm" className="h-9 px-4 text-sm" onClick={() => handleSelectTemplate(tpl.id)}>
                         Usar
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        className="h-9 w-9"
                         title="Editar"
                         onClick={() => setEditingTemplate({ id: tpl.id, title: tpl.title, content: tpl.content })}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Excluir">
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <Button variant="outline" size="icon" className="h-9 w-9 border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Excluir">
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
