@@ -1,6 +1,7 @@
 // WhatsApp Webhook - Main Handler (Orchestrator)
 // Modularized architecture: types, ai-client, media-processor, messaging,
-// rag-engine, funnel-engine, calendar-handler, ai-processor
+// rag-engine, funnel-engine, calendar-handler, ai-processor,
+// case-handler, status-handler, script-engine
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -11,6 +12,9 @@ import { sendWhatsAppMessage, sendStatusNotification, updateContactEmail } from 
 import { detectAndMatchCategoryAgent, generateCaseDescription, checkFAQ } from "./funnel-engine.ts";
 import { saveContactMemory } from "./rag-engine.ts";
 import { processWithAI } from "./ai-processor.ts";
+import { handleNewCase, switchToAgent } from "./case-handler.ts";
+import { handleStatusChange, fireDelayedGreeting } from "./status-handler.ts";
+import { autoAdvanceSteps } from "./script-engine.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -231,7 +235,6 @@ serve(async (req) => {
     }
 
     // ===== Debounce: acquire processing lock =====
-    // Clean expired locks first
     await supabase.rpc("cleanup_expired_locks");
 
     const { error: lockError } = await supabase
@@ -240,12 +243,9 @@ serve(async (req) => {
       .single();
 
     if (lockError) {
-      // Lock already exists — another message is being processed for this client
       console.log(`⏳ Message debounced for ${clientPhone} — already processing`);
-      // Wait briefly and re-queue by saving the message for the ongoing process
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      // Re-check if lock was released
       const { data: stillLocked } = await supabase
         .from("message_processing_locks")
         .select("locked_at")
@@ -253,10 +253,8 @@ serve(async (req) => {
         .maybeSingle();
 
       if (stillLocked) {
-        // Still processing — save message and let the current process handle context
         console.log(`⏭️ Saving message for ${clientPhone} without AI processing (debounced)`);
 
-        // We still need to find/create the case to save the message
         const { data: debouncedCase } = await supabase
           .from("cases")
           .select("id, unread_count")
@@ -286,7 +284,6 @@ serve(async (req) => {
       }
     }
 
-    // Ensure lock is released at the end (wrapped in try/finally below)
     const releaseLock = async () => {
       await supabase
         .from("message_processing_locks")
@@ -418,40 +415,10 @@ serve(async (req) => {
     let currentStep = existingCase.current_step;
     let currentStepIndex = steps.findIndex((s: any) => s.id === currentStep?.id);
 
-    // Auto-advance: if data for the current step was already collected (e.g. due to debounced messages),
-    // skip forward until we find a step whose data hasn't been collected yet
     if (currentStep && steps.length > 0) {
-      const collectedKeys = getCollectedDataKeys(history);
-      let advancedCount = 0;
-      while (currentStepIndex >= 0 && currentStepIndex < steps.length - 1) {
-        const stepSituation = (steps[currentStepIndex]?.situation || "").toLowerCase();
-        const stepMessage = (steps[currentStepIndex]?.message_to_send || "").toLowerCase();
-        const stepText = stepSituation + " " + stepMessage;
-
-        let isDataCollected = false;
-        if (/nome completo|saudação|primeiro contato/i.test(stepText) && collectedKeys.has("nome")) {
-          isDataCollected = true;
-        } else if (/[áa]rea|necessidade jur[ií]dica|tipo de caso/i.test(stepText) && collectedKeys.has("área jurídica")) {
-          isDataCollected = true;
-        } else if (/urg[êe]ncia|prazo|audi[êe]ncia/i.test(stepText) && collectedKeys.has("urgência")) {
-          isDataCollected = true;
-        } else if (/e-?mail|contato/i.test(stepText) && collectedKeys.has("email")) {
-          isDataCollected = true;
-        } else if (/como (você )?ficou sabendo|como conheceu|indicação/i.test(stepText) && collectedKeys.has("origem")) {
-          isDataCollected = true;
-        }
-
-        if (!isDataCollected) break;
-
-        advancedCount++;
-        currentStepIndex++;
-        currentStep = steps[currentStepIndex];
-      }
-
-      if (advancedCount > 0) {
-        console.log(`⏩ Auto-advanced ${advancedCount} steps (data already collected) → now at step ${currentStepIndex + 1}/${steps.length}`);
-        await supabase.from("cases").update({ current_step_id: currentStep.id }).eq("id", existingCase.id);
-      }
+      const advanced = await autoAdvanceSteps(supabase, existingCase.id, currentStep, currentStepIndex, steps, history);
+      currentStep = advanced.newStep;
+      currentStepIndex = advanced.newIndex;
     }
 
     const isScriptCompleted = !currentStep && steps.length > 0;
@@ -509,7 +476,6 @@ serve(async (req) => {
     }
 
     // ===== Handle AI response =====
-    // Check if finalization was forced AND next step is the last — skip to script completion
     const isLastStep = nextStep && steps.indexOf(nextStep) === steps.length - 1;
     const skipToCompletion = aiResponse.action === "PROCEED" && nextStep && aiResponse.finalization_forced && isLastStep;
 
@@ -525,15 +491,12 @@ serve(async (req) => {
         external_message_id: closingMsgId,
         message_status: "sent",
       });
-
-      // Fall through to script completion logic (category agent switch)
     }
 
     if (aiResponse.action === "PROCEED" && nextStep && !skipToCompletion) {
       console.log(`➡️ Proceeding to step ${nextStep.step_order}`);
       await supabase.from("cases").update({ current_step_id: nextStep.id }).eq("id", existingCase.id);
 
-      // Use AI's personalized response instead of rigid template — prevents AI from returning STAY to keep its text
       const messageToSend = aiResponse.response_text || nextStep.message_to_send.replace(/\{nome\}/gi, existingCase.client_name || clientName);
       const proceedMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, messageToSend);
       await supabase.from("conversation_history").insert({
@@ -567,12 +530,11 @@ serve(async (req) => {
         console.error("❌ Category agent detection error:", e);
       }
 
-      // Determine target funnel stage based on category agent's assignment or next progression
+      // Determine target funnel stage
       let targetFunnelStage: string | null = null;
       let switchAgentId: string | null = null;
 
       if (categoryAgentId) {
-        // Find which funnel stage this category agent is assigned to
         const { data: categoryAssignment } = await supabase
           .from("funnel_agent_assignments")
           .select("stage_name")
@@ -585,12 +547,10 @@ serve(async (req) => {
           switchAgentId = categoryAgentId;
           console.log(`🏷️ Category agent "${categoryAgentId}" is assigned to stage "${targetFunnelStage}"`);
         } else {
-          // Category agent exists but not assigned to any funnel stage — use next progression
           targetFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
           switchAgentId = categoryAgentId;
         }
       } else {
-        // No category agent found — use standard funnel progression
         targetFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
 
         if (targetFunnelStage) {
@@ -644,7 +604,6 @@ serve(async (req) => {
             const newAgentGreeting = newAgentFirstStep.data?.message_to_send || newAgentRules.data?.welcome_message;
             if (newAgentGreeting) {
               const greetingMsg = newAgentGreeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
-              // Fire-and-forget delayed greeting (60 seconds)
               fireDelayedGreeting(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
                 delay_seconds: 60,
                 case_id: existingCase.id,
@@ -695,7 +654,6 @@ serve(async (req) => {
     });
 
     } finally {
-      // Safety: always release lock
       await releaseLock();
     }
   } catch (error) {
@@ -706,304 +664,3 @@ serve(async (req) => {
     );
   }
 });
-
-// ===== Helper: Create new case =====
-async function handleNewCase(
-  supabase: any, ownerId: string, clientPhone: string, clientName: string,
-  instanceName: string, messageBody: string,
-  incomingMessageId: string | null, incomingMediaUrl: string | null, incomingMediaType: string | null,
-  EVOLUTION_API_URL: string, EVOLUTION_API_KEY: string
-) {
-  console.log("🆕 Creating new case for:", clientPhone);
-
-  // Check funnel agent assignment
-  const { data: funnelAgent } = await supabase
-    .from("funnel_agent_assignments")
-    .select("agent_id")
-    .eq("user_id", ownerId)
-    .eq("stage_name", "Novo Contato")
-    .maybeSingle();
-
-  let agent = null;
-
-  if (funnelAgent?.agent_id) {
-    const { data: fAgent } = await supabase
-      .from("agents")
-      .select("*")
-      .eq("id", funnelAgent.agent_id)
-      .eq("is_active", true)
-      .maybeSingle();
-    agent = fAgent;
-    if (agent) console.log(`🔄 Using funnel agent for Novo Contato: ${agent.name}`);
-  }
-
-  if (!agent) {
-    const { data: defaultAgent } = await supabase
-      .from("agents")
-      .select("*")
-      .eq("user_id", ownerId)
-      .eq("is_active", true)
-      .eq("is_default", true)
-      .limit(1)
-      .maybeSingle();
-
-    agent = defaultAgent || (await supabase.from("agents").select("*").eq("user_id", ownerId).eq("is_active", true).limit(1).maybeSingle()).data;
-  }
-
-  if (!agent) {
-    console.log("❌ No active agents found");
-    return new Response(JSON.stringify({ status: "no_agents" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const { data: firstStep } = await supabase
-    .from("agent_script_steps")
-    .select("*")
-    .eq("agent_id", agent.id)
-    .order("step_order", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const { data: newCase, error: caseError } = await supabase
-    .from("cases")
-    .insert({
-      user_id: agent.user_id,
-      client_phone: clientPhone,
-      client_name: clientName,
-      active_agent_id: agent.id,
-      current_step_id: firstStep?.id || null,
-      status: "Novo Contato",
-      unread_count: 1,
-      last_message: messageBody,
-      last_message_at: new Date().toISOString(),
-    })
-    .select("*, active_agent:agents(*), current_step:agent_script_steps(*)")
-    .single();
-
-  if (caseError) throw caseError;
-
-  // Create contact if needed
-  const { data: existingContact } = await supabase
-    .from("contacts")
-    .select("id")
-    .eq("user_id", agent.user_id)
-    .eq("phone", clientPhone)
-    .maybeSingle();
-
-  if (!existingContact) {
-    await supabase.from("contacts").insert({
-      user_id: agent.user_id,
-      name: clientName,
-      phone: clientPhone,
-      source: "WhatsApp",
-      tags: ["Lead"],
-    });
-  }
-
-  // Send notification
-  await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, agent.user_id, clientName, clientPhone, "Novo Contato");
-
-  // Send welcome + first step (avoid duplicates)
-  const { data: rules } = await supabase.from("agent_rules").select("*").eq("agent_id", agent.id).maybeSingle();
-
-  if (firstStep) {
-    // If step 1 exists, send ONLY the step message (it already serves as greeting)
-    // Skip separate welcome_message to avoid duplicate introductions
-    const stepMsg = firstStep.message_to_send.replace(/\{nome\}/gi, clientName);
-    const stepMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, stepMsg);
-    await supabase.from("conversation_history").insert({
-      case_id: newCase.id,
-      role: "assistant",
-      content: stepMsg,
-      external_message_id: stepMsgId,
-      message_status: "sent",
-    });
-  } else if (rules?.welcome_message) {
-    // No script steps — send welcome message only
-    const welcomeMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, rules.welcome_message);
-    await supabase.from("conversation_history").insert({
-      case_id: newCase.id,
-      role: "assistant",
-      content: rules.welcome_message,
-      external_message_id: welcomeMsgId,
-      message_status: "sent",
-    });
-  }
-
-  // Save incoming message
-  await supabase.from("conversation_history").insert({
-    case_id: newCase.id,
-    role: "client",
-    content: messageBody,
-    external_message_id: incomingMessageId,
-    media_url: incomingMediaUrl,
-    media_type: incomingMediaType,
-  });
-
-  return new Response(JSON.stringify({ status: "new_case_created" }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-// ===== Helper: Switch to a new agent =====
-async function switchToAgent(
-  supabase: any, existingCase: any, newAgentId: string,
-  clientName: string, clientPhone: string,
-  instanceName: string, EVOLUTION_API_URL: string, EVOLUTION_API_KEY: string
-): Promise<Response | null> {
-  const switchUpdate: Record<string, any> = {
-    active_agent_id: newAgentId,
-    is_agent_paused: false,
-    current_step_id: null,
-  };
-
-  const { data: newFirstStep } = await supabase
-    .from("agent_script_steps")
-    .select("id")
-    .eq("agent_id", newAgentId)
-    .order("step_order", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (newFirstStep) switchUpdate.current_step_id = newFirstStep.id;
-
-  const nextStage = getNextFunnelStage(existingCase.status);
-  if (nextStage) switchUpdate.status = nextStage;
-
-  await supabase.from("cases").update(switchUpdate).eq("id", existingCase.id);
-
-  const [newAgentRulesRes, newAgentFirstStepRes] = await Promise.all([
-    supabase.from("agent_rules").select("welcome_message").eq("agent_id", newAgentId).maybeSingle(),
-    supabase.from("agent_script_steps").select("message_to_send").eq("agent_id", newAgentId).order("step_order", { ascending: true }).limit(1).maybeSingle(),
-  ]);
-
-  const greeting = newAgentFirstStepRes.data?.message_to_send || newAgentRulesRes.data?.welcome_message;
-  if (greeting) {
-    const greetingText = greeting.replace(/\{nome\}/gi, existingCase.client_name || clientName);
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    // Fire-and-forget delayed greeting (60 seconds)
-    fireDelayedGreeting(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      delay_seconds: 60,
-      case_id: existingCase.id,
-      greeting_message: greetingText,
-      client_phone: clientPhone,
-      instance_name: instanceName,
-      evolution_api_url: EVOLUTION_API_URL,
-      evolution_api_key: EVOLUTION_API_KEY,
-    });
-    console.log(`⏰ Delayed greeting scheduled (60s) for category switch agent`);
-  }
-
-  return new Response(JSON.stringify({ status: "agent_switched_by_category" }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-// ===== Helper: Handle status change =====
-async function handleStatusChange(
-  supabase: any, existingCase: any, newStatus: string,
-  userId: string, agentId: string,
-  clientName: string, clientPhone: string,
-  instanceName: string, EVOLUTION_API_URL: string, EVOLUTION_API_KEY: string,
-  OPENAI_API_KEY: string | null, LOVABLE_API_KEY: string | null,
-  history: any[]
-) {
-  const statusUpdate: Record<string, any> = { status: newStatus };
-
-  const { data: funnelAssignment } = await supabase
-    .from("funnel_agent_assignments")
-    .select("agent_id")
-    .eq("user_id", userId)
-    .eq("stage_name", newStatus)
-    .maybeSingle();
-
-  if (funnelAssignment?.agent_id) {
-    statusUpdate.active_agent_id = funnelAssignment.agent_id;
-    statusUpdate.is_agent_paused = false;
-    statusUpdate.current_step_id = null;
-
-    const { data: newFirstStep } = await supabase
-      .from("agent_script_steps")
-      .select("id")
-      .eq("agent_id", funnelAssignment.agent_id)
-      .order("step_order", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (newFirstStep) statusUpdate.current_step_id = newFirstStep.id;
-    console.log(`🔄 Funnel auto-switch: agent changed to ${funnelAssignment.agent_id} for "${newStatus}"`);
-  }
-
-  await supabase.from("cases").update(statusUpdate).eq("id", existingCase.id);
-  console.log(`📊 Status changed: ${existingCase.status} -> ${newStatus}`);
-
-  if (newStatus === "Qualificado" || newStatus === "Convertido") {
-    generateCaseDescription(supabase, OPENAI_API_KEY, LOVABLE_API_KEY, existingCase.id, clientName, history).catch((e) => console.error("Case description error:", e));
-}
-
-// ===== Helper: Fire-and-forget delayed greeting =====
-function fireDelayedGreeting(
-  supabaseUrl: string,
-  supabaseServiceKey: string,
-  payload: {
-    delay_seconds: number;
-    case_id: string;
-    greeting_message: string;
-    client_phone: string;
-    instance_name: string;
-    evolution_api_url: string;
-    evolution_api_key: string;
-  }
-) {
-  // Fire and forget — don't await
-  fetch(`${supabaseUrl}/functions/v1/send-delayed-greeting`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${supabaseServiceKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  }).catch((e) => console.error("❌ Failed to schedule delayed greeting:", e));
-}
-
-  await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, userId, clientName, clientPhone, newStatus);
-}
-
-// ===== Helper: Extract which data keys have been collected from conversation history =====
-function getCollectedDataKeys(history: any[]): Set<string> {
-  const emailRegex = /[\w.+-]+@[\w-]+\.[\w.-]+/;
-  const keys = new Set<string>();
-
-  for (let i = 0; i < history.length; i++) {
-    const h = history[i];
-    const content = String(h.content || "");
-
-    if (h.role === "client") {
-      if (emailRegex.test(content)) keys.add("email");
-
-      const prevAssistant = i > 0 ? String(history[i - 1]?.content || "") : "";
-
-      if (/nome completo/i.test(prevAssistant) && content.length > 3 && content.length < 100 && !emailRegex.test(content)) {
-        keys.add("nome");
-      }
-      if (/necessidade jur[ií]dica|qual .* [áa]rea|tipo de caso|questão.*(trabalhista|familiar|imobili)/i.test(prevAssistant) && content.length > 2) {
-        keys.add("área jurídica");
-      }
-      if (/urg[êe]ncia|prazo|audi[êe]ncia marcada|situação de risco/i.test(prevAssistant) && content.length > 1) {
-        keys.add("urgência");
-      }
-      if (/como (você )?ficou sabendo|como conheceu|indicação.*redes.*google/i.test(prevAssistant) && content.length > 1) {
-        keys.add("origem");
-      }
-    }
-  }
-
-  // Also check if client name was set on the case (pushName)
-  if (history.some(h => h.role === "client" && /^[A-ZÀ-Ú][a-zà-ú]+ [A-ZÀ-Ú]/m.test(String(h.content || "").trim()))) {
-    keys.add("nome");
-  }
-
-  return keys;
-}
