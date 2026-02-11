@@ -22,9 +22,12 @@ async function callAI(
   openaiApiKey: string | null,
   lovableApiKey: string | null,
   messages: Array<{ role: string; content: string }>,
-  model = "gpt-4o-mini"
+  model = "gpt-4o-mini",
+  options: { temperature?: number; max_tokens?: number } = {}
 ): Promise<string> {
-  const body = { model, messages, temperature: 0.3, max_tokens: 4096 };
+  const temperature = options.temperature ?? 0.3;
+  const max_tokens = options.max_tokens ?? 4096;
+  const body = { model, messages, temperature, max_tokens };
 
   // Try OpenAI first
   if (openaiApiKey) {
@@ -55,7 +58,7 @@ async function callAI(
 
   const modelMap: Record<string, string> = {
     "gpt-4o-mini": "google/gemini-2.5-flash",
-    "gpt-4o": "google/gemini-2.5-flash",
+    "gpt-4o": "google/gemini-2.5-pro",
   };
   const fallbackBody = { ...body, model: modelMap[model] || "google/gemini-2.5-flash" };
 
@@ -190,7 +193,12 @@ Gere o contrato completo com: identificação das partes, objeto, obrigações, 
       { role: "user", content: userPrompt },
     ];
     
-    const result = await callAI(openaiApiKey, lovableApiKey, messages);
+    // Use stronger model for petition generation with instructions, and more tokens
+    const useStrongerModel = action === "generate_petition" && data.referenceModel;
+    const aiModel = useStrongerModel ? "gpt-4o" : "gpt-4o-mini";
+    const aiOptions = useStrongerModel ? { temperature: 0.4, max_tokens: 8192 } : {};
+    
+    const result = await callAI(openaiApiKey, lovableApiKey, messages, aiModel, aiOptions);
 
     return new Response(JSON.stringify({ success: true, content: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
