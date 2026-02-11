@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -41,7 +41,7 @@ export const useCases = () => {
   const { toast } = useToast();
   const { notifyNewLead } = useNotificationSound();
 
-  const fetchCases = async () => {
+  const fetchCases = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -62,7 +62,7 @@ export const useCases = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   const fetchMessages = async (caseId: string): Promise<Message[]> => {
     try {

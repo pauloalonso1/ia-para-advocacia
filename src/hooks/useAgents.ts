@@ -209,31 +209,15 @@ export const useAgentDetails = (agentId: string | null) => {
 
     setLoading(true);
 
-    // Fetch rules
-    const { data: rulesData } = await supabase
-      .from('agent_rules')
-      .select('*')
-      .eq('agent_id', agentId)
-      .maybeSingle();
+    const [rulesResult, stepsResult, faqsResult] = await Promise.all([
+      supabase.from('agent_rules').select('*').eq('agent_id', agentId).maybeSingle(),
+      supabase.from('agent_script_steps').select('*').eq('agent_id', agentId).order('step_order', { ascending: true }),
+      supabase.from('agent_faqs').select('*').eq('agent_id', agentId),
+    ]);
 
-    setRules(rulesData);
-
-    // Fetch steps
-    const { data: stepsData } = await supabase
-      .from('agent_script_steps')
-      .select('*')
-      .eq('agent_id', agentId)
-      .order('step_order', { ascending: true });
-
-    setSteps(stepsData || []);
-
-    // Fetch FAQs
-    const { data: faqsData } = await supabase
-      .from('agent_faqs')
-      .select('*')
-      .eq('agent_id', agentId);
-
-    setFaqs(faqsData || []);
+    setRules(rulesResult.data);
+    setSteps(stepsResult.data || []);
+    setFaqs(faqsResult.data || []);
     setLoading(false);
   };
 
