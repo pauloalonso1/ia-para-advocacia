@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown } from "lucide-react";
+import { FileText, ScrollText, Loader2, Copy, Download, Search, FileDown, Upload } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useLegalDocuments } from "@/hooks/useLegalDocuments";
 import { toaster } from "@/components/ui/basic-toast";
@@ -61,6 +61,62 @@ export default function LegalDocumentsView() {
   // Analysis
   const [analyzeText, setAnalyzeText] = useState("");
   const [analyzeMode, setAnalyzeMode] = useState<"petition" | "contract">("petition");
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toaster.create({ title: "Arquivo muito grande", description: "O limite é de 10MB.", type: "warning" });
+      return;
+    }
+
+    setUploadingFile(true);
+    setUploadedFileName(file.name);
+
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+
+      if (ext === "txt" || ext === "md") {
+        const text = await file.text();
+        setAnalyzeText(text);
+      } else if (ext === "pdf") {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items.map((item: any) => item.str).join(" ");
+          fullText += pageText + "\n\n";
+        }
+        setAnalyzeText(fullText.trim());
+      } else if (ext === "docx") {
+        const arrayBuffer = await file.arrayBuffer();
+        const mammoth = await import("mammoth");
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setAnalyzeText(result.value);
+      } else {
+        toaster.create({ title: "Formato não suportado", description: "Use PDF, DOCX ou TXT.", type: "warning" });
+        setUploadedFileName(null);
+        return;
+      }
+
+      toaster.create({ title: "Documento carregado!", description: `${file.name} foi processado com sucesso.`, type: "success" });
+    } catch (err) {
+      console.error("File parse error:", err);
+      toaster.create({ title: "Erro ao ler arquivo", description: "Não foi possível extrair o texto do documento.", type: "error" });
+      setUploadedFileName(null);
+    } finally {
+      setUploadingFile(false);
+      e.target.value = "";
+    }
+  };
 
   const handleGeneratePetition = () => {
     if (!petType || !petFacts) {
@@ -313,8 +369,32 @@ export default function LegalDocumentsView() {
                     </Select>
                   </div>
                   <div>
+                    <Label>Upload de Documento</Label>
+                    <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-muted-foreground/30 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,.txt,.md"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={uploadingFile}
+                      />
+                      {uploadingFile ? (
+                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <span className="text-sm">Processando...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                          <Upload className="h-6 w-6" />
+                          <span className="text-sm font-medium">{uploadedFileName || "Clique para enviar"}</span>
+                          <span className="text-xs">PDF, DOCX ou TXT (máx. 10MB)</span>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                  <div>
                     <Label>Documento *</Label>
-                    <Textarea value={analyzeText} onChange={(e) => setAnalyzeText(e.target.value)} placeholder="Cole o texto do documento aqui..." rows={10} />
+                    <Textarea value={analyzeText} onChange={(e) => setAnalyzeText(e.target.value)} placeholder="Cole o texto do documento aqui ou faça upload acima..." rows={8} />
                   </div>
                   <Button onClick={handleAnalyze} disabled={isLoading} className="w-full">
                     {isLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analisando...</> : <><Search className="h-4 w-4 mr-2" /> Analisar Documento</>}
