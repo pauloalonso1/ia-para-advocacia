@@ -137,9 +137,6 @@ export default function LegalDocumentsView() {
       toaster.create({ title: "Campos obrigatórios", description: "Selecione o tipo e preencha os fatos.", type: "warning" });
       return;
     }
-    const factsWithModel = petModelText
-      ? `${petFacts}\n\n---\nPETIÇÃO MODELO (use como referência de estilo e estrutura):\n${petModelText}`
-      : petFacts;
     generatePetition({
       type: petType,
       court: petCourt,
@@ -147,7 +144,8 @@ export default function LegalDocumentsView() {
         plaintiff: petPlaintiff,
         defendant: petDefendant,
       },
-      facts: factsWithModel,
+      facts: petFacts,
+      referenceModel: petModelText || undefined,
       legalBasis: petLegal,
       requests: petRequests,
     });

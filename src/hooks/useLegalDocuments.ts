@@ -10,6 +10,7 @@ interface PetitionRequest {
   facts: string;
   legalBasis?: string;
   requests?: string;
+  referenceModel?: string;
 }
 
 interface ContractRequest {

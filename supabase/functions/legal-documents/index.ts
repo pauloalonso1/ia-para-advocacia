@@ -116,8 +116,11 @@ serve(async (req) => {
 
     switch (action) {
       case "generate_petition": {
-        const { type, court, parties, facts, legalBasis, requests } = data;
+        const { type, court, parties, facts, legalBasis, requests, referenceModel } = data;
         systemPrompt = `Você é um advogado brasileiro sênior especialista em redação jurídica. Gere uma petição profissional e completa em português brasileiro, seguindo rigorosamente as normas do CPC e as boas práticas forenses. Use linguagem técnica jurídica formal.`;
+        if (referenceModel) {
+          systemPrompt += `\n\nIMPORTANTE: O usuário forneceu o seguinte modelo de referência. Você DEVE seguir rigorosamente o estilo, a estrutura, o tom e o formato deste modelo ao gerar a nova petição. Adapte o conteúdo aos fatos e dados fornecidos, mas mantenha o padrão do modelo:\n\n---MODELO DE REFERÊNCIA---\n${referenceModel}\n---FIM DO MODELO---`;
+        }
         userPrompt = `Gere uma petição do tipo "${type}" para o ${court || "juízo competente"}.
 
 Partes:
