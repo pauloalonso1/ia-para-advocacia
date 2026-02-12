@@ -16,6 +16,7 @@ const FUNNEL_STAGES = [
   'Novo Contato',
   'Em Atendimento',
   'Qualificado',
+  'Consulta Marcada',
   'Não Qualificado',
   'Convertido',
   'Arquivado',
