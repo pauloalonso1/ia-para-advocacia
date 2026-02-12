@@ -265,7 +265,8 @@ export async function switchToAgentWithHandoff(
       artifact: artifact || {},
     });
 
-    const handoffText = `Perfeito, ${existingCase.client_name || clientName}. Vou te encaminhar agora para ${newAgentName} para dar continuidade, tudo bem?`;
+    const firstName = (existingCase.client_name || clientName || "").split(" ")[0];
+    const handoffText = `Perfeito, ${firstName}. Vou te encaminhar agora para ${newAgentName} para dar continuidade, tudo bem?`;
     const handoffMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, handoffText);
     await supabase.from("conversation_history").insert({
       case_id: existingCase.id,
