@@ -64,7 +64,9 @@ export async function processWithAI(
 
   // === Calendar deterministic auto-booking (only when script is completed or no script) ===
   const hasActiveScript = !!currentStep || (allSteps.length > 0 && !isScriptCompleted);
-  if (hasCalendarConnected && !hasActiveScript) {
+  const isSchedulingAgent = allSteps.some((s: any) => /agend|calend|consult|reunião|horário/i.test(String(s.situation || "") + " " + String(s.message_to_send || "")));
+  const allowCalendar = hasCalendarConnected && (!hasActiveScript || isSchedulingAgent);
+  if (allowCalendar && !hasActiveScript) {
     const autoResult = await tryCalendarAutoBook(
       supabase, userId, clientPhone, clientName, clientMessage, history
     );
@@ -74,7 +76,7 @@ export async function processWithAI(
   // === Build context ===
   const collectedDataContext = buildCollectedDataContext(history);
   const scriptContext = buildScriptContext(allSteps, currentStep, nextStep, isScriptCompleted);
-  const calendarContext = (hasCalendarConnected && !hasActiveScript) ? buildCalendarContext() : "";
+  const calendarContext = allowCalendar ? buildCalendarContext() : "";
 
   // RAG search
   let ragContext = "";
@@ -101,7 +103,7 @@ export async function processWithAI(
   ];
 
   // === Build tools ===
-  const tools = buildTools(supabase, userId, hasCalendarConnected && !hasActiveScript, history, clientMessage);
+  const tools = buildTools(supabase, userId, allowCalendar, history, clientMessage);
 
   // Check ZapSign
   const { data: zapsignSettings } = await supabase
@@ -300,8 +302,10 @@ async function tryCalendarAutoBook(
 
       await updateContactEmail(supabase, userId, clientPhone, email);
 
+      const firstName = clientName.split(" ")[0];
+
       return {
-        response_text: `Perfeito, ${clientName}! Agendei sua consulta para *${dateKey}* às *${timeStr}*. Vou enviar o convite no e-mail *${email}*.`,
+        response_text: `Perfeito, ${firstName}! Agendei sua consulta por videoconferência para *${dateKey}* às *${timeStr}*. Vou enviar o convite com o link do Google Meet no e-mail *${email}*.`,
         action: "STAY",
         new_status: "Qualificado",
         next_intent: "SCHEDULE_CONSULT",
@@ -472,8 +476,18 @@ ${knowledgeBaseContext}
 ${handoffContext}
 
 👤 INFORMAÇÕES DO CLIENTE:
-- Nome: ${clientName}
+- Nome completo: ${clientName}
+- Primeiro nome: ${clientName.split(" ")[0]}
 - Telefone: ${clientPhone}
+
+📛 REGRA DE NOME:
+- SEMPRE chame o cliente APENAS pelo PRIMEIRO NOME ("${clientName.split(" ")[0]}"), NUNCA pelo nome completo ou composto.
+- Exemplo: Se o nome é "Paulo Roberto Alonso", chame de "Paulo", NUNCA "Paulo Roberto" ou "Paulo Alonso".
+
+📹 MODALIDADE DE CONSULTA:
+- As consultas são realizadas EXCLUSIVAMENTE por videoconferência via Google Meet.
+- NÃO existe opção de consulta presencial. NUNCA ofereça ou pergunte sobre modalidade presencial.
+- Se o cliente mencionar "presencial", informe educadamente que as consultas são realizadas por videoconferência (Google Meet) e que ele receberá o link por e-mail.
 
 🎯 INSTRUÇÕES DE DECISÃO:
 1. Se o cliente respondeu adequadamente à pergunta da etapa atual → action "PROCEED"
