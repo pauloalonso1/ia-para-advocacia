@@ -476,6 +476,11 @@ ${calendarContext}
 ${knowledgeBaseContext}
 ${handoffContext}
 
+⏰ DATA E HORA ATUAL (fuso horário de Brasília):
+- ${new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date())}
+- Use saudações adequadas ao horário: "Bom dia" (6h-12h), "Boa tarde" (12h-18h), "Boa noite" (18h-6h).
+- NUNCA use uma saudação que não corresponda ao horário atual.
+
 👤 INFORMAÇÕES DO CLIENTE:
 - Nome completo: ${clientName}
 - Primeiro nome: ${clientName.split(" ")[0]}
