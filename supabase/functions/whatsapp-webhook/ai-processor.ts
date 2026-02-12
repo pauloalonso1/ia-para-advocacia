@@ -65,7 +65,8 @@ export async function processWithAI(
   // === Calendar deterministic auto-booking (only when script is completed or no script) ===
   const hasActiveScript = !!currentStep || (allSteps.length > 0 && !isScriptCompleted);
   const isSchedulingAgent = allSteps.some((s: any) => /agend|calend|consult|reunião|horário/i.test(String(s.situation || "") + " " + String(s.message_to_send || "")));
-  const allowCalendar = hasCalendarConnected && (!hasActiveScript || isSchedulingAgent);
+  // Only scheduling agents get calendar tools — specialists must transfer to the scheduling agent
+  const allowCalendar = hasCalendarConnected && isSchedulingAgent;
   if (allowCalendar && !hasActiveScript) {
     const autoResult = await tryCalendarAutoBook(
       supabase, userId, clientPhone, clientName, clientMessage, history

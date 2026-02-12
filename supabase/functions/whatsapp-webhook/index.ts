@@ -710,7 +710,23 @@ serve(async (req) => {
           switchAgentId = categoryAgentId;
         }
       } else {
-        targetFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
+        // No category agent found — check if current agent is a specialist (non-"Outro" category)
+        // If so, the lead is now qualified → move to "Qualificado" to hand off to scheduling agent
+        const { data: currentAgentData } = await supabase
+          .from("agents")
+          .select("category")
+          .eq("id", agentId)
+          .maybeSingle();
+
+        const isSpecialist = currentAgentData?.category && currentAgentData.category !== "Outro";
+
+        if (isSpecialist) {
+          // Specialist completed → target "Qualificado" (where scheduling agent is typically assigned)
+          targetFunnelStage = aiResponse.new_status || "Qualificado";
+          console.log(`🎯 Specialist agent completed. Targeting "${targetFunnelStage}" for scheduling handoff.`);
+        } else {
+          targetFunnelStage = aiResponse.new_status || getNextFunnelStage(existingCase.status);
+        }
 
         if (targetFunnelStage) {
           const { data: nextAssignment } = await supabase
