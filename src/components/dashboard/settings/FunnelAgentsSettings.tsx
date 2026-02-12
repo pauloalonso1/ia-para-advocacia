@@ -11,6 +11,7 @@ const stageColors: Record<string, string> = {
   'Novo Contato': 'bg-blue-500',
   'Em Atendimento': 'bg-amber-500',
   'Qualificado': 'bg-green-500',
+  'Consulta Marcada': 'bg-cyan-500',
   'Não Qualificado': 'bg-destructive',
   'Convertido': 'bg-purple-500',
   'Arquivado': 'bg-muted-foreground',
