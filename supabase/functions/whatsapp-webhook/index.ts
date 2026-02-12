@@ -12,9 +12,74 @@ import { sendWhatsAppMessage, sendStatusNotification, updateContactEmail } from 
 import { detectAndMatchCategoryAgent, generateCaseDescription, checkFAQ } from "./funnel-engine.ts";
 import { saveContactMemory } from "./rag-engine.ts";
 import { processWithAI } from "./ai-processor.ts";
-import { handleNewCase, switchToAgent } from "./case-handler.ts";
+import { handleNewCase, switchToAgentWithHandoff } from "./case-handler.ts";
 import { handleStatusChange, fireDelayedGreeting } from "./status-handler.ts";
 import { autoAdvanceSteps } from "./script-engine.ts";
+import { callAIChatCompletions } from "./ai-client.ts";
+
+async function extractAndUpsertCaseFields(
+  supabase: any,
+  OPENAI_API_KEY: string | null,
+  LOVABLE_API_KEY: string | null,
+  caseId: string,
+  userId: string,
+  clientName: string,
+  history: any[],
+  lastMessage: string
+): Promise<void> {
+  const snippet = history
+    .slice(-25)
+    .map((m: any) => `${m.role === "client" ? "Cliente" : "Assistente"}: ${String(m.content || "")}`)
+    .join("\n");
+
+  const data = await callAIChatCompletions(OPENAI_API_KEY, LOVABLE_API_KEY, {
+    model: "gpt-4o-mini",
+    temperature: 0.1,
+    max_tokens: 300,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Extraia campos estruturados do caso a partir da conversa. Retorne APENAS um JSON válido com chaves: nome_completo (string|null), email (string|null), area_juridica (string|null), urgencia (string|null), objetivo (string|null), fatos_relevantes (string|null), valores_datas_documentos (string|null), quer_agendar (boolean|null), quer_contrato_direto (boolean|null). Use null quando não houver evidência.",
+      },
+      {
+        role: "user",
+        content: `Cliente: ${clientName}\n\nConversa:\n${snippet}\n\nÚltima mensagem: ${lastMessage}`,
+      },
+    ],
+  });
+
+  const raw = data.choices?.[0]?.message?.content?.trim();
+  if (!raw) return;
+  const jsonText = raw.includes("```")
+    ? (raw.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]?.trim() || raw)
+    : raw;
+
+  let extracted: Record<string, any>;
+  try {
+    extracted = JSON.parse(jsonText);
+  } catch {
+    return;
+  }
+
+  const { data: existing } = await supabase
+    .from("case_fields")
+    .select("fields")
+    .eq("case_id", caseId)
+    .maybeSingle();
+
+  const merged = { ...(existing?.fields || {}), ...(extracted || {}) };
+
+  await supabase.from("case_fields").upsert(
+    {
+      case_id: caseId,
+      user_id: userId,
+      fields: merged,
+      extracted_at: new Date().toISOString(),
+    },
+    { onConflict: "case_id" }
+  );
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -475,9 +540,21 @@ serve(async (req) => {
 
         if (categoryAgentId && categoryAgentId !== agentId) {
           console.log(`🔄 Retroactive category switch: ${agentId} -> ${categoryAgentId}`);
-          const switchResult = await switchToAgent(
-            supabase, existingCase, categoryAgentId, clientName, clientPhone,
-            instanceName, EVOLUTION_API_URL, EVOLUTION_API_KEY
+          const switchResult = await switchToAgentWithHandoff(
+            supabase,
+            existingCase,
+            categoryAgentId,
+            userId,
+            agentId,
+            clientName,
+            clientPhone,
+            instanceName,
+            EVOLUTION_API_URL,
+            EVOLUTION_API_KEY,
+            OPENAI_API_KEY,
+            LOVABLE_API_KEY,
+            history,
+            "category_switch:retroactive"
           );
           if (switchResult) return switchResult;
         }
@@ -495,19 +572,63 @@ serve(async (req) => {
     const hasCalendarConnected = !!calendarToken;
 
     // ===== Process with AI =====
+    // ===== Extract structured case fields (best-effort) =====
+    try {
+      await extractAndUpsertCaseFields(
+        supabase,
+        OPENAI_API_KEY,
+        LOVABLE_API_KEY,
+        existingCase.id,
+        userId,
+        existingCase.client_name || clientName,
+        history,
+        messageBody
+      );
+    } catch (e) {
+      console.error("❌ Case fields extraction error:", e);
+    }
+
     const aiResponse = await processWithAI(
       OPENAI_API_KEY, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
       rules, currentStep, nextStep, messageBody, history, steps,
       existingCase.client_name || clientName, clientPhone,
-      hasCalendarConnected, userId, agentId, isScriptCompleted
+      hasCalendarConnected, userId, agentId, existingCase.id, isScriptCompleted
     );
 
-    console.log(`🤖 AI Response: action=${aiResponse.action}, new_status=${aiResponse.new_status || "none"}`);
+    console.log(`🤖 AI Response: action=${aiResponse.action}, new_status=${aiResponse.new_status || "none"}, next_intent=${aiResponse.next_intent || "none"}`);
+
+    // ===== Deterministic intent-based status (when model doesn't set new_status) =====
+    let intentBasedStatus: string | undefined;
+    if (!aiResponse.new_status) {
+      if (aiResponse.next_intent === "DIRECT_CONTRACT") intentBasedStatus = "Aguardando Assinatura";
+      if (aiResponse.next_intent === "SCHEDULE_CONSULT") intentBasedStatus = "Agendamento";
+    }
+
+    const desiredStatus = aiResponse.new_status || intentBasedStatus;
+
+    // Log decision
+    try {
+      await supabase.from("workflow_events").insert({
+        user_id: userId,
+        case_id: existingCase.id,
+        event_type: "ai_decision",
+        from_status: previousStatus,
+        to_status: desiredStatus || null,
+        from_agent_id: agentId,
+        to_agent_id: agentId,
+        metadata: {
+          action: aiResponse.action,
+          next_intent: aiResponse.next_intent,
+          new_status: aiResponse.new_status,
+          is_script_completed: isScriptCompleted,
+        },
+      });
+    } catch {}
 
     // ===== Handle status change =====
-    if (aiResponse.new_status && aiResponse.new_status !== previousStatus) {
+    if (desiredStatus && desiredStatus !== previousStatus) {
       await handleStatusChange(
-        supabase, existingCase, aiResponse.new_status, userId, agentId,
+        supabase, existingCase, desiredStatus, userId, agentId,
         clientName, clientPhone, instanceName, EVOLUTION_API_URL, EVOLUTION_API_KEY,
         OPENAI_API_KEY, LOVABLE_API_KEY, history
       );
@@ -618,6 +739,73 @@ serve(async (req) => {
           }
 
           if (agentChanged) {
+            // Explicit handoff + artifact for automatic funnel agent switch
+            try {
+              const { data: toAgent } = await supabase
+                .from("agents")
+                .select("id, name")
+                .eq("id", switchAgentId)
+                .maybeSingle();
+
+              const toAgentName = toAgent?.name || "o próximo atendente";
+
+              let artifact: Record<string, any> | null = null;
+              try {
+                const conversationSnippet = history
+                  .slice(-30)
+                  .map((m: any) => `${m.role === "client" ? "Cliente" : "Assistente"}: ${String(m.content || "")}`)
+                  .join("\n");
+
+                const data = await callAIChatCompletions(OPENAI_API_KEY, LOVABLE_API_KEY, {
+                  model: "gpt-4o-mini",
+                  temperature: 0.2,
+                  max_tokens: 350,
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "Retorne APENAS um JSON válido para handoff entre agentes. Formato: {summary: string, facts: string[], collected_fields: object, open_questions: string[], next_best_action: string, risk_flags: string[], confidence: 'low'|'medium'|'high'}.",
+                    },
+                    {
+                      role: "user",
+                      content: `Cliente: ${existingCase.client_name || clientName}\nStatus alvo: ${targetFunnelStage}\nAgente destino: ${toAgentName}\n\nConversa:\n${conversationSnippet}`,
+                    },
+                  ],
+                });
+
+                const raw = data.choices?.[0]?.message?.content?.trim();
+                if (raw) {
+                  const jsonText = raw.includes("```")
+                    ? (raw.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]?.trim() || raw)
+                    : raw;
+                  artifact = JSON.parse(jsonText);
+                }
+              } catch (e) {
+                console.error("❌ Funnel handoff artifact generation error:", e);
+              }
+
+              await supabase.from("case_handoffs").insert({
+                case_id: existingCase.id,
+                user_id: userId,
+                from_agent_id: agentId,
+                to_agent_id: switchAgentId,
+                reason: `funnel_auto_switch:${targetFunnelStage}`,
+                artifact: artifact || {},
+              });
+
+              const handoffText = `Perfeito, ${existingCase.client_name || clientName}. Vou te encaminhar agora para ${toAgentName} para dar continuidade, tudo bem?`;
+              const handoffMsgId = await sendWhatsAppMessage(EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, clientPhone, handoffText);
+              await supabase.from("conversation_history").insert({
+                case_id: existingCase.id,
+                role: "assistant",
+                content: handoffText,
+                external_message_id: handoffMsgId,
+                message_status: "sent",
+              });
+            } catch (e) {
+              console.error("❌ Funnel handoff error (artifact/message):", e);
+            }
+
             statusUpdate.active_agent_id = switchAgentId;
             statusUpdate.is_agent_paused = false;
             statusUpdate.current_step_id = null;

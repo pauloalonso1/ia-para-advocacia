@@ -59,6 +59,8 @@ serve(async (req) => {
     if (docStatus === "signed" || docStatus === "closed") {
       newStatus = "signed";
       signedAt = new Date().toISOString();
+    } else if (docStatus === "pending") {
+      newStatus = "pending";
     } else if (docStatus === "refused") {
       newStatus = "refused";
     } else if (docStatus === "link_opened") {
@@ -79,64 +81,113 @@ serve(async (req) => {
       console.error("Error updating document:", updateError);
     }
 
-    // If signed, convert the case to "Convertido"
-    if (newStatus === "signed" && doc.case_id) {
-      console.log(`Document signed! Converting case ${doc.case_id} to Convertido`);
-      
-      const { error: caseError } = await supabase
-        .from("cases")
-        .update({ status: "Convertido" })
-        .eq("id", doc.case_id);
+    // Sync case status based on doc lifecycle
+    if (doc.case_id) {
+      // If signed, convert the case to "Convertido"
+      if (newStatus === "signed") {
+        console.log(`Document signed! Converting case ${doc.case_id} to Convertido`);
 
-      if (caseError) {
-        console.error("Error updating case status:", caseError);
-      } else {
-        console.log("Case converted successfully!");
+        try {
+          await supabase.from("workflow_events").insert({
+            user_id: doc.user_id,
+            case_id: doc.case_id,
+            event_type: "contract_signed",
+            from_status: null,
+            to_status: "Convertido",
+            from_agent_id: null,
+            to_agent_id: null,
+            metadata: { doc_token: docToken, doc_status: docStatus },
+          });
+        } catch {}
+
+        const { error: caseError } = await supabase
+          .from("cases")
+          .update({ status: "Convertido" })
+          .eq("id", doc.case_id);
+
+        if (caseError) {
+          console.error("Error updating case status:", caseError);
+        } else {
+          console.log("Case converted successfully!");
+        }
+
+        // Send notification via WhatsApp if Evolution API is configured
+        try {
+          const { data: evolutionSettings } = await supabase
+            .from("evolution_api_settings")
+            .select("*")
+            .eq("user_id", doc.user_id)
+            .maybeSingle();
+
+          const { data: notifSettings } = await supabase
+            .from("notification_settings")
+            .select("*")
+            .eq("user_id", doc.user_id)
+            .maybeSingle();
+
+          if (
+            evolutionSettings?.is_connected &&
+            notifSettings?.is_enabled &&
+            notifSettings?.notify_contract_signed &&
+            notifSettings?.notification_phone
+          ) {
+            const message = `✅ *Contrato assinado!*\n\n📝 Cliente: ${doc.client_name || "N/A"}\n📱 Telefone: ${doc.client_phone || "N/A"}\n📄 Documento: ${doc.template_name || "N/A"}\n⏰ Assinado em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
+
+            const apiUrl = evolutionSettings.api_url.replace(/\/$/, "");
+            const instanceName = evolutionSettings.instance_name || "default";
+
+            await fetch(
+              `${apiUrl}/message/sendText/${instanceName}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  apikey: evolutionSettings.api_key,
+                },
+                body: JSON.stringify({
+                  number: notifSettings.notification_phone.replace(/\D/g, ""),
+                  text: message,
+                }),
+              }
+            );
+            console.log("Notification sent for signed contract");
+          }
+        } catch (notifError) {
+          console.error("Error sending notification:", notifError);
+        }
       }
 
-      // Send notification via WhatsApp if Evolution API is configured
-      try {
-        const { data: evolutionSettings } = await supabase
-          .from("evolution_api_settings")
-          .select("*")
-          .eq("user_id", doc.user_id)
+      // If not signed yet, keep case in "Aguardando Assinatura" (do not override Convertido)
+      if (newStatus === "pending" || newStatus === "opened") {
+        const { data: caseRow } = await supabase
+          .from("cases")
+          .select("status")
+          .eq("id", doc.case_id)
           .maybeSingle();
 
-        const { data: notifSettings } = await supabase
-          .from("notification_settings")
-          .select("*")
-          .eq("user_id", doc.user_id)
-          .maybeSingle();
+        if (caseRow?.status !== "Convertido") {
+          try {
+            await supabase.from("workflow_events").insert({
+              user_id: doc.user_id,
+              case_id: doc.case_id,
+              event_type: "contract_pending",
+              from_status: caseRow?.status || null,
+              to_status: "Aguardando Assinatura",
+              from_agent_id: null,
+              to_agent_id: null,
+              metadata: { doc_token: docToken, doc_status: docStatus },
+            });
+          } catch {}
 
-        if (
-          evolutionSettings?.is_connected &&
-          notifSettings?.is_enabled &&
-          notifSettings?.notify_contract_signed &&
-          notifSettings?.notification_phone
-        ) {
-          const message = `✅ *Contrato assinado!*\n\n📝 Cliente: ${doc.client_name || "N/A"}\n📱 Telefone: ${doc.client_phone || "N/A"}\n📄 Documento: ${doc.template_name || "N/A"}\n⏰ Assinado em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
+          const { error: caseError } = await supabase
+            .from("cases")
+            .update({ status: "Aguardando Assinatura" })
+            .eq("id", doc.case_id);
 
-          const apiUrl = evolutionSettings.api_url.replace(/\/$/, "");
-          const instanceName = evolutionSettings.instance_name || "default";
-
-          await fetch(
-            `${apiUrl}/message/sendText/${instanceName}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                apikey: evolutionSettings.api_key,
-              },
-              body: JSON.stringify({
-                number: notifSettings.notification_phone.replace(/\D/g, ""),
-                text: message,
-              }),
-            }
-          );
-          console.log("Notification sent for signed contract");
+          if (caseError) {
+            console.error("Error updating case to Aguardando Assinatura:", caseError);
+          }
         }
-      } catch (notifError) {
-        console.error("Error sending notification:", notifError);
       }
     }
 

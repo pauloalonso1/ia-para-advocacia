@@ -13,36 +13,107 @@ export async function searchRAGContext(
   clientPhone?: string
 ): Promise<string> {
   try {
-    const embedding = await callAIEmbeddings(apiKey, lovableApiKey, query, 768);
-    if (!embedding) {
-      console.warn("⚠️ Could not generate embedding for RAG search, skipping");
-      return "";
+    const normalizedQuery = String(query || "").trim();
+    if (!normalizedQuery) return "";
+
+    const embedding = await callAIEmbeddings(apiKey, lovableApiKey, normalizedQuery, 768);
+
+    const vectorSearch = async (threshold: number, count: number) => {
+      const [knowledgeResults, memoryResults] = await Promise.all([
+        supabase.rpc("match_knowledge_chunks", {
+          query_embedding: JSON.stringify(embedding),
+          match_user_id: userId,
+          match_agent_id: agentId,
+          match_threshold: threshold,
+          match_count: count,
+        }),
+        clientPhone
+          ? supabase
+              .rpc("match_contact_memories", {
+                query_embedding: JSON.stringify(embedding),
+                match_user_id: userId,
+                match_phone: clientPhone,
+                match_agent_id: agentId,
+                match_threshold: threshold,
+                match_count: count,
+              })
+              .then((res: any) => res, () => ({ data: null, error: null }))
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+
+      return {
+        chunks: knowledgeResults.data || [],
+        memories: memoryResults.data || [],
+      };
+    };
+
+    let chunks: any[] = [];
+    let memories: any[] = [];
+
+    if (embedding) {
+      // Pass 1
+      ({ chunks, memories } = await vectorSearch(0.5, 3));
+
+      // Pass 2 (more recall) if nothing found
+      if ((chunks?.length || 0) === 0 && (memories?.length || 0) === 0) {
+        ({ chunks, memories } = await vectorSearch(0.4, 5));
+      }
+    } else {
+      console.warn("⚠️ Could not generate embedding for RAG search, using lexical fallback");
     }
 
-    const [knowledgeResults, memoryResults] = await Promise.all([
-      supabase.rpc("match_knowledge_chunks", {
-        query_embedding: JSON.stringify(embedding),
-        match_user_id: userId,
-        match_agent_id: agentId,
-        match_threshold: 0.5,
-        match_count: 3,
-      }),
-      clientPhone
-        ? supabase
-            .rpc("match_contact_memories", {
-              query_embedding: JSON.stringify(embedding),
-              match_user_id: userId,
-              match_phone: clientPhone,
-              match_agent_id: agentId,
-              match_threshold: 0.5,
-              match_count: 3,
-            })
-            .then((res: any) => res, () => ({ data: null, error: null }))
-        : Promise.resolve({ data: null, error: null }),
-    ]);
+    // Lexical fallback if vector results are empty (or embeddings unavailable)
+    if ((chunks?.length || 0) === 0) {
+      try {
+        const terms = normalizedQuery
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => t.length >= 4)
+          .slice(0, 5);
 
-    const chunks = knowledgeResults.data || [];
-    const memories = memoryResults.data || [];
+        if (terms.length > 0) {
+          let q = supabase
+            .from("knowledge_chunks")
+            .select("content")
+            .eq("user_id", userId)
+            .limit(3);
+
+          // basic OR on content ILIKE
+          q = q.or(terms.map((t) => `content.ilike.%${t.replace(/[%_]/g, "")}%`).join(","));
+
+          const { data } = await q;
+          chunks = (data || []).map((d: any) => ({ content: d.content }));
+        }
+      } catch (e) {
+        console.warn("⚠️ Lexical knowledge_chunks fallback failed:", e);
+      }
+    }
+
+    if (clientPhone && (memories?.length || 0) === 0) {
+      try {
+        const terms = normalizedQuery
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => t.length >= 4)
+          .slice(0, 5);
+
+        if (terms.length > 0) {
+          let q = supabase
+            .from("contact_memories")
+            .select("content")
+            .eq("user_id", userId)
+            .eq("contact_phone", clientPhone)
+            .limit(3);
+
+          q = q.or(terms.map((t) => `content.ilike.%${t.replace(/[%_]/g, "")}%`).join(","));
+
+          const { data } = await q;
+          memories = (data || []).map((d: any) => ({ content: d.content }));
+        }
+      } catch (e) {
+        console.warn("⚠️ Lexical contact_memories fallback failed:", e);
+      }
+    }
 
     const contextParts: string[] = [];
 

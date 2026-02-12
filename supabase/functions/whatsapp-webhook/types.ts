@@ -52,6 +52,7 @@ export interface AIResponse {
   response_text: string;
   action: "PROCEED" | "STAY";
   new_status?: string;
+  next_intent?: "DIRECT_CONTRACT" | "SCHEDULE_CONSULT" | "CONTINUE";
   finalization_forced?: boolean;
 }
 
@@ -59,7 +60,12 @@ export interface AIResponse {
 export const CRM_STATUSES = [
   "Novo Contato",
   "Em Atendimento",
+  "Triagem / Viabilidade",
+  "Especialista",
   "Qualificado",
+  "Agendamento",
+  "Consulta Marcada",
+  "Aguardando Assinatura",
   "Não Qualificado",
   "Convertido",
   "Arquivado",
@@ -69,8 +75,9 @@ export const CRM_STATUSES = [
 export function getNextFunnelStage(currentStatus: string | null): string | null {
   const progression: Record<string, string> = {
     "Novo Contato": "Em Atendimento",
-    "Em Atendimento": "Qualificado",
-    "Qualificado": "Convertido",
+    "Em Atendimento": "Triagem / Viabilidade",
+    "Triagem / Viabilidade": "Especialista",
+    "Especialista": "Qualificado",
   };
   return progression[currentStatus || "Novo Contato"] || null;
 }
