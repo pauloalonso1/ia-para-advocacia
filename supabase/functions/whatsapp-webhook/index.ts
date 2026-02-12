@@ -465,6 +465,14 @@ serve(async (req) => {
     const agentId = existingCase.active_agent_id;
     const userId = existingCase.user_id;
 
+    // Fetch agent category to determine scheduling access
+    const { data: agentMeta } = await supabase
+      .from("agents")
+      .select("category")
+      .eq("id", agentId)
+      .maybeSingle();
+    const agentCategory = agentMeta?.category || null;
+
     const [rulesResult, stepsResult, faqsResult, historyResult] = await Promise.all([
       supabase.from("agent_rules").select("*").eq("agent_id", agentId).maybeSingle(),
       supabase.from("agent_script_steps").select("*").eq("agent_id", agentId).order("step_order", { ascending: true }),
@@ -592,7 +600,8 @@ serve(async (req) => {
       OPENAI_API_KEY, LOVABLE_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
       rules, currentStep, nextStep, messageBody, history, steps,
       existingCase.client_name || clientName, clientPhone,
-      hasCalendarConnected, userId, agentId, existingCase.id, isScriptCompleted
+      hasCalendarConnected, userId, agentId, existingCase.id, isScriptCompleted,
+      agentCategory
     );
 
     console.log(`🤖 AI Response: action=${aiResponse.action}, new_status=${aiResponse.new_status || "none"}, next_intent=${aiResponse.next_intent || "none"}`);
