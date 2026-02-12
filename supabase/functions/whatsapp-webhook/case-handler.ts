@@ -102,6 +102,16 @@ export async function handleNewCase(
   // Send notification
   await sendStatusNotification(supabase, EVOLUTION_API_URL, EVOLUTION_API_KEY, instanceName, agent.user_id, clientName, clientPhone, "Novo Contato");
 
+  // Save incoming message FIRST (so chat UI shows client message above assistant)
+  await supabase.from("conversation_history").insert({
+    case_id: newCase.id,
+    role: "client",
+    content: messageBody,
+    external_message_id: incomingMessageId,
+    media_url: incomingMediaUrl,
+    media_type: incomingMediaType,
+  });
+
   // Send welcome + first step (avoid duplicates)
   const { data: rules } = await supabase.from("agent_rules").select("*").eq("agent_id", agent.id).maybeSingle();
 
@@ -125,16 +135,6 @@ export async function handleNewCase(
       message_status: "sent",
     });
   }
-
-  // Save incoming message
-  await supabase.from("conversation_history").insert({
-    case_id: newCase.id,
-    role: "client",
-    content: messageBody,
-    external_message_id: incomingMessageId,
-    media_url: incomingMediaUrl,
-    media_type: incomingMediaType,
-  });
 
   return new Response(JSON.stringify({ status: "new_case_created" }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
