@@ -46,8 +46,8 @@ const crmStages = [
   { id: 'Novo Contato', label: 'Novo Contato', color: 'bg-blue-500' },
   { id: 'Em Atendimento', label: 'Em Atendimento', color: 'bg-amber-500' },
   { id: 'Qualificado', label: 'Qualificado', color: 'bg-green-500' },
-  { id: 'Não Qualificado', label: 'Não Qualificado', color: 'bg-destructive' },
   { id: 'Convertido', label: 'Convertido', color: 'bg-purple-500' },
+  { id: 'Não Qualificado', label: 'Não Qualificado', color: 'bg-destructive' },
   { id: 'Arquivado', label: 'Arquivado', color: 'bg-muted-foreground' },
 ];
 
