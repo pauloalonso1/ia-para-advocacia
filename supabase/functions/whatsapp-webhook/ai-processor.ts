@@ -24,7 +24,8 @@ export async function processWithAI(
   userId: string,
   agentId: string,
   caseId: string,
-  isScriptCompleted: boolean = false
+  isScriptCompleted: boolean = false,
+  agentCategory: string | null = null
 ): Promise<AIResponse> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -64,7 +65,8 @@ export async function processWithAI(
 
   // === Calendar deterministic auto-booking (only when script is completed or no script) ===
   const hasActiveScript = !!currentStep || (allSteps.length > 0 && !isScriptCompleted);
-  const isSchedulingAgent = allSteps.some((s: any) => /agend|calend|consult|reunião|horário/i.test(String(s.situation || "") + " " + String(s.message_to_send || "")));
+  // Determine scheduling agent by category — only agents with "Agendamento" category get calendar tools
+  const isSchedulingAgent = agentCategory ? /agendamento/i.test(agentCategory) : false;
   // Only scheduling agents get calendar tools — specialists must transfer to the scheduling agent
   const allowCalendar = hasCalendarConnected && isSchedulingAgent;
   if (allowCalendar && !hasActiveScript) {
